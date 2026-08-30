@@ -32,6 +32,8 @@ export type TranscriptPart =
    * reasoning summaries. The branch is universal; only the harnesses that fill it differ.
    */
   | { kind: "thinking"; text: string; truncated?: boolean }
+  /** Image bytes persisted by the harness at this exact point in the conversation. */
+  | { kind: "image"; url: string; alt: string }
   /** A tool call. `result` is filled in from the result row that answers it, when one exists. */
   | {
       kind: "tool";

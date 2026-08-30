@@ -501,33 +501,30 @@ describe("AgentChat — shared header: stale-status dimming", () => {
   });
 });
 
-// The History affordance opens the agent's own transcript — the only real scrollback a Claude pane
-// has, because its terminal runs on the alternate screen and Herdr retains nothing behind the
-// viewport. It's gated on the pane actually reporting an agent session, so the button can never
-// lead to an empty screen.
-describe("AgentChat — history affordance", () => {
-  it("is offered when the pane reports an agent session id", () => {
+describe("AgentChat — conversation-first surface", () => {
+  it("opens the structured conversation by default when the pane has a session", async () => {
     const agent = { ...fixtureAgents[0]!, hasSession: true };
     renderChat({ agent, agents: [agent] });
-    expect(screen.getByRole("button", { name: /conversation history/i })).toBeInTheDocument();
+    expect(await screen.findByText("what changed today?")).toBeInTheDocument();
+    expect(screen.queryByText("recent pane output")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open terminal/i })).toBeInTheDocument();
   });
 
-  it("is hidden when the pane has no agent session (a shell, or a harness without one)", () => {
+  it("keeps the terminal as the default when the pane has no session", () => {
     renderChat(); // fixture agents carry no session
-    expect(screen.queryByRole("button", { name: /conversation history/i })).not.toBeInTheDocument();
+    expect(screen.getByText("recent pane output")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /open terminal/i })).not.toBeInTheDocument();
   });
 
-  // Deliberate placement, not an accident of slot order: the status pill stays the rightmost thing on
-  // the pane screen (it's what you glance at), so History sits to its LEFT.
-  //
-  // (The top-of-mirror affordance is covered separately below.)
-  it("sits to the LEFT of the status pill", () => {
+  it("switches to the terminal and back without leaving the pane", async () => {
+    const user = userEvent.setup();
     const agent = { ...fixtureAgents[0]!, hasSession: true };
     renderChat({ agent, agents: [agent] });
-    const history = screen.getByRole("button", { name: /conversation history/i });
-    const pill = screen.getByText("needs you"); // fixtureAgents[0] is blocked → "needs you"
-    // Node.compareDocumentPosition: FOLLOWING (4) means the pill comes after History in the DOM.
-    expect(history.compareDocumentPosition(pill) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await screen.findByText("what changed today?");
+    await user.click(screen.getByRole("button", { name: /open terminal/i }));
+    expect(screen.getByText("recent pane output")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /open conversation/i }));
+    expect(await screen.findByText("what changed today?")).toBeInTheDocument();
   });
 });
 
@@ -539,10 +536,11 @@ describe("AgentChat — top-of-mirror history affordance", () => {
   const showHistory = () => screen.queryByRole("button", { name: /show entire history/i });
   const loadOlder = () => screen.queryByRole("button", { name: /load older/i });
 
-  it("an agent pane with a transcript offers the full history, not scrollback paging", () => {
+  it("an agent pane terminal offers the full history, not scrollback paging", async () => {
     // A Claude pane: alt-screen, so readableLines is just its viewport — there IS no scrollback.
     const agent = { ...fixtureAgents[0]!, hasSession: true, readableLines: 51 };
     renderChat({ agent, agents: [agent], requestedLines: 600 });
+    await userEvent.click(screen.getByRole("button", { name: /open terminal/i }));
     expect(showHistory()).toBeInTheDocument();
     expect(loadOlder()).not.toBeInTheDocument();
   });
@@ -575,9 +573,10 @@ describe("AgentChat — top-of-mirror history affordance", () => {
     expect(showHistory()).not.toBeInTheDocument();
   });
 
-  it("a transcript wins even when the pane also reports scrollback", () => {
+  it("a transcript wins even when the pane also reports scrollback", async () => {
     const agent = { ...fixtureAgents[0]!, hasSession: true, readableLines: 6946 };
     renderChat({ agent, agents: [agent], requestedLines: 600 });
+    await userEvent.click(screen.getByRole("button", { name: /open terminal/i }));
     expect(showHistory()).toBeInTheDocument();
     expect(loadOlder()).not.toBeInTheDocument();
   });

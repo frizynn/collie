@@ -66,6 +66,22 @@ describe("TranscriptView", () => {
     expect(screen.getByText(/abc1234 the commit body/)).toBeInTheDocument();
   });
 
+  it("compacts a consecutive tool run and reveals its actions on demand", async () => {
+    render(
+      <TranscriptView
+        entries={[
+          turn({ uuid: "a1", role: "assistant", parts: [{ kind: "tool", name: "Read", summary: "/a.ts" }] }),
+          turn({ uuid: "a2", role: "assistant", parts: [{ kind: "tool", name: "Bash", summary: "bun test" }] }),
+        ]}
+      />,
+    );
+    expect(screen.getByText("2 actions")).toBeInTheDocument();
+    expect(screen.queryByText("/a.ts")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /2 actions/i }));
+    expect(screen.getByText("/a.ts")).toBeInTheDocument();
+    expect(screen.getByText("bun test")).toBeInTheDocument();
+  });
+
   it("a tool call with no result isn't expandable (nothing to reveal)", () => {
     render(
       <TranscriptView
@@ -78,6 +94,26 @@ describe("TranscriptView", () => {
       />,
     );
     expect(screen.getByRole("button")).toBeDisabled();
+  });
+
+  it("renders an image inline with an accessible caption", () => {
+    render(
+      <TranscriptView
+        entries={[
+          turn({
+            role: "assistant",
+            parts: [
+              { kind: "image", url: "data:image/png;base64,aGVsbG8=", alt: "Generated preview" },
+            ],
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getByRole("img", { name: "Generated preview" })).toHaveAttribute(
+      "src",
+      "data:image/png;base64,aGVsbG8=",
+    );
+    expect(screen.getByText("Generated preview")).toBeInTheDocument();
   });
 
   it("flags truncated output rather than silently dropping the tail", async () => {

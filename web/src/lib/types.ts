@@ -206,6 +206,7 @@ export interface PaneReadResponse {
 export type TranscriptPart =
   | { kind: "text"; text: string; truncated?: boolean }
   | { kind: "thinking"; text: string; truncated?: boolean }
+  | { kind: "image"; url: string; alt: string }
   | {
       kind: "tool";
       name: string;

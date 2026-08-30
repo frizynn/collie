@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, Info, TriangleAlert, User, Wrench } from "lucide-react";
+import { ChevronRight, ImageIcon, Info, TriangleAlert, User, Wrench } from "lucide-react";
 
 import { AgentIcon } from "@/components/agent-icon";
 import { MarkdownText } from "@/components/markdown-text";
@@ -99,9 +99,64 @@ function ToolPart({ part, query }: { part: Extract<TranscriptPart, { kind: "tool
   );
 }
 
+function ToolRun({ entries, query }: { entries: TranscriptEntry[]; query: string }) {
+  const [open, setOpen] = useState(false);
+  const parts = entries.flatMap((entry) =>
+    entry.parts.filter((part): part is Extract<TranscriptPart, { kind: "tool" }> => part.kind === "tool"),
+  );
+  const failed = parts.some((part) => part.result?.isError === true);
+  const names = [...new Set(parts.map((part) => part.name))].slice(0, 3).join(", ");
+  return (
+    <div className="rounded-lg border bg-muted/25">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="flex min-h-10 w-full items-center gap-2 px-3 py-2 text-left"
+      >
+        {failed ? (
+          <TriangleAlert className="size-4 shrink-0 text-destructive" />
+        ) : (
+          <Wrench className="size-4 shrink-0 text-muted-foreground" />
+        )}
+        <span className="text-sm font-medium">{parts.length} actions</span>
+        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{names}</span>
+        <ChevronRight
+          className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="space-y-1.5 border-t p-2">
+          {parts.map((part, index) => (
+            <ToolPart key={index} part={part} query={query} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Part({ part, query }: { part: TranscriptPart; query: string }) {
   // Tool output is COMMAND output, not prose — it stays verbatim in a monospace block (see ToolPart).
   if (part.kind === "tool") return <ToolPart part={part} query={query} />;
+  if (part.kind === "image") {
+    return (
+      <figure className="overflow-hidden rounded-xl border bg-muted/20 shadow-sm">
+        <a href={part.url} target="_blank" rel="noreferrer" className="block bg-black/5 dark:bg-white/5">
+          <img
+            src={part.url}
+            alt={part.alt}
+            loading="lazy"
+            className="max-h-[32rem] w-full object-contain"
+          />
+        </a>
+        <figcaption className="flex items-center gap-1.5 border-t px-3 py-2 text-xs text-muted-foreground">
+          <ImageIcon className="size-3.5" />
+          {part.alt}
+        </figcaption>
+      </figure>
+    );
+  }
   // Prose is Markdown, so it renders formatted. MarkdownText emits React elements only — never
   // markup — so this keeps the same XSS boundary the raw text node had.
   return (
@@ -192,9 +247,33 @@ export function TranscriptView({
   // scroll length with nothing new in it. A day divider always restarts a run.
   let lastDay = "";
   let lastRole = "";
+  const compactTools = query === "" && focusedUuid === undefined;
+  const timeline: Array<
+    { kind: "entry"; entry: TranscriptEntry } | { kind: "tools"; entries: TranscriptEntry[] }
+  > = [];
+  for (let index = 0; index < entries.length; index++) {
+    const entry = entries[index]!;
+    const onlyTools =
+      entry.role === "assistant" &&
+      entry.parts.length > 0 &&
+      entry.parts.every((part) => part.kind === "tool");
+    if (!compactTools || !onlyTools) {
+      timeline.push({ kind: "entry", entry });
+      continue;
+    }
+    const run = [entry];
+    while (index + 1 < entries.length) {
+      const next = entries[index + 1]!;
+      if (next.role !== "assistant" || next.parts.length === 0 || !next.parts.every((part) => part.kind === "tool")) break;
+      run.push(next);
+      index++;
+    }
+    timeline.push(run.length > 1 ? { kind: "tools", entries: run } : { kind: "entry", entry });
+  }
   return (
     <div className="space-y-3">
-      {entries.map((entry) => {
+      {timeline.map((item) => {
+        const entry = item.kind === "entry" ? item.entry : item.entries[0]!;
         const day = dayKey(entry.ts);
         const newDay = day !== "" && day !== lastDay;
         if (newDay) lastDay = day;
@@ -217,7 +296,21 @@ export function TranscriptView({
                 <div className="h-px flex-1 bg-border" />
               </div>
             )}
-            <Turn entry={entry} agent={agent} showHeader={showHeader} query={query} />
+            {item.kind === "tools" ? (
+              <div className="space-y-1.5 px-1">
+                {showHeader && (
+                  <div className="flex items-center gap-1.5">
+                    <AgentIcon agent={agent ?? "claude"} className="size-4" />
+                    <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                      {agent ?? "agent"}
+                    </span>
+                  </div>
+                )}
+                <ToolRun entries={item.entries} query={query} />
+              </div>
+            ) : (
+              <Turn entry={entry} agent={agent} showHeader={showHeader} query={query} />
+            )}
           </div>
         );
       })}

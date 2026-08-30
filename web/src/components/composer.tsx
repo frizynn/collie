@@ -42,6 +42,8 @@ interface ComposerProps {
   agent: string | undefined | null;
   /** True for a bare shell pane (tweaks the placeholder copy). */
   isShell: boolean;
+  /** Hide terminal-only controls while the structured conversation is the active surface. */
+  conversationMode?: boolean;
   /** Pane is gone (no agent) — locks the composer with a distinct placeholder. */
   gone: boolean;
   /** This device isn't authorised to type — locks the composer with a distinct placeholder. */
@@ -138,7 +140,7 @@ function ComposerDock({
 }
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  { paneId, session, agent, isShell, gone, readOnly, dialogPresent, text, terminalDraft, rawTerminalDraft, prefs, setWrap, stepFontSize, setRawTerminal, setTapToFocus, onSent },
+  { paneId, session, agent, isShell, conversationMode = false, gone, readOnly, dialogPresent, text, terminalDraft, rawTerminalDraft, prefs, setWrap, stepFontSize, setRawTerminal, setTapToFocus, onSent },
   ref,
 ) {
   const revalidator = useRevalidator();
@@ -727,7 +729,12 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
   return (
     <>
-      <div className="border-t border-border/60 bg-muted px-3 pb-[calc(env(safe-area-inset-bottom)_+_0.5rem)] pt-2.5">
+      <div
+        className={cn(
+          "border-t border-border/60 px-3 pb-[calc(env(safe-area-inset-bottom)_+_0.5rem)] pt-2.5",
+          conversationMode ? "bg-background" : "bg-muted",
+        )}
+      >
         {/* Pending-send preview: visible from send until the mirror echoes back (or 6s). Shows the
             user what landed so they don't double-tap while waiting for the terminal to update. */}
         {lastSent && (
@@ -750,7 +757,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             mounts the NavTray (unmounts on close, so tab/queue reset each open); Quick mounts the two
             one-tap reply grids; Display mounts the labelled mirror prefs. Agent stays a covering
             BottomSheet below (it's a palette, not a pad). */}
-        {drawer === "keys" && (
+        {!conversationMode && drawer === "keys" && (
           <ComposerDock title="Keys" onClose={closeDrawer}>
             <NavTray
               onSend={pressKeys}
@@ -760,7 +767,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             />
           </ComposerDock>
         )}
-        {drawer === "quick" && (
+        {!conversationMode && drawer === "quick" && (
           <ComposerDock title="Quick" onClose={closeDrawer}>
             <QuickActionsContent
               onSend={(t) => send(t, false)}
@@ -771,7 +778,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             />
           </ComposerDock>
         )}
-        {drawer === "display" && (
+        {!conversationMode && drawer === "display" && (
           <ComposerDock title="Display" onClose={closeDrawer}>
             <DisplayPrefsContent
               prefs={prefs}
@@ -792,7 +799,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             which is what squeezed the toggles; absolute costs nothing and the row gets the width
             back. `pt-3` on the row reserves the space it occupies so it can't collide with whatever
             sits above. */}
-        <div className="relative mb-2 flex items-center gap-2 pt-3">
+        {!conversationMode && <div className="relative mb-2 flex items-center gap-2 pt-3">
           <SectionLabel className="absolute left-0 top-0 text-[10px] leading-none opacity-80">
             Controls
           </SectionLabel>
@@ -878,7 +885,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           >
             <Settings2 className="size-4" />
           </Button>
-        </div>
+        </div>}
         {/* Terminal-draft preview: a read-only view of a stranded "❯"-line draft (a message queued
             then recalled on the HOST, which stripChrome hides from the mirror). It appears only after
             the draft stabilises (never a blip/self-echo), then its text tracks the live line — host

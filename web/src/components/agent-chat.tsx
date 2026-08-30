@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useNavigate, useRevalidator } from "react-router";
-import { ArrowUpToLine, Loader2, ScrollText, Search, TerminalSquare } from "lucide-react";
+import { ArrowUpToLine, Loader2, MessageSquare, ScrollText, Search, TerminalSquare } from "lucide-react";
 import { useSwipeUp } from "@/hooks/use-swipe";
 import { useSpaceActions } from "@/hooks/use-spaces";
 import { useDashPrefs, openForCount } from "@/hooks/use-dash-prefs";
@@ -22,6 +22,7 @@ import { FindBar } from "@/components/find-bar";
 import { Composer, type ComposerHandle } from "@/components/composer";
 import { ThreadSidebar } from "@/components/agent-sidebar";
 import { AgentIcon } from "@/components/agent-icon";
+import { LiveConversation } from "@/components/live-conversation";
 import { TabStrip } from "@/components/tab-strip";
 import { PaneStrip } from "@/components/pane-strip";
 import { ReadOnlyBanner } from "@/components/read-only-banner";
@@ -120,6 +121,14 @@ export function AgentChat({
   // so a mis-detected/mis-rendered dialog can always be driven by hand with the keys pad.
   const grammarsOn = !prefs.rawTerminal;
   const isShell = agent?.kind === "shell";
+  const conversationAvailable = Boolean(agent?.hasSession && !isShell);
+  const [surface, setSurface] = useState<"conversation" | "terminal">(() =>
+    conversationAvailable ? "conversation" : "terminal",
+  );
+  const [conversationRefresh, setConversationRefresh] = useState(0);
+  useEffect(() => {
+    if (!conversationAvailable) setSurface("terminal");
+  }, [conversationAvailable]);
   // This device isn't allowlisted to type into agents: the backend rejects every write, so the
   // composer drops to read-only (and shows a banner). The mirror still polls (reading is fine).
   const readOnly = isReadOnly(device);
@@ -307,6 +316,7 @@ export function AgentChat({
   // After a successful send, snap the mirror back to the live tail so the reply's result is visible.
   const onSent = () => {
     setFollowing(true);
+    setConversationRefresh((value) => value + 1);
     revalidator.revalidate();
     listRef.current?.scrollToBottom();
   };
@@ -603,7 +613,7 @@ export function AgentChat({
         rightLead={
           agent ? (
             <>
-              {display && (
+              {surface === "terminal" && display && (
                 <button
                   type="button"
                   onClick={openFind}
@@ -613,14 +623,22 @@ export function AgentChat({
                   <Search className="size-4" />
                 </button>
               )}
-              {agent.hasSession && (
+              {conversationAvailable && (
                 <button
                   type="button"
-                  onClick={() => navigate(historyPath(paneId, session))}
-                  aria-label="Conversation history"
-                  className="-mr-1 flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60"
+                  onClick={() => {
+                    closeFind();
+                    setSurface((value) => (value === "conversation" ? "terminal" : "conversation"));
+                  }}
+                  aria-label={surface === "conversation" ? "Open terminal" : "Open conversation"}
+                  title={surface === "conversation" ? "Open terminal" : "Open conversation"}
+                  className="-mr-1 flex size-8 items-center justify-center rounded-lg border border-border/70 text-muted-foreground transition-colors active:bg-muted/60"
                 >
-                  <ScrollText className="size-4" />
+                  {surface === "conversation" ? (
+                    <TerminalSquare className="size-4" />
+                  ) : (
+                    <MessageSquare className="size-4" />
+                  )}
                 </button>
               )}
               {isShell ? (
@@ -729,6 +747,30 @@ export function AgentChat({
             straight into terminal output — the chrome and the mirror read as one surface. Drawing it
             here rather than as a border-b on PaneStrip covers the case where that strip is absent
             (a tab holding a single pane), which is the common one. */}
+        {surface === "conversation" ? (
+          <div className="relative min-h-0 min-w-0 flex-1 border-t border-border/40 bg-background">
+            {dialogPresent && (
+              <div className="absolute inset-x-3 top-3 z-10 flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-background/95 px-3 py-2 shadow-sm backdrop-blur">
+                <p className="text-xs text-muted-foreground">The agent needs an interactive terminal response.</p>
+                <button
+                  type="button"
+                  onClick={() => setSurface("terminal")}
+                  className="shrink-0 rounded-lg bg-amber-500 px-2.5 py-1.5 text-xs font-semibold text-black"
+                >
+                  Open terminal
+                </button>
+              </div>
+            )}
+            <LiveConversation
+              paneId={paneId}
+              session={session}
+              agent={agent?.agent}
+              revision={revision}
+              refreshToken={conversationRefresh}
+              onOpenTerminal={() => setSurface("terminal")}
+            />
+          </div>
+        ) : (
         <div className="min-h-0 min-w-0 flex-1 border-t border-border/40" onClick={focusFromMirror}>
           <ChatMessageList
             ref={listRef}
@@ -798,6 +840,7 @@ export function AgentChat({
             )}
           </ChatMessageList>
         </div>
+        )}
 
         {/* Bottom region: the pane-switch handle + composer. The status line USED to float here as an
             overlay just above the composer, but it covered the terminal tail (the prompt/cursor and
@@ -833,7 +876,7 @@ export function AgentChat({
               user themselves configured in the TUI, so it reads as the same thing they know.
               Height is bounded upstream (MAX_STATUS_LINES caps the run stripChrome will claim), so
               there is no second cap here; the mirror is a flex child that shrinks, never pushed off. */}
-          {statusLines.length > 0 && (
+          {surface === "terminal" && statusLines.length > 0 && (
             <div
               className={cn(
                 "border-t border-border/40 px-3 py-1 font-mono text-[11px] leading-tight",
@@ -868,6 +911,7 @@ export function AgentChat({
             session={session}
             agent={agent?.agent}
             isShell={isShell}
+            conversationMode={surface === "conversation"}
             gone={gone}
             readOnly={readOnly}
             dialogPresent={dialogPresent}
