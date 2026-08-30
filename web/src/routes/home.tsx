@@ -11,7 +11,6 @@ import { StatusArea } from "@/components/status-area";
 import { BuildStamp } from "@/components/build-stamp";
 import { UpdateBanner } from "@/components/update-banner";
 import { useDashPrefs, openForCount } from "@/hooks/use-dash-prefs";
-import { useLoadingStalled } from "@/hooks/use-loading-stalled";
 import { useSpaceActions } from "@/hooks/use-spaces";
 import { ROOT_ROUTE_ID, type HomeData } from "@/lib/loaders";
 import { panePath, spacePath } from "@/lib/nav";
@@ -25,10 +24,6 @@ export function HomeRoute() {
   // and this route is one of its children — so it only ever renders under a settled run of that
   // loader, whose return type IS HomeData.
   const data = useRouteLoaderData(ROOT_ROUTE_ID) as HomeData;
-  // A stalled load (a black-holed poll, or a pane-open tap whose navigation hangs) gallops the
-  // Collie mark within the threshold — instant feedback while you're still on the dashboard, even
-  // though the tap otherwise shows no visual change until its loader finally settles or times out.
-  const stalled = useLoadingStalled();
   const navigate = useNavigate();
   const { newSpace } = useSpaceActions();
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
@@ -47,7 +42,6 @@ export function HomeRoute() {
       <AppHeader
         bridge={data.bridge}
         error={data.error}
-        stalled={stalled}
         wordmark
         rightLead={<SessionSwitcher sessions={data.sessions ?? []} current={data.session} />}
         rightTrail={<SettingsGear session={data.session} />}

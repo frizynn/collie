@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { useLoaderData, useLocation, useNavigate, useParams, useRouteLoaderData } from "react-router";
 
 import { AgentChat } from "@/components/agent-chat";
-import { useLoadingStalled } from "@/hooks/use-loading-stalled";
 import { ROOT_ROUTE_ID, type HomeData, type PaneData } from "@/lib/loaders";
 import { homePath, panePath } from "@/lib/nav";
 import { setStatus } from "@/lib/status";
@@ -22,7 +21,6 @@ export function DetailRoute() {
   const session = pane.session;
   const navigate = useNavigate();
   const location = useLocation();
-  const stalled = useLoadingStalled();
 
   const fresh = (location.state as { freshPane?: AgentView } | null)?.freshPane;
   const inSnapshot =
@@ -74,7 +72,6 @@ export function DetailRoute() {
       device={root.device}
       bridge={root.bridge}
       error={root.error}
-      stalled={stalled}
       onBack={() => navigate(homePath(session))}
       onSelect={(id) => navigate(panePath(id, session))}
     />

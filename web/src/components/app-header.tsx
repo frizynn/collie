@@ -16,7 +16,6 @@ interface AppHeaderProps {
   // RootLayout) owns all connection copy, so a healthy header is just the mark + the caller's own items.
   bridge: BridgeStatus | undefined;
   error: boolean;
-  stalled?: boolean;
 
   /** Tapping the Collie mark returns to the dashboard. A callback, not a `<Link to="/">`: the
    *  dashboard and the drilled-in space view share the "/" route, so a same-route link would no-op. */
@@ -49,7 +48,6 @@ interface AppHeaderProps {
 export function AppHeader({
   bridge,
   error,
-  stalled,
   onHome,
   wordmark,
   children,
@@ -59,7 +57,7 @@ export function AppHeader({
 }: AppHeaderProps) {
   // The same two shared-clock signals the ConnectionBanner reads, so the dog and the bar agree by
   // construction: gallop while troubled (≥4s not-live), rest muted once lost (≥15s, latched).
-  const connecting = isConnecting({ bridge, error, stalled });
+  const connecting = isConnecting({ bridge, error });
   const trouble = useConnectionTrouble(connecting);
   const lost = useConnectionLost(connecting);
   return (
