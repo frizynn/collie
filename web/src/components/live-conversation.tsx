@@ -4,19 +4,28 @@ import { Loader2, RefreshCw, TerminalSquare } from "lucide-react";
 import { ChatMessageList } from "@/components/ui/chat/chat-message-list";
 import { TranscriptView } from "@/components/transcript-view";
 import { fetchHistory } from "@/lib/api";
-import type { PaneHistoryResponse } from "@/lib/types";
+import type { AgentStatus, PaneHistoryResponse } from "@/lib/types";
 
 interface LiveConversationProps {
   paneId: string;
   session?: string;
   agent?: string;
+  status?: AgentStatus;
   revision: number;
   refreshToken: number;
   onOpenTerminal: () => void;
 }
 
 /** Live, UI-first projection of the harness journal. The terminal stays the transport and fallback. */
-export function LiveConversation({ paneId, session, agent, revision, refreshToken, onOpenTerminal }: LiveConversationProps) {
+export function LiveConversation({
+  paneId,
+  session,
+  agent,
+  status,
+  revision,
+  refreshToken,
+  onOpenTerminal,
+}: LiveConversationProps) {
   const [response, setResponse] = useState<PaneHistoryResponse | null>(null);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -36,8 +45,10 @@ export function LiveConversation({ paneId, session, agent, revision, refreshToke
   const dep = useMemo(() => {
     if (!response?.available) return "empty";
     const last = response.entries.at(-1);
-    return `${response.entries.length}:${last?.uuid ?? ""}`;
-  }, [response]);
+    return `${response.entries.length}:${last?.uuid ?? ""}:${status ?? "unknown"}`;
+  }, [response, status]);
+
+  const agentLabel = agent ? `${agent.charAt(0).toUpperCase()}${agent.slice(1)}` : "Agent";
 
   if (error && response === null) {
     return (
@@ -101,6 +112,16 @@ export function LiveConversation({ paneId, session, agent, revision, refreshToke
           </p>
         )}
         <TranscriptView entries={response.entries} agent={agent} />
+        {status === "working" && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-3 flex min-h-10 items-center gap-2 px-1 text-sm text-muted-foreground"
+          >
+            <Loader2 className="size-4 animate-spin" />
+            <span>{agentLabel} is thinking…</span>
+          </div>
+        )}
       </div>
     </ChatMessageList>
   );

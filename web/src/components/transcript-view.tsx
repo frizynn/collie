@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, ImageIcon, Info, TriangleAlert, User, Wrench } from "lucide-react";
+import { BrainCircuit, ChevronRight, ImageIcon, Info, TriangleAlert, User, Wrench } from "lucide-react";
 
 import { AgentIcon } from "@/components/agent-icon";
 import { MarkdownText } from "@/components/markdown-text";
@@ -136,9 +136,43 @@ function ToolRun({ entries, query }: { entries: TranscriptEntry[]; query: string
   );
 }
 
+function ThinkingPart({
+  part,
+  query,
+}: {
+  part: Extract<TranscriptPart, { kind: "thinking" }>;
+  query: string;
+}) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="rounded-lg border border-border/70 bg-muted/25">
+      <button
+        type="button"
+        aria-label="Reasoning"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex min-h-10 w-full items-center gap-2 px-3 py-2 text-left"
+      >
+        <BrainCircuit className="size-4 shrink-0 text-muted-foreground" />
+        <span className="flex-1 text-sm font-medium">Reasoning</span>
+        <ChevronRight
+          className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="border-t px-3 py-2 text-muted-foreground">
+          <MarkdownText text={part.text} query={query} />
+          {part.truncated && <div className="text-xs text-muted-foreground">… truncated</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Part({ part, query }: { part: TranscriptPart; query: string }) {
   // Tool output is COMMAND output, not prose — it stays verbatim in a monospace block (see ToolPart).
   if (part.kind === "tool") return <ToolPart part={part} query={query} />;
+  if (part.kind === "thinking") return <ThinkingPart part={part} query={query} />;
   if (part.kind === "image") {
     return (
       <figure className="overflow-hidden rounded-xl border bg-muted/20 shadow-sm">
@@ -164,7 +198,6 @@ function Part({ part, query }: { part: TranscriptPart; query: string }) {
       <MarkdownText
         text={part.text}
         query={query}
-        className={part.kind === "thinking" ? "italic text-muted-foreground" : undefined}
       />
       {part.truncated && <div className="text-xs text-muted-foreground">… truncated</div>}
     </div>

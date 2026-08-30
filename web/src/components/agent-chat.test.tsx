@@ -526,6 +526,13 @@ describe("AgentChat — conversation-first surface", () => {
     await user.click(screen.getByRole("button", { name: /open conversation/i }));
     expect(await screen.findByText("what changed today?")).toBeInTheDocument();
   });
+
+  it("shows live thinking state while a conversation agent is working", async () => {
+    const agent = { ...fixtureAgents[1]!, hasSession: true, status: "working" as const };
+    renderChat({ agent, agents: [agent] });
+
+    expect(await screen.findByText("Codex is thinking…")).toBeInTheDocument();
+  });
 });
 
 // The top-of-mirror affordance. This block previously rendered on NO pane at all: it was gated on

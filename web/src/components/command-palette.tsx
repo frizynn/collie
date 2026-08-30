@@ -46,7 +46,7 @@ export function CommandPalette({
         (c) =>
           c.command.toLowerCase().includes(q) || c.description.toLowerCase().includes(q),
       )
-    : all.filter((c) => c.common);
+    : all;
 
   function pick(c: AgentCommand) {
     if (c.takesArg) {
@@ -77,18 +77,13 @@ export function CommandPalette({
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}
+          autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={`Search ${all.length} commands…`}
           className="h-11 w-full rounded-md border border-input bg-transparent pl-9 pr-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring"
         />
       </div>
-
-      {!q && (
-        <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-          Common · type to search all {all.length}
-        </p>
-      )}
 
       <div className="flex flex-col gap-1">
         {list.length === 0 && (

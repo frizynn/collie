@@ -433,6 +433,15 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   // The Keys tray's preset row, resolved the same way from the same one-shot read of /api/config.
   const keyPresets = ctrlPresetsFor(agent, useOperatorKeys());
 
+  // Match the native agent composers: a leading slash is the command-menu gesture, not ordinary
+  // prose. Keep the slash in the saved draft until a row is chosen, so closing the palette never
+  // destroys what the operator typed.
+  useEffect(() => {
+    if (conversationMode && !direct.active && input === "/" && commands.length > 0) {
+      setDrawer("cmd");
+    }
+  }, [conversationMode, direct.active, input, commands.length]);
+
   function focusInputImmediately() {
     const el = inputRef.current;
     if (!el) return;
@@ -674,8 +683,19 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   // typed (with a separating space) rather than clobbering it; an empty draft just gets set.
   function insertCommand(value: string) {
     direct.deactivateSilently();
-    updateInput((prev) => (prev.trim() ? `${prev.trimEnd()} ${value}` : value));
+    updateInput((prev) =>
+      /^\/\S*$/.test(prev.trim())
+        ? value
+        : prev.trim()
+          ? `${prev.trimEnd()} ${value}`
+          : value,
+    );
     focusInputEnd();
+  }
+
+  function submitCommand(value: string) {
+    if (/^\/\S*$/.test(inputValueRef.current.trim())) updateInput("");
+    void send(value, false);
   }
 
   // Upload an image; on success append its host path to the composer so the user can add context.
@@ -757,7 +777,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             mounts the NavTray (unmounts on close, so tab/queue reset each open); Quick mounts the two
             one-tap reply grids; Display mounts the labelled mirror prefs. Agent stays a covering
             BottomSheet below (it's a palette, not a pad). */}
-        {!conversationMode && drawer === "keys" && (
+        {drawer === "keys" && (
           <ComposerDock title="Keys" onClose={closeDrawer}>
             <NavTray
               onSend={pressKeys}
@@ -767,7 +787,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             />
           </ComposerDock>
         )}
-        {!conversationMode && drawer === "quick" && (
+        {drawer === "quick" && (
           <ComposerDock title="Quick" onClose={closeDrawer}>
             <QuickActionsContent
               onSend={(t) => send(t, false)}
@@ -799,9 +819,9 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             which is what squeezed the toggles; absolute costs nothing and the row gets the width
             back. `pt-3` on the row reserves the space it occupies so it can't collide with whatever
             sits above. */}
-        {!conversationMode && <div className="relative mb-2 flex items-center gap-2 pt-3">
+        <div className="relative mb-2 flex items-center gap-2 pt-3">
           <SectionLabel className="absolute left-0 top-0 text-[10px] leading-none opacity-80">
-            Controls
+            {conversationMode ? "Tools" : "Controls"}
           </SectionLabel>
           {/* Keys and Quick are TOGGLES for the in-flow dock above (not overlays): tap to open, tap
               again to close. aria-expanded ties each to the dock; secondary variant marks it pressed
@@ -828,28 +848,30 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               above the input is what makes that visible. Arming is still an explicit NAMED choice,
               which is what keeps an accidental touch from quietly wiring the keyboard to a live
               terminal; see use-direct-typing.ts for the rest of that argument. */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn("h-8 flex-1 gap-1.5", direct.active ? CONTROL_ON : CONTROL_OFF)}
-            disabled={locked || sending}
-            aria-pressed={direct.active}
-            aria-label="Type into terminal"
-            onClick={() => {
-              if (direct.active) {
-                direct.deactivate();
-                return;
-              }
-              // Close whatever dock is open first: the mode needs the phone keyboard, and a dock
-              // holding half the viewport is the thing in its way. Routed through requestDrawer so a
-              // staged key queue still gets its discard confirm (ADR 0005).
-              requestDrawer(null);
-              direct.activate();
-            }}
-          >
-            <Terminal className="size-4" />
-            Type
-          </Button>
+          {!conversationMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn("h-8 flex-1 gap-1.5", direct.active ? CONTROL_ON : CONTROL_OFF)}
+              disabled={locked || sending}
+              aria-pressed={direct.active}
+              aria-label="Type into terminal"
+              onClick={() => {
+                if (direct.active) {
+                  direct.deactivate();
+                  return;
+                }
+                // Close whatever dock is open first: the mode needs the phone keyboard, and a dock
+                // holding half the viewport is the thing in its way. Routed through requestDrawer so a
+                // staged key queue still gets its discard confirm (ADR 0005).
+                requestDrawer(null);
+                direct.activate();
+              }}
+            >
+              <Terminal className="size-4" />
+              Type
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -875,17 +897,19 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           )}
           {/* Display prefs. Not gated on `locked`: wrap/font/raw-terminal are local view state, so a
               read-only device or a gone pane can still make its mirror readable. */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn("size-8 shrink-0", drawer === "display" ? CONTROL_ON : CONTROL_OFF)}
-            aria-label="Display settings"
-            aria-expanded={drawer === "display"}
-            onClick={() => requestDrawer(drawer === "display" ? null : "display")}
-          >
-            <Settings2 className="size-4" />
-          </Button>
-        </div>}
+          {!conversationMode && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("size-8 shrink-0", drawer === "display" ? CONTROL_ON : CONTROL_OFF)}
+              aria-label="Display settings"
+              aria-expanded={drawer === "display"}
+              onClick={() => requestDrawer(drawer === "display" ? null : "display")}
+            >
+              <Settings2 className="size-4" />
+            </Button>
+          )}
+        </div>
         {/* Terminal-draft preview: a read-only view of a stranded "❯"-line draft (a message queued
             then recalled on the HOST, which stripChrome hides from the mirror). It appears only after
             the draft stabilises (never a blip/self-echo), then its text tracks the live line — host
@@ -1066,7 +1090,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         agent={agent}
         mine={operatorCommands}
         onInsert={insertCommand}
-        onSubmit={(t) => send(t, false)}
+        onSubmit={submitCommand}
       />
     </>
   );

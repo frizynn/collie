@@ -765,6 +765,7 @@ export function AgentChat({
               paneId={paneId}
               session={session}
               agent={agent?.agent}
+              status={agent?.status}
               revision={revision}
               refreshToken={conversationRefresh}
               onOpenTerminal={() => setSurface("terminal")}

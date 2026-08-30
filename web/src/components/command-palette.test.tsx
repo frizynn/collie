@@ -18,11 +18,11 @@ function setup(overrides?: { agent?: string | null; mine?: OperatorCommand[] }) 
 }
 
 describe("CommandPalette", () => {
-  it("shows only common commands when the query is empty", () => {
+  it("shows the full command catalog when the query is empty", () => {
     setup();
-    // /status is common; /doctor is not.
     expect(screen.getByText("/status")).toBeInTheDocument();
-    expect(screen.queryByText("/doctor")).toBeNull();
+    expect(screen.getByText("/doctor")).toBeInTheDocument();
+    expect(screen.getByText("/skills")).toBeInTheDocument();
   });
 
   it("filters across the full catalog as you type", async () => {

@@ -18,6 +18,28 @@ const turn = (over: Partial<TranscriptEntry> = {}): TranscriptEntry => ({
 });
 
 describe("TranscriptView", () => {
+  it("labels reasoning clearly and lets the user collapse it", async () => {
+    const user = userEvent.setup();
+    render(
+      <TranscriptView
+        agent="codex"
+        entries={[
+          turn({
+            role: "assistant",
+            parts: [{ kind: "thinking", text: "I will inspect the parser first." }],
+          }),
+        ]}
+      />,
+    );
+
+    const toggle = screen.getByRole("button", { name: "Reasoning" });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("I will inspect the parser first.")).toBeInTheDocument();
+
+    await user.click(toggle);
+    expect(screen.queryByText("I will inspect the parser first.")).not.toBeInTheDocument();
+  });
+
   it("renders a human turn and an assistant turn with their role labels", () => {
     render(
       <TranscriptView

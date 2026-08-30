@@ -1678,6 +1678,29 @@ describe("Composer — clipboard image paste", () => {
   });
 });
 
+describe("Composer — conversation-first controls", () => {
+  it("keeps Keys available in the conversation-first composer", async () => {
+    const user = userEvent.setup();
+    renderComposer({ conversationMode: true });
+
+    await user.click(screen.getByRole("button", { name: "Keys" }));
+
+    expect(screen.getByRole("button", { name: "Close Keys" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Esc" })).toBeInTheDocument();
+  });
+
+  it("opens the full agent command and skill menu when a draft starts with slash", async () => {
+    const user = userEvent.setup();
+    renderComposer({ agent: "codex", conversationMode: true });
+
+    await user.type(screen.getByPlaceholderText(/type a reply/i), "/");
+
+    expect(await screen.findByRole("dialog", { name: "Agent commands" })).toBeInTheDocument();
+    expect(screen.getByText("/skills")).toBeInTheDocument();
+    expect(screen.getByText("/status")).toBeInTheDocument();
+  });
+});
+
 describe("Composer — keys dock (in-flow, not an overlay)", () => {
   it("tapping Keys docks the NavTray in the normal flow (no fixed overlay) and toggles it closed", async () => {
     const user = userEvent.setup();
