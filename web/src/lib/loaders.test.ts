@@ -126,6 +126,32 @@ describe("paneLoader", () => {
     expect(data.text).toBe(paneTextWithDraft());
   });
 
+  it("prefetches the recent conversation tail during pane navigation", async () => {
+    let limit = "";
+    server.use(
+      http.get(/\/api\/pane\/[^/]+\/history/, ({ request }) => {
+        limit = new URL(request.url).searchParams.get("limit") ?? "";
+        return HttpResponse.json({
+          paneId: "w1:p1",
+          available: true,
+          entries: [],
+          hasMore: true,
+          total: 100,
+          fileTruncated: false,
+        });
+      }),
+    );
+
+    const { paneLoader } = await import("./loaders");
+    const data = await paneLoader({
+      params: { paneId: "w1:p1" },
+      request: new Request("http://localhost/pane/w1%3Ap1"),
+    });
+
+    expect(limit).toBe("25");
+    expect(data.initialHistory).toMatchObject({ available: true, total: 100 });
+  });
+
   it.each([401, 403] as const)("marks a %i response as an auth error", async (status) => {
     rejectPane(status);
     const { paneLoader } = await import("./loaders");

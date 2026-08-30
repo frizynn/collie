@@ -18,6 +18,10 @@ import type {
 
 export type { NotifyPrefs, UpdateInfo };
 
+// Hot conversation tail used by the UI-first pane. Keep this small: older turns are explicitly
+// paged, while this request runs on pane-open and live refreshes over high-latency links.
+export const RECENT_HISTORY_LIMIT = 25;
+
 /**
  * Marks every API request as XHR so a fronting identity proxy answers it with a status we can read.
  *

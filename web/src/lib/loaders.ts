@@ -13,7 +13,13 @@
 // no flag, no race — and because a navigation aborts any in-flight revalidation, the nav is instant
 // even while a poll's doomed fetch is still hanging.
 
-import { fetchHistory, fetchPane, fetchSnapshot, isApiErrorStatus } from "@/lib/api";
+import {
+  fetchHistory,
+  fetchPane,
+  fetchSnapshot,
+  isApiErrorStatus,
+  RECENT_HISTORY_LIMIT,
+} from "@/lib/api";
 import { parseAnsi } from "@/lib/ansi";
 import { splitLines } from "@/lib/blocks";
 import { isLostLatched } from "@/lib/connection-health";
@@ -113,6 +119,8 @@ export interface PaneData {
   /** Herdr's monotonic revision for `text` — the prompt-select race guard checks against it. 0 on
    * the degraded (stale-text) path, where the guard's fresh fetch will reject a mismatch anyway. */
   revision: number;
+  /** Recent conversation tail fetched in parallel on navigation. Omitted on background polls. */
+  initialHistory?: PaneHistoryResponse;
   error: boolean;
   /** True when the failed refresh was rejected with HTTP 401 or 403. */
   authError: boolean;
@@ -390,7 +398,24 @@ export async function paneLoader({
     // On a 304 fetchPane returns the cached body, so `read.text` is populated either way; the
     // `?? lastPaneText` is just belt-and-suspenders. Both paths are a success (not the error
     // branch) so the connection bar doesn't flicker on an unchanged poll.
-    const read: PaneReadResponse = await fetchPane(paneId, lines, session, request?.signal);
+    const historyPromise: Promise<PaneHistoryResponse | undefined> = isNavigation
+      ? fetchHistory(
+          paneId,
+          { limit: RECENT_HISTORY_LIMIT },
+          session,
+          request?.signal,
+        ).catch((error: unknown) => {
+          if (isAbortError(error)) throw error;
+          // Conversation support is optional. A failed prefetch must not block the terminal pane;
+          // LiveConversation retries after mount and still offers the terminal fallback.
+          return undefined;
+        })
+      : Promise.resolve(undefined);
+    const [read, initialHistory]: [PaneReadResponse, PaneHistoryResponse | undefined] =
+      await Promise.all([
+        fetchPane(paneId, lines, session, request?.signal),
+        historyPromise,
+      ]);
     const text = read.text || lastPaneText.get(key) || "";
     rememberPaneText(key, text);
     // Write-through, EXCEPT while the pane is asking for a secret — see holdsNoEchoPrompt (ADR 0017).
@@ -404,6 +429,7 @@ export async function paneLoader({
       truncated: read.truncated,
       requestedLines: lines,
       revision: read.revision,
+      initialHistory,
       error: false,
       authError: false,
     };

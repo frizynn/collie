@@ -69,6 +69,7 @@ export function DetailRoute() {
       text={pane.text}
       requestedLines={pane.requestedLines}
       revision={pane.revision}
+      initialConversation={pane.initialHistory}
       device={root.device}
       bridge={root.bridge}
       error={root.error}

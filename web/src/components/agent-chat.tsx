@@ -40,7 +40,13 @@ import { canGrowRequestedLines, growRequestedLines } from "@/lib/loaders";
 import { shortCwd } from "@/lib/format";
 import { historyPath, spacePath } from "@/lib/nav";
 import { isReadOnly } from "@/lib/types";
-import type { AgentView, BridgeStatus, DeviceAuth, TabView } from "@/lib/types";
+import type {
+  AgentView,
+  BridgeStatus,
+  DeviceAuth,
+  PaneHistoryResponse,
+  TabView,
+} from "@/lib/types";
 import type {
   MenuModel,
   MultiSelectModel,
@@ -65,6 +71,8 @@ interface AgentChatProps {
   requestedLines?: number;
   /** The pane's `revision` for `text` — the race guard checks a tapped menu against this. */
   revision?: number;
+  /** Recent conversation tail prefetched by the pane loader on navigation. */
+  initialConversation?: PaneHistoryResponse;
   /** Per-device auth from the snapshot; an unauthorised device drops the composer to read-only. */
   device?: DeviceAuth;
   // Global connection state — fed straight to the shared AppHeader, which drives the header Collie
@@ -100,6 +108,7 @@ export function AgentChat({
   text,
   requestedLines = 0,
   revision = 0,
+  initialConversation,
   device,
   bridge = "connected",
   error = false,
@@ -765,6 +774,7 @@ export function AgentChat({
               status={agent?.status}
               revision={revision}
               refreshToken={conversationRefresh}
+              initialResponse={initialConversation}
               onOpenTerminal={() => setSurface("terminal")}
             />
           </div>
