@@ -23,7 +23,7 @@ function fixtureModel(name: string): PreviewSelectModel {
 describe("PreviewSelectBlock — presentation", () => {
   it("renders options as buttons, the pointed option's preview pane, and the add-note affordance", () => {
     const model = fixtureModel("claude--select-preview.txt");
-    render(<PreviewSelectBlock preview={model} onAction={vi.fn()} />);
+    const { container } = render(<PreviewSelectBlock preview={model} onAction={vi.fn()} />);
 
     expect(
       screen.getByRole("group", { name: "Which widget design should we use?" }),
@@ -31,11 +31,13 @@ describe("PreviewSelectBlock — presentation", () => {
     for (const label of ["Boxy", "Rounded", "Minimal"]) {
       expect(screen.getByRole("button", { name: new RegExp(label) })).toBeInTheDocument();
     }
-    // Each option leads with its terminal-menu digit (the KeyBadge affordance).
-    expect(within(screen.getByRole("button", { name: /Boxy/ })).getByText("1")).toBeInTheDocument();
+    expect(screen.getByText(model.question)).toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: /Boxy/ })).queryByText("1")).not.toBeInTheDocument();
     // The preview pane, captioned with the pointed option, verbatim as text.
     expect(screen.getByText(/Preview · Boxy/)).toBeInTheDocument();
     expect(screen.getByText(/WIDGET/)).toBeInTheDocument();
+    expect(container.querySelector("pre")).toBeNull();
+    expect(container.textContent).not.toContain("┌──");
     expect(screen.getByRole("button", { name: /Add a note/ })).toBeInTheDocument();
     // Single-question: no stepper navigation (the question/chip stays in the raw mirror above).
     expect(screen.queryByRole("button", { name: "Next step" })).not.toBeInTheDocument();
@@ -53,7 +55,7 @@ describe("PreviewSelectBlock — presentation", () => {
   it("locks everything behind the terminal-editing banner while the TUI input is focused", () => {
     const model = fixtureModel("claude--select-preview-note-input.txt");
     render(<PreviewSelectBlock preview={model} onAction={vi.fn()} />);
-    expect(screen.getByText(/being edited in the terminal/)).toBeInTheDocument();
+    expect(screen.getByText(/being edited in the agent session/)).toBeInTheDocument();
     for (const button of screen.getAllByRole("button")) expect(button).toBeDisabled();
   });
 

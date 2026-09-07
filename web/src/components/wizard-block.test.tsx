@@ -58,9 +58,8 @@ describe("WizardBlock — question step presentation", () => {
       expect(screen.getByRole("button", { name: new RegExp(label) })).toBeInTheDocument();
     }
     expect(screen.getByText(/parsing logic/)).toBeInTheDocument();
-    // Each answer leads with its terminal-menu digit (the KeyBadge affordance).
-    expect(within(screen.getByRole("button", { name: /Parser/ })).getByText("1")).toBeInTheDocument();
-    expect(within(screen.getByRole("button", { name: /Tests/ })).getByText("3")).toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: /Parser/ })).queryByText("1")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: /Tests/ })).queryByText("3")).not.toBeInTheDocument();
     const parser = screen.getByRole("button", { name: /Parser/ });
     parser.focus();
     expect(parser).toHaveFocus();

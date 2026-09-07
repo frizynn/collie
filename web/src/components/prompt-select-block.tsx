@@ -3,7 +3,8 @@ import { Loader2, MessageSquarePlus } from "lucide-react";
 
 import type { PromptFamily, PromptFeedbackPurpose, PromptModel, PromptOption } from "@/lib/blocks";
 import { FEEDBACK_MAX_LENGTH } from "@/lib/prompt-action";
-import { OptionButton, OptionGroupCaption, PromptPanel } from "@/components/option-button";
+import { OptionButton, OptionGroupCaption, PromptPanel, QuestionHeading } from "@/components/option-button";
+import { PromptRequestContext } from "@/components/prompt-request-context";
 
 /** What a tap on this block asks for: an option's keystroke plan, or feedback typed on the phone. */
 export type PromptBlockAction =
@@ -25,7 +26,7 @@ export interface PromptSelectBlockProps {
 }
 
 // Family-aware caption above the options — orients the reader ("the terminal is asking you
-// something") without repeating the question, which stays in the raw scrollback just above.
+// something") while the question is presented directly inside the native panel.
 const FAMILY_CAPTION: Record<PromptFamily, string> = {
   select: "Choose an option",
   permission: "Permission required",
@@ -56,8 +57,8 @@ const FEEDBACK_COPY: Record<
     send: "Send feedback",
     sending: "Sending feedback…",
     focused:
-      "The feedback box has the keyboard in the terminal — these buttons would type into it instead of answering. They resume when it closes.",
-    typedPrefix: "Feedback is being written in the terminal: ",
+      "Feedback is being edited in the agent session. Options resume when editing finishes.",
+    typedPrefix: "Existing feedback: ",
   },
   "free-text": {
     // No phone composer: the Claude plan-feedback send path is the wrong recipe for this row.
@@ -68,18 +69,17 @@ const FEEDBACK_COPY: Record<
     send: "",
     sending: "",
     focused:
-      "The free-text row has the keyboard in the terminal — these buttons would type into it instead of answering. They resume when it closes.",
-    typedPrefix: "A custom answer is being written in the terminal: ",
+      "A custom answer is being edited in the agent session. Options resume when editing finishes.",
+    typedPrefix: "Existing custom answer: ",
   },
 };
 
 // Native, tappable rendering of a Claude single-choice dialog. Every visible string — the option
 // label and its description — is a React text node (the XSS boundary is unchanged; nothing is ever
 // set as innerHTML). Real <button>s, so they're keyboard-focusable and screen-reader-announced; the
-// group is labelled by the question (which stays visible in the raw scrollback just above, so it's
-// not repeated here). Each row leads with its terminal-menu digit (KeyBadge) so the mapping is
-// visible. One option can be in flight at a time — its spinner shows and the rest lock, preventing a
-// double-send.
+// group contains its own visible question and signed request context. The option's verified key
+// plan stays internal; its native label is what the reader chooses. One option can be in flight at
+// a time — its spinner shows and the rest lock, preventing a double-send.
 //
 // A dialog carrying an inline text input (the plan approval's "Tell Claude what to change") adds two
 // surfaces below the options, and one state in which the options themselves are dead:
@@ -133,6 +133,8 @@ export function PromptSelectBlock({ prompt, onAction, disabled }: PromptSelectBl
   return (
     <PromptPanel ariaLabel={prompt.question}>
       <OptionGroupCaption>{FAMILY_CAPTION[prompt.family]}</OptionGroupCaption>
+      <QuestionHeading>{prompt.question}</QuestionHeading>
+      <PromptRequestContext prompt={prompt} />
       <div className="flex flex-col gap-1">
         {prompt.options.map((option, index) => {
           const id = `opt-${index}`;
@@ -141,7 +143,6 @@ export function PromptSelectBlock({ prompt, onAction, disabled }: PromptSelectBl
             <OptionButton
               key={index}
               tone={busy ? "busy" : "default"}
-              keyLabel={option.keyLabel ?? option.keys[0]}
               label={option.label}
               description={option.description}
               disabled={locked}
@@ -177,7 +178,7 @@ export function PromptSelectBlock({ prompt, onAction, disabled }: PromptSelectBl
         <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
           <MessageSquarePlus
             className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
-            aria-label="Feedback in the terminal"
+            aria-label="Existing feedback"
           />
           <span className="min-w-0 flex-1 text-xs text-foreground/90">
             {feedbackCopy.typedPrefix}

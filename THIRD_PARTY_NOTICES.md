@@ -9,6 +9,7 @@ Collie's workbench uses theme values and layout/control styling adapted from
 - `apps/web/src/index.css`: light/dark surface palette and typography.
 - `apps/web/src/components/AppSidebarLayout.tsx` and `sidebar/SidebarChrome.tsx`: sidebar layout.
 - `apps/web/src/components/chat/ContextWindowMeter.tsx` and `lib/contextWindow.ts`: context ring and token formatting.
+- `apps/web/src/components/chat/ModelListRow.tsx`: native model and reasoning picker row styling.
 
 Adaptations retain Collie's identity, React Router navigation, Herdr transport,
 and guarded terminal input. They do not use T3 Code's orchestration runtime.

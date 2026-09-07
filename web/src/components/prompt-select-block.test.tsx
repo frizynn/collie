@@ -66,9 +66,9 @@ describe("PromptSelectBlock — presentation", () => {
     expect(screen.getByRole("button", { name: /Red/ })).toBeInTheDocument();
     // Description renders as a secondary text node (not markup).
     expect(screen.getByText("A warm, high-energy theme")).toBeInTheDocument();
-    // Each row leads with its terminal-menu digit (the KeyBadge affordance).
-    expect(within(screen.getByRole("button", { name: /Red/ })).getByText("1")).toBeInTheDocument();
-    expect(within(screen.getByRole("button", { name: /Green/ })).getByText("2")).toBeInTheDocument();
+    expect(screen.getByText(selectModel.question)).toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: /Red/ })).queryByText("1")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: /Green/ })).queryByText("2")).not.toBeInTheDocument();
     buttons[0]!.focus();
     expect(buttons[0]).toHaveFocus();
   });
@@ -443,7 +443,7 @@ describe("PromptSelectBlock — the feedback input row", () => {
     const onAction = vi.fn();
     const user = userEvent.setup();
     render(<PromptSelectBlock prompt={model} onAction={onAction} />);
-    expect(screen.getByText(/has the keyboard in the terminal/)).toBeInTheDocument();
+    expect(screen.getByText(/Feedback is being edited in the agent session/)).toBeInTheDocument();
     for (const button of screen.getAllByRole("button")) expect(button).toBeDisabled();
     await user.click(screen.getByRole("button", { name: /Yes, manually approve edits/ }));
     expect(onAction).not.toHaveBeenCalled();
@@ -557,8 +557,8 @@ describe("PromptSelectBlock — Grok's z row is not Claude's plan-feedback compo
       feedback: { key: "z", focused: true, text: "", purpose: "free-text" as const },
     };
     render(<PromptSelectBlock prompt={focused} onAction={vi.fn()} />);
-    expect(screen.getByText(/free-text row has the keyboard/)).toBeInTheDocument();
-    expect(screen.queryByText(/feedback box has the keyboard/)).toBeNull();
+    expect(screen.getByText(/A custom answer is being edited/)).toBeInTheDocument();
+    expect(screen.queryByText(/Feedback is being edited/)).toBeNull();
     for (const button of screen.getAllByRole("button")) expect(button).toBeDisabled();
   });
 });

@@ -1,4 +1,5 @@
 import { useState, type ComponentProps } from "react";
+import { readFileSync } from "node:fs";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -338,6 +339,20 @@ describe("AgentChat — prompt-select race guard wiring (frozen {text, revision}
     expect(mockSubmit).toHaveBeenCalledWith(expect.objectContaining({ detectedRevision: 2 }));
   });
 
+  it("does not let a frozen old dialog block writing or the model control after the live pane clears", async () => {
+    const user = userEvent.setup();
+    const advance = renderWithLivePane({ text: MENU_TEXT, revision: 1 });
+    expect(screen.getByRole("button", { name: "Choose model" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Find in output" }));
+    act(() => advance({ text: STATUS_TEXT, revision: 2 }));
+    expect(screen.getByRole("button", { name: "Choose model" })).toBeEnabled();
+    const input = screen.getByRole("textbox", { name: "" });
+    await user.type(input, "Writing while reading older output");
+    expect(input).toHaveValue("Writing while reading older output");
+    // The old approval remains frozen for reading; its action still carries revision 1.
+    expect(screen.getByRole("button", { name: "Yes" })).toBeInTheDocument();
+  });
+
   // Same frozen-pair guarantee for the wizard path (the guard mirrors prompt-select's; this locks the
   // wiring so the live-vs-frozen-revision bug can't regress here either).
   it("wizard: passes the FROZEN revision when the mirror is frozen and the pane advances", async () => {
@@ -544,7 +559,8 @@ describe("AgentChat — top-of-mirror history affordance", () => {
     const agent = { ...fixtureAgents[0]!, hasSession: true, readableLines: 51 };
     renderChat({ agent, agents: [agent], requestedLines: 600 });
     expect(screen.getByRole("region", { name: "Live conversation" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Live terminal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Display settings" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Raw terminal" }));
     expect(showHistory()).toBeInTheDocument();
     expect(loadOlder()).not.toBeInTheDocument();
   });
@@ -580,8 +596,28 @@ describe("AgentChat — top-of-mirror history affordance", () => {
   it("a transcript wins even when the pane also reports scrollback", () => {
     const agent = { ...fixtureAgents[0]!, hasSession: true, readableLines: 6946 };
     renderChat({ agent, agents: [agent], requestedLines: 600 });
-    fireEvent.click(screen.getByRole("button", { name: "Live terminal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Display settings" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Raw terminal" }));
     expect(showHistory()).toBeInTheDocument();
     expect(loadOlder()).not.toBeInTheDocument();
+  });
+});
+
+
+describe("AgentChat — native workbench interactions", () => {
+  it("keeps conversation and draft editable while a native model picker owns agent input", async () => {
+    const agent = { ...fixtureAgents[1]!, hasSession: true };
+    const menu = readFileSync("src/lib/harness/codex/fixtures/model-picker.txt", "utf8");
+    renderChat({ agent, agents: [agent], text: `Old terminal output that must not become the conversation\n${menu}` });
+    expect(screen.getByRole("region", { name: "Live conversation" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Agent interaction" })).toBeVisible();
+    expect(screen.getByRole("radio", { name: "gpt-6-astra, Current" })).toBeVisible();
+    expect(screen.queryByText("Old terminal output that must not become the conversation")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Live terminal" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Type into terminal" })).not.toBeInTheDocument();
+    const input = screen.getByRole("textbox");
+    await userEvent.type(input, "My next message");
+    expect(input).toHaveValue("My next message");
+    expect(screen.getByRole("button", { name: "Choose model" })).toBeDisabled();
   });
 });

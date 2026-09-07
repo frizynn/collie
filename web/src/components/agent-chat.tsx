@@ -135,7 +135,8 @@ export function AgentChat({
   const closeDrawer = () => setDrawer(null);
   const listRef = useRef<ChatMessageListHandle>(null);
   const composerRef = useRef<ComposerHandle>(null);
-  const [surface, setSurface] = useState<"conversation" | "terminal">("conversation");
+  const [followKey, setFollowKey] = useState(0);
+  const [historyRequest, setHistoryRequest] = useState(0);
   const conversation = useLiveConversation({
     paneId, session, enabled: Boolean(agent?.hasSession), busy: agent?.status === "working",
   });
@@ -198,9 +199,9 @@ export function AgentChat({
   const rawTerminalDraft = useMemo(
     () =>
       grammarsOn
-        ? adapterFor(agent?.agent)?.extractInputDraft(splitLines(parseAnsi(display))) ?? null
+        ? adapterFor(agent?.agent)?.extractInputDraft(splitLines(parseAnsi(text))) ?? null
         : null,
-    [display, agent?.agent, grammarsOn],
+    [text, agent?.agent, grammarsOn],
   );
   // Is a dialog (prompt/wizard/preview/multi-select) on screen right now? Any non-raw block means
   // the TUI's keyboard belongs to it, so the composer must refuse a free-text send: the text would
@@ -211,15 +212,21 @@ export function AgentChat({
   const dialogPresent = useMemo(
     () =>
       grammarsOn
-        ? (adapterFor(agent?.agent)?.buildBlocks(splitLines(parseAnsi(display))) ?? []).some(
+        ? (adapterFor(agent?.agent)?.buildBlocks(splitLines(parseAnsi(text))) ?? []).some(
             (b) => b.kind !== "raw",
           )
         : false,
-    [display, agent?.agent, grammarsOn],
+    [text, agent?.agent, grammarsOn],
   );
+  useEffect(() => {
+    if (agent?.hasSession && dialogPresent) {
+      setFollowing(true);
+      setShown({ text, revision });
+    }
+  }, [dialogPresent, text, revision, agent?.hasSession]);
   // Approvals and native pickers own the terminal keyboard. Bring their verified controls into
   // view even while the journal is selected; transcript text never impersonates an approval UI.
-  const showConversation = Boolean(agent?.hasSession) && surface === "conversation" && !dialogPresent && !prefs.rawTerminal;
+  const showConversation = Boolean(agent?.hasSession) && !prefs.rawTerminal;
 
   // Both are threaded to the composer: the RAW value (live) plus a stabilised one. extractInputDraft
   // is stateless, so it can't distinguish a stranded draft from the ~350ms flash where our OWN
@@ -325,6 +332,8 @@ export function AgentChat({
     listRef.current?.scrollToBottom();
   };
 
+  const interactionRevision = showConversation ? revision : shown.revision;
+
   // Tap a prompt-select option. This can type into a real terminal, so it runs the revision-based
   // race guard first (fresh fetch → revision + re-derived-menu equality); only a clean match sends
   // the option's keys. The guard checks against the FROZEN pair's revision — the menu the user
@@ -342,7 +351,7 @@ export function AgentChat({
         paneId,
         session,
         requestedLines,
-        detectedRevision: shown.revision,
+        detectedRevision: interactionRevision,
         agent: agent?.agent,
         prompt,
       };
@@ -368,7 +377,7 @@ export function AgentChat({
       // what someone just thumb-typed. Option taps ignore it.
       return result.status === "sent";
     },
-    [readOnly, paneId, session, requestedLines, shown.revision, agent?.agent, revalidator],
+    [readOnly, paneId, session, requestedLines, interactionRevision, agent?.agent, revalidator],
   );
 
   // Tap a wizard control (an option digit, step navigation, or the review step's submit/cancel).
@@ -387,7 +396,7 @@ export function AgentChat({
         paneId,
         session,
         requestedLines,
-        detectedRevision: shown.revision,
+        detectedRevision: interactionRevision,
         agent: agent?.agent,
         wizard,
         keys,
@@ -404,7 +413,7 @@ export function AgentChat({
         setStatus(result.error || "Send failed", "error");
       }
     },
-    [readOnly, paneId, session, requestedLines, shown.revision, agent?.agent, revalidator],
+    [readOnly, paneId, session, requestedLines, interactionRevision, agent?.agent, revalidator],
   );
 
   // Tap a preview-dialog control (an option, the note add/edit/remove, or the wizard step nav).
@@ -423,7 +432,7 @@ export function AgentChat({
         paneId,
         session,
         requestedLines,
-        detectedRevision: shown.revision,
+        detectedRevision: interactionRevision,
         agent: agent?.agent,
         preview,
       };
@@ -449,7 +458,7 @@ export function AgentChat({
         revalidator.revalidate();
       }
     },
-    [readOnly, paneId, session, requestedLines, shown.revision, agent?.agent, revalidator],
+    [readOnly, paneId, session, requestedLines, interactionRevision, agent?.agent, revalidator],
   );
 
   // Tap a multi-select control (toggle a checkbox, Submit, the "Chat about this" escape, or the
@@ -467,7 +476,7 @@ export function AgentChat({
         paneId,
         session,
         requestedLines,
-        detectedRevision: shown.revision,
+        detectedRevision: interactionRevision,
         agent: agent?.agent,
         multi,
         intent: action,
@@ -484,7 +493,7 @@ export function AgentChat({
         setStatus(result.error || "Send failed", "error");
       }
     },
-    [readOnly, paneId, session, requestedLines, shown.revision, agent?.agent, revalidator],
+    [readOnly, paneId, session, requestedLines, interactionRevision, agent?.agent, revalidator],
   );
 
   // Tap a generic-menu control (a footer-named key like Enter/s/Esc, or an arrow). Same guard-first
@@ -502,7 +511,7 @@ export function AgentChat({
         paneId,
         session,
         requestedLines,
-        detectedRevision: shown.revision,
+        detectedRevision: interactionRevision,
         agent: agent?.agent,
         menu,
         keys: action.keys,
@@ -520,7 +529,7 @@ export function AgentChat({
         setStatus(result.error || "Send failed", "error");
       }
     },
-    [readOnly, paneId, session, requestedLines, shown.revision, agent?.agent, revalidator],
+    [readOnly, paneId, session, requestedLines, interactionRevision, agent?.agent, revalidator],
   );
 
   // NOTE: the composer is deliberately NOT auto-focused on open/switch — that would pop the Android
@@ -630,7 +639,7 @@ export function AgentChat({
               {agent.hasSession && (
                 <button
                   type="button"
-                  onClick={() => navigate(historyPath(paneId, session))}
+                  onClick={() => showConversation ? setHistoryRequest((key) => key + 1) : navigate(historyPath(paneId, session))}
                   aria-label="Conversation history"
                   className="-mr-1 flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60"
                 >
@@ -743,22 +752,13 @@ export function AgentChat({
             straight into terminal output — the chrome and the mirror read as one surface. Drawing it
             here rather than as a border-b on PaneStrip covers the case where that strip is absent
             (a tab holding a single pane), which is the common one. */}
-        {agent?.hasSession && (
-          <div className="flex shrink-0 items-center gap-1 border-t border-border/40 px-3" aria-label="Session view">
-            <button type="button" aria-pressed={showConversation} className="min-h-11 rounded-md px-3 text-xs aria-pressed:text-foreground text-muted-foreground hover:bg-accent" onClick={() => {
-              setFollowing(true);
-              setShown({ text, revision });
-              setSurface("conversation");
-            }}>Conversation</button>
-            <button type="button" aria-pressed={!showConversation} className="min-h-11 rounded-md px-3 text-xs aria-pressed:text-foreground text-muted-foreground hover:bg-accent" onClick={() => setSurface("terminal")}>Live terminal</button>
-            {dialogPresent && <span className="ml-auto text-xs text-status-blocked">Agent needs input</span>}
-          </div>
-        )}
         {showConversation ? (
           <div className="min-h-0 min-w-0 flex-1 border-t border-border/40">
             <LiveConversation paneId={paneId} session={session} agent={agent?.agent}
               history={conversation.history} loading={conversation.loading} error={conversation.error}
-              onRetry={conversation.refresh} />
+              onRetry={conversation.refresh} followKey={followKey} historyRequest={historyRequest} searching={findOpen}
+              query={findOpen ? findQuery : ""} currentMatch={currentMatch}
+              onMatchCount={findOpen ? handleMatchCount : undefined} />
           </div>
         ) : <div className="min-h-0 min-w-0 flex-1 border-t border-border/40" onClick={focusFromMirror}>
           <ChatMessageList
@@ -834,13 +834,21 @@ export function AgentChat({
             overlay just above the composer, but it covered the terminal tail (the prompt/cursor and
             up-levelled prompt buttons) — it now lives as a slim row just below the header. */}
         <div className="workbench-composer relative">
+          {showConversation && dialogPresent && (
+            <section aria-label="Agent interaction" className="absolute inset-x-0 bottom-full z-20 mb-2 max-h-[min(32rem,60dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-2 shadow-xl sm:left-2 sm:right-auto sm:w-[min(28rem,calc(100vw-3rem))]">
+              <AnsiOutput text={text} nativeOnly agent={agent?.agent}
+                onPromptAction={handlePromptAction} onWizardAction={handleWizardAction}
+                onPreviewAction={handlePreviewAction} onMultiSelectAction={handleMultiSelectAction}
+                onMenuAction={handleMenuAction} promptDisabled={readOnly || gone || connecting} />
+            </section>
+          )}
 
           {/* Swipe-up / tap handle for the quick pane switcher — the sheet that switches AND closes
               panes (each row has a ✕). A tall, full-width hit area so the swipe is easy to land (and a
               tap always works). Shown whenever a pane is open — even the last one, so it stays
               closable now that the nav drawer is gone. `touch-none` so the gesture is ours, not a
               browser scroll. */}
-          {agents.length + shellPanes.length > 0 && (
+          {!showConversation && agents.length + shellPanes.length > 0 && (
             <button
               type="button"
               aria-label="Switch pane"
@@ -864,7 +872,7 @@ export function AgentChat({
               user themselves configured in the TUI, so it reads as the same thing they know.
               Height is bounded upstream (MAX_STATUS_LINES caps the run stripChrome will claim), so
               there is no second cap here; the mirror is a flex child that shrinks, never pushed off. */}
-          {statusLines.length > 0 && (
+          {!showConversation && statusLines.length > 0 && (
             <div
               className={cn(
                 "border-t border-border/40 px-3 py-1 font-mono text-[11px] leading-tight",
@@ -897,12 +905,11 @@ export function AgentChat({
             telemetry={conversation.history?.available ? conversation.history.telemetry : undefined}
             stale={conversation.error || connecting}
             modelAvailable={modelAvailable}
-            disabled={readOnly || gone || connecting || dialogPresent || agent?.status === "working"}
+            disabled={readOnly || gone || connecting || dialogPresent}
             onChooseModel={() => {
-              void composerRef.current?.openModelPicker().then((sent) => {
-                if (sent) setSurface("terminal");
-              });
+              void composerRef.current?.openModelPicker();
             }}
+            onCompact={() => { void composerRef.current?.compactContext(); }}
           />}
           <Composer
             ref={composerRef}
@@ -911,7 +918,9 @@ export function AgentChat({
             agent={agent?.agent}
             isShell={isShell}
             gone={gone}
-            readOnly={readOnly || connecting}
+            readOnly={readOnly}
+            disconnected={connecting}
+            nativeWorkbench={showConversation}
             dialogPresent={dialogPresent}
             text={text}
             terminalDraft={terminalDraft}
@@ -921,7 +930,7 @@ export function AgentChat({
             stepFontSize={stepFontSize}
             setRawTerminal={setRawTerminal}
             setTapToFocus={setTapToFocus}
-            onSent={() => { onSent(); conversation.refresh(); }}
+            onSent={() => { onSent(); setFollowKey((key) => key + 1); conversation.refresh(); }}
           />
         </div>
       </div>

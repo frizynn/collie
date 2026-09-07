@@ -10,6 +10,8 @@ import { setStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChatInput } from "@/components/ui/chat/chat-input";
+import { SkillPicker } from "@/components/skill-picker";
+import { useSkillComposer } from "@/hooks/use-skill-composer";
 import { NavTray } from "@/components/nav-tray";
 import { CommandPalette } from "@/components/command-palette";
 import { QuickActionsContent } from "@/components/quick-actions";
@@ -34,6 +36,7 @@ export interface ComposerHandle {
   focusInput: () => void;
   /** Opens the harness's own model picker through the same verified send as a reply. */
   openModelPicker: () => Promise<boolean>;
+  compactContext: () => Promise<boolean>;
 }
 
 interface ComposerProps {
@@ -48,6 +51,9 @@ interface ComposerProps {
   gone: boolean;
   /** This device isn't authorised to type — locks the composer with a distinct placeholder. */
   readOnly: boolean;
+  /** Transport unavailable: stop terminal writes while keeping the local draft editable. */
+  disconnected?: boolean;
+  nativeWorkbench?: boolean;
   /** A dialog (prompt/wizard/preview/multi-select) is on screen, so the TUI's keyboard belongs to it.
    * Free-text sending is refused while true — see send(). Answer it with its own buttons instead. */
   dialogPresent: boolean;
@@ -140,12 +146,12 @@ function ComposerDock({
 }
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  { paneId, session, agent, isShell, gone, readOnly, dialogPresent, text, terminalDraft, rawTerminalDraft, prefs, setWrap, stepFontSize, setRawTerminal, setTapToFocus, onSent },
+  { paneId, session, agent, isShell, gone, readOnly, disconnected = false, nativeWorkbench = false, dialogPresent, text, terminalDraft, rawTerminalDraft, prefs, setWrap, stepFontSize, setRawTerminal, setTapToFocus, onSent },
   ref,
 ) {
   const revalidator = useRevalidator();
   // Every write affordance is off when the pane is gone OR this device is read-only.
-  const locked = gone || readOnly;
+  const locked = gone || readOnly || disconnected;
   // …and a ref alongside it, for the ONE caller that reads it after an await. `send()` checks
   // `locked` once, up front, but its pre-clear sweep goes out on the far side of the pre-flight's
   // pane read; a re-render that locks the composer in that window must be able to stop the most
@@ -343,22 +349,29 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   // its text tracks and that the send()-time pre-clear sweeps.
   const effectiveStable = suppressEcho(terminalDraft);
   const effectiveRaw = suppressEcho(rawTerminalDraft);
+  const skills = useSkillComposer({
+    paneId, session, agent, input, updateInput, inputRef,
+    enabled: !direct.active && !gone && !readOnly && drawer === null,
+  });
+
+  async function runWorkbenchCommand(command: "/model" | "/compact") {
+      // Do not clear a host-side draft or race direct typing just to open a picker.
+      if (direct.active || sending || locked || rawTerminalDraft !== null) {
+        setStatus("Finish the current agent input before using this action.", "info");
+        return false;
+      }
+      const available = commandsFor(agent, operatorCommands).find((c) => c.command === command);
+      if (!available || available.dangerous) {
+        setStatus("Open Agent commands to use this action with your configured confirmation.", "info");
+        return false;
+      }
+      return send(command, false, false, command === "/model" ? "model" : "compact");
+  }
 
   useImperativeHandle(ref, () => ({
     focusInput: focusInputImmediately,
-    openModelPicker: async () => {
-      // Do not clear a host-side draft or race direct typing just to open a picker.
-      if (direct.active || sending || locked || rawTerminalDraft !== null) {
-        setStatus("Finish the current terminal input before changing models.", "info");
-        return false;
-      }
-      const modelCommand = commandsFor(agent, operatorCommands).find((c) => c.command === "/model");
-      if (!modelCommand || modelCommand.dangerous) {
-        setStatus("Open Agent commands to change models with your configured confirmation.", "info");
-        return false;
-      }
-      return send("/model", false);
-    },
+    openModelPicker: () => runWorkbenchCommand("/model"),
+    compactContext: () => runWorkbenchCommand("/compact"),
   }));
 
   useEffect(
@@ -462,7 +475,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   // Resolves true only on a VERIFIED send (the text was seen in the pane's input box before the
   // submit key went out). The quick-reply grid consumes the verdict to drive its own ✓ and to decide
   // whether to close its dock, so every early return below has to answer honestly.
-  async function send(value: string, isDraft: boolean, force = false): Promise<boolean> {
+  async function send(value: string, isDraft: boolean, force = false, action?: "model" | "compact"): Promise<boolean> {
     const t = value.trim();
     if (!t || locked || sending) return false;
     // A dialog on screen owns the TUI's keyboard: our text is swallowed and the submit key ANSWERS
@@ -574,16 +587,22 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         setJustSent(true);
         if (sentTimer.current) clearTimeout(sentTimer.current);
         sentTimer.current = setTimeout(() => setJustSent(false), 1500);
-        setStatus("Sent ✓", "success");
+        setStatus(action === "model" ? "Opening model picker…" : action === "compact" ? "Compaction requested" : "Sent ✓", "success");
         const preview = t.length > 60 ? `${t.slice(0, 57)}…` : t;
-        setLastSent(preview);
+        setLastSent(action ? null : preview);
         if (lastSentTimerRef.current) clearTimeout(lastSentTimerRef.current);
         lastSentTimerRef.current = setTimeout(() => setLastSent(null), 6000);
         forceConfirm.reset(); // a clean send disarms any leftover override
         noticeNoEcho(null); // whatever prompt it described, the pane has moved past it
-        onSent(); // you just acted — snap the mirror back to the live tail to see the result
+        if (action !== "model") onSent();
         return true;
       } else if (res.status === "blocked") {
+        if (action) {
+          forceConfirm.reset();
+          noticeNoEcho(res.noEcho !== undefined ? { prompt: res.noEcho, typed: false } : null);
+          setStatus(res.error || "The agent is not ready for this action.", "error");
+          return false;
+        }
         // The pre-flight refused: NOTHING was typed. That is usually right (a menu owns the keyboard),
         // but the adapter can only report what it can see, so the user gets a deliberate override —
         // the same two-tap shape as the destructive-send confirm. The second tap skips the pre-flight
@@ -809,14 +828,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             which is what squeezed the toggles; absolute costs nothing and the row gets the width
             back. `pt-3` on the row reserves the space it occupies so it can't collide with whatever
             sits above. */}
-        <div className="relative mb-2 flex items-center gap-2 pt-3">
-          <SectionLabel className="absolute left-0 top-0 text-[10px] leading-none opacity-80">
+        <div className={cn("relative mb-2 flex items-center gap-2", !nativeWorkbench && "pt-3")}>
+          {!nativeWorkbench && <SectionLabel className="absolute left-0 top-0 text-[10px] leading-none opacity-80">
             Controls
-          </SectionLabel>
+          </SectionLabel>}
           {/* Keys and Quick are TOGGLES for the in-flow dock above (not overlays): tap to open, tap
               again to close. aria-expanded ties each to the dock; secondary variant marks it pressed
               while open. Both share the single-valued `drawer`, so opening one closes the other. */}
-          <Button
+          {!nativeWorkbench && <Button
             variant="ghost"
             size="sm"
             className={cn("h-8 flex-1 gap-1.5", drawer === "keys" ? CONTROL_ON : CONTROL_OFF)}
@@ -826,7 +845,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           >
             <Keyboard className="size-4" />
             Keys
-          </Button>
+          </Button>}
           {/* "Type into terminal" lives HERE, beside Keys, rather than on the Send button.
               It is the same problem split in half: Keys exists because the phone keyboard cannot
               send Esc/Tab/arrows/chords, this exists because it cannot send bare printable letters —
@@ -838,7 +857,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               above the input is what makes that visible. Arming is still an explicit NAMED choice,
               which is what keeps an accidental touch from quietly wiring the keyboard to a live
               terminal; see use-direct-typing.ts for the rest of that argument. */}
-          <Button
+          {!nativeWorkbench && <Button
             variant="ghost"
             size="sm"
             className={cn("h-8 flex-1 gap-1.5", direct.active ? CONTROL_ON : CONTROL_OFF)}
@@ -859,7 +878,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           >
             <Terminal className="size-4" />
             Type
-          </Button>
+          </Button>}
           <Button
             variant="ghost"
             size="sm"
@@ -961,16 +980,28 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               padding the text was not using anyway. `pr-11` on the textarea reserves that strip so a
               long line can never run underneath the icon. */}
           <div className="relative min-w-0 flex-1">
+          {skills.open && (skills.loading || skills.error ? (
+            <div className="absolute inset-x-0 bottom-full z-30 mb-2 rounded-xl border border-border bg-popover px-3 py-3 text-xs text-muted-foreground shadow-lg" role="status">
+              {skills.loading ? "Loading skills…" : <span>Couldn't load skills. <button type="button" className="min-h-11 px-2 underline" onMouseDown={(e) => e.preventDefault()} onClick={skills.retry}>Retry</button></span>}
+            </div>
+          ) : <SkillPicker id={skills.id} skills={skills.skills} total={skills.total} activeIndex={skills.activeIndex} onSelect={skills.select} />)}
           <ChatInput
             ref={inputRef}
             value={direct.active ? direct.value : input}
-            onChange={direct.active ? direct.onChange : (e) => updateInput(e.target.value)}
+            onChange={direct.active ? direct.onChange : (e) => skills.onChange(e.target.value, e.target.selectionStart)}
+            onSelect={(e) => skills.onSelect(e.currentTarget.selectionStart)}
+            onFocus={skills.onFocus}
+            onBlur={skills.onBlur}
+            aria-autocomplete={skills.open ? "list" : undefined}
+            aria-controls={skills.open && !skills.loading && !skills.error ? skills.id : undefined}
+            aria-activedescendant={skills.open && skills.skills.length > 0 ? `${skills.id}-option-${skills.activeIndex}` : undefined}
             onCompositionStart={direct.active ? direct.onCompositionStart : undefined}
             onCompositionEnd={direct.active ? direct.onCompositionEnd : undefined}
             onKeyDown={
               direct.active
                 ? direct.onKeyDown
                 : (e) => {
+                    if (skills.onKeyDown(e)) return;
                     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                       e.preventDefault();
                       onSendClick();
@@ -983,6 +1014,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
                 ? "Pane is gone"
                 : readOnly
                   ? "Read-only — device not authorised"
+                  : disconnected
+                    ? "Write a draft while reconnecting…"
                   : direct.active
                     ? "Type into the terminal…"
                     : isShell
@@ -1000,7 +1033,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               direct.active &&
                 "border-primary focus-visible:border-primary focus-visible:ring-primary/30",
             )}
-            disabled={locked}
+            disabled={gone || readOnly}
             rows={1}
           />
             <Button

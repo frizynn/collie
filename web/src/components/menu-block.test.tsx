@@ -8,8 +8,8 @@ import { splitLines } from "@/lib/blocks";
 import { claudeBuildBlocks } from "@/lib/harness/claude";
 import { MenuBlock } from "./menu-block";
 
-// The generic menu renderer. Driven off the real `/model` capture through the real pipeline, so what
-// it renders is exactly what the adapter lifts.
+// The generic fallback uses real captured content with a non-model title so its verified
+// navigation/footer behavior stays covered independently of the native model renderer.
 
 const PICKER = readFileSync(
   join(import.meta.dirname, "..", "fixtures", "panes", "claude--menu-model-picker.txt"),
@@ -24,11 +24,11 @@ function menuBlock() {
 
 function renderMenu(onAction = vi.fn()) {
   const block = menuBlock();
-  render(<MenuBlock menu={block.menu} lines={block.lines} onAction={onAction} />);
+  render(<MenuBlock menu={{ ...block.menu, title: "Settings" }} lines={block.lines} onAction={onAction} />);
   return onAction;
 }
 
-describe("MenuBlock", () => {
+describe("MenuBlock generic fallback", () => {
   it("renders the footer's actions, the cancel, and the nav the screen advertised", () => {
     renderMenu();
     expect(screen.getByRole("button", { name: "Set as default" })).toBeInTheDocument();
@@ -53,9 +53,9 @@ describe("MenuBlock", () => {
     expect(screen.getAllByText("◐ Medium effort").length).toBeGreaterThan(0);
   });
 
-  // The region stays visible because the grammar parsed the FOOTER, not the body: the options and
-  // their descriptions exist only as terminal text, and the buttons are meaningless without them.
-  it("keeps the terminal region readable above the controls", () => {
+  // The generic body keeps option descriptions visible as native text; footer controls must
+  // remain grounded in the full context even when the row grammar is unknown.
+  it("keeps the menu subject readable above the controls", () => {
     renderMenu();
     expect(screen.getByText(/Most capable for your hardest/)).toBeInTheDocument();
   });

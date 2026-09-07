@@ -19,7 +19,7 @@ function fixtureModel(name: string): MultiSelectModel {
 }
 
 describe("MultiSelectBlock — checkbox screen", () => {
-  it("renders the question, each option as a checkbox with its key badge, and the checked state", () => {
+  it("renders the question, native labelled checkboxes, and the checked state", () => {
     const model = fixtureModel("claude--select-multiselect-checked.txt");
     render(<MultiSelectBlock multi={model} onAction={vi.fn()} />);
 
@@ -35,9 +35,8 @@ describe("MultiSelectBlock — checkbox screen", () => {
     expect(screen.getByRole("checkbox", { name: /Olives/ })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("checkbox", { name: /Peppers/ })).toHaveAttribute("aria-checked", "false");
 
-    // Each row leads with its terminal-menu digit (the KeyBadge affordance).
-    expect(within(screen.getByRole("checkbox", { name: /Cheese/ })).getByText("1")).toBeInTheDocument();
-    expect(within(screen.getByRole("checkbox", { name: /Peppers/ })).getByText("4")).toBeInTheDocument();
+    expect(within(screen.getByRole("checkbox", { name: /Cheese/ })).queryByText("1")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("checkbox", { name: /Peppers/ })).queryByText("4")).not.toBeInTheDocument();
     // Descriptions ride along as secondary text nodes.
     expect(screen.getByText("Classic melted cheese topping.")).toBeInTheDocument();
   });

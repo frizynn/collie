@@ -11,10 +11,12 @@ export function formatContextTokens(value: number | null): string {
   return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}m`;
 }
 
-export function WorkbenchContextMeter({ usedTokens, maxTokens, totalProcessedTokens = null }: {
+export function WorkbenchContextMeter({ usedTokens, maxTokens, totalProcessedTokens = null, onCompact, compactDisabled }: {
   usedTokens: number | null;
   maxTokens: number | null;
   totalProcessedTokens?: number | null;
+  onCompact?: () => void;
+  compactDisabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const used = usedTokens !== null && Number.isFinite(usedTokens) && usedTokens >= 0 ? usedTokens : null;
@@ -40,6 +42,10 @@ export function WorkbenchContextMeter({ usedTokens, maxTokens, totalProcessedTok
         {percentage !== null && <div className="h-1.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Context window usage" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(percentage)}><div className="h-full rounded-full" style={{ width: `${percentage}%`, backgroundColor: usageColor }} /></div>}
         {totalProcessedTokens !== null && <div className="flex justify-between gap-4 text-muted-foreground"><span>Total processed</span><span>{formatContextTokens(totalProcessedTokens)}</span></div>}
         {percentage === null && <p className="text-xs text-muted-foreground">This agent has not reported a complete context measurement.</p>}
+        {onCompact && <div className="border-t border-border pt-3">
+          <p className="mb-2 text-xs text-muted-foreground">Summarize this session to make room for the next messages.</p>
+          <button type="button" disabled={compactDisabled} onClick={() => { setOpen(false); onCompact(); }} className="min-h-11 w-full rounded-lg bg-primary/10 px-3 text-sm font-medium text-primary hover:bg-primary/20 disabled:opacity-50">Compact context</button>
+        </div>}
       </div>
     </BottomSheet>
   </>;

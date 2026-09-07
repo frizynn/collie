@@ -4,7 +4,7 @@ import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MultiSelectModel } from "@/lib/blocks";
 import type { MultiSelectIntent } from "@/lib/multi-select-action";
-import { KeyBadge, optionSurface, PromptPanel, QuestionHeading } from "@/components/option-button";
+import { optionSurface, PromptPanel, QuestionHeading } from "@/components/option-button";
 import { WizardStepper } from "@/components/wizard-stepper";
 import { WIZARD_BACK_KEYS, WIZARD_NEXT_KEYS } from "@/lib/harness/wizard-model";
 
@@ -107,7 +107,6 @@ function CheckboxPhase({
               >
                 {option.checked ? <Check className="size-3" /> : null}
               </span>
-              <KeyBadge tone={tone}>{option.n}</KeyBadge>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium leading-snug text-foreground">
                   {option.label}

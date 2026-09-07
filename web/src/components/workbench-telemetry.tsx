@@ -8,13 +8,14 @@ interface Props {
   modelAvailable: boolean;
   disabled: boolean;
   onChooseModel: () => void;
+  onCompact?: () => void;
 }
 
 function tokens(value: number | undefined): string {
   return value === undefined ? "Not reported" : value.toLocaleString();
 }
 
-export function WorkbenchTelemetry({ telemetry, stale, modelAvailable, disabled, onChooseModel }: Props) {
+export function WorkbenchTelemetry({ telemetry, stale, modelAvailable, disabled, onChooseModel, onCompact }: Props) {
   const context = telemetry?.context;
   return (
     <div className="workbench-telemetry flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 px-3 py-2 text-xs text-muted-foreground">
@@ -31,7 +32,8 @@ export function WorkbenchTelemetry({ telemetry, stale, modelAvailable, disabled,
         {telemetry?.effort && <span className="text-muted-foreground">{telemetry.effort}</span>}
         <ChevronDown className="size-3 shrink-0" />
       </button>
-      <WorkbenchContextMeter usedTokens={context?.usedTokens ?? null} maxTokens={context?.windowTokens ?? null} />
+      <WorkbenchContextMeter usedTokens={context?.usedTokens ?? null} maxTokens={context?.windowTokens ?? null}
+        onCompact={onCompact} compactDisabled={disabled} />
       <details className="group relative min-w-0">
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-md px-2 hover:bg-accent">
           <Gauge className="size-3.5" />
