@@ -1,0 +1,99 @@
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { setStatus } from "@/lib/status";
+import type { AgentStatus, AgentView } from "@/lib/types";
+import { useAgentTransitions } from "./use-transitions";
+
+vi.mock("@/lib/status", () => ({ setStatus: vi.fn() }));
+const notify = vi.mocked(setStatus);
+const agent = (paneId: string, status: AgentStatus, extra: Partial<AgentView> = {}): AgentView => ({
+  paneId, status, agent: "codex", workspaceId: "w1", workspaceLabel: "collie",
+  workspaceNumber: 1, tabId: "w1:t1", cwd: "/work/collie", focused: false, ...extra,
+});
+
+function setup(agents: AgentView[], session?: string, openPaneId: string | null = null) {
+  const hook = renderHook((props) => useAgentTransitions(props.agents, props.openPaneId, props.session), {
+    initialProps: { agents, session, openPaneId },
+  });
+  return { ...hook, update: (next: AgentView[], activeSession = session, openPane = openPaneId) => {
+    hook.rerender({ agents: next, session: activeSession, openPaneId: openPane });
+  } };
+}
+
+beforeEach(() => notify.mockClear());
+
+describe("useAgentTransitions", () => {
+  it("does not announce the initial snapshot or newly discovered panes", () => {
+    const { update } = setup([agent("one", "blocked")]);
+    expect(notify).not.toHaveBeenCalled();
+    act(() => update([agent("one", "blocked"), agent("new", "done")]));
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: "codex", state: "done", title: "Codex finished", tone: "success" },
+    { name: "claude", state: "blocked", title: "Claude needs your input", tone: "warn" },
+  ] as const)("gives $name a concise title and workspace/tab description", ({ name, state, title, tone }) => {
+    const view = (status: AgentStatus) => agent("one", status, { agent: name, tabLabel: "Frontend" });
+    const { update } = setup([view("working")]);
+    act(() => update([view(state)]));
+    expect(notify).toHaveBeenCalledExactlyOnceWith(title, tone, undefined, {
+      description: "collie · Frontend", background: true,
+    });
+    act(() => update([view(state)]));
+    expect(notify).toHaveBeenCalledOnce();
+  });
+
+  it("does not notify the pane being read, including after navigating away from it", () => {
+    const { update } = setup([agent("one", "working")], "qa", "one");
+    act(() => update([agent("one", "blocked")]));
+    act(() => update([agent("one", "blocked")], "qa", null));
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it("groups simultaneous attention events once and prioritizes blocked over completed agents", () => {
+    const views = [
+      agent("one", "working", { workspaceLabel: "api" }),
+      agent("two", "working", { workspaceLabel: "web" }),
+      agent("three", "working", { workspaceLabel: "api" }),
+      agent("four", "working", { workspaceLabel: "docs" }),
+    ];
+    const { update } = setup(views);
+    act(() => update(views.map((view, index) => ({ ...view, status: index === 3 ? "done" : "blocked" }))));
+    expect(notify).toHaveBeenCalledExactlyOnceWith("3 agents need your input", "warn", undefined, {
+      description: "api, web", background: true,
+    });
+  });
+
+  it("groups completions without making snapshot order decide which agent gets announced", () => {
+    const views = [agent("one", "working"), agent("two", "working", { workspaceLabel: "docs" })];
+    const { update } = setup(views);
+    act(() => update(views.map((view) => ({ ...view, status: "done" }))));
+    expect(notify).toHaveBeenCalledExactlyOnceWith("2 agents finished", "success", undefined, {
+      description: "collie, docs", background: true,
+    });
+  });
+
+  it("resets the baseline on session changes when pane IDs are reused", () => {
+    const { update } = setup([agent("one", "working")], "first");
+    act(() => update([agent("one", "blocked")], "second"));
+    expect(notify).not.toHaveBeenCalled();
+    act(() => update([agent("one", "working")], "second"));
+    act(() => update([agent("one", "done")], "second"));
+    expect(notify).toHaveBeenCalledExactlyOnceWith("Codex finished", "success", undefined, {
+      description: "collie", background: true,
+    });
+    act(() => update([agent("one", "blocked")], "first"));
+    expect(notify).toHaveBeenCalledOnce();
+  });
+
+  it("ignores non-attention transitions and gives a reappearing pane a new baseline", () => {
+    const { update } = setup([agent("one", "working")]);
+    act(() => update([agent("one", "idle")]));
+    act(() => update([agent("one", "unknown")]));
+    act(() => update([]));
+    act(() => update([agent("one", "done")]));
+    expect(notify).not.toHaveBeenCalled();
+  });
+});

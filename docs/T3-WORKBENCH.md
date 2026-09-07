@@ -174,3 +174,26 @@ voice recognition hardware have not been exercised.
 
 Validation for this correction: all 4,039 frontend tests passed (30 existing TODOs), including
 33 lifecycle/fast-read race cases. Bridge, frontend and worker TypeScript checks passed.
+
+
+## Notification surface correction (September 8)
+
+All transient feedback now uses one root-level portal, styled after T3's compact top-right
+toast viewport, neutral surface, small tone icon, title/body typography and explicit close.
+The full-width in-flow chat status row and route-specific renderers are removed. Collie's
+mobile top offset clears its additional navigation rows. Text wraps inside a bounded scroller;
+the close button has a 44px target and selecting text does not dismiss an error. Notifications
+never take focus or lock scrolling. Persistent connection/update/read-only states keep their
+existing dedicated surfaces.
+
+There is still only one bounded notification, with no dependency, event queue or background
+polling added. Hover, focus and page visibility pause the remaining lifetime. Stale dismiss
+handlers cannot clear a newer notice. Background agent transitions cannot replace a foreground
+error, simultaneous transitions are summarized once with input requests prioritized, and a
+session switch resets the comparison baseline. Native model opening no longer emits a second
+loading toast over the picker.
+
+Validation: 4,057 frontend tests passed (30 existing TODOs); build and TypeScript checks passed.
+An isolated real Codex message answered TOAST_OK; the success card left textarea focus intact.
+At 390x844 the card was 358px wide with no horizontal overflow, and closing it left conversation
+bounds identical. At 1440x900 it was bounded to 360px. Physical mobile Safari remains untested.

@@ -591,7 +591,10 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         setJustSent(true);
         if (sentTimer.current) clearTimeout(sentTimer.current);
         sentTimer.current = setTimeout(() => setJustSent(false), 1500);
-        setStatus(action === "model" ? "Opening model picker…" : action === "compact" ? "Compaction requested" : "Sent ✓", "success");
+        // The native picker already shows its own loading state.
+        if (action !== "model" || !nativeWorkbench) {
+          setStatus(action === "model" ? "Opening model picker…" : action === "compact" ? "Compaction requested" : "Message sent", action === "model" ? "info" : "success");
+        }
         const preview = t.length > 60 ? `${t.slice(0, 57)}…` : t;
         setLastSent(action ? null : preview);
         if (lastSentTimerRef.current) clearTimeout(lastSentTimerRef.current);

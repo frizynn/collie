@@ -8,6 +8,7 @@ import { useConnectionLost } from "@/hooks/use-connection-lost";
 import { UpdateAvailableBanner } from "@/components/update-available-banner";
 import { ConnectionBanner } from "@/components/connection-banner";
 import { DogGallop } from "@/components/dog-gallop";
+import { StatusArea } from "@/components/status-area";
 import { WorkbenchShell } from "@/components/workbench-shell";
 import { homePath } from "@/lib/nav";
 import { SESSION_PARAM, normalizeSession } from "@/lib/session";
@@ -55,7 +56,7 @@ export function RootLayout() {
   // routine fast polls/navigations stay invisible. Mounted here so the whole app shares one
   // detector inside the router context.
   usePollBusy();
-  useAgentTransitions(data.agents, paneId ?? null);
+  useAgentTransitions(data.agents, paneId ?? null, data.session);
   usePushSetup();
 
   // A viewport-height flex column: the top banners (when shown) are in-flow rows at the top and the
@@ -78,6 +79,7 @@ export function RootLayout() {
         lastSeenAt={shownLastSeenAt(data, pane)}
       />
       <WorkbenchShell data={data}><Outlet /></WorkbenchShell>
+      <StatusArea />
     </div>
   );
 }

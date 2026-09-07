@@ -36,7 +36,6 @@ import { AgentIcon } from "@/components/agent-icon";
 import { TabStrip } from "@/components/tab-strip";
 import { PaneStrip } from "@/components/pane-strip";
 import { ReadOnlyBanner } from "@/components/read-only-banner";
-import { StatusArea } from "@/components/status-area";
 import { ShellBadge, StatusBadge } from "@/components/status-badge";
 import { submitPromptFeedback, submitPromptOption } from "@/lib/prompt-action";
 import { submitWizardKeys } from "@/lib/wizard-action";
@@ -723,12 +722,6 @@ export function AgentChat({
 
       {/* Content region below the header — the mirror inside is the scroller. */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {/* Status line — a slim row pinned directly below the header (NOT the scrolling mirror), so a
-            "Sent" / "changed" notice reads at the top instead of floating over the terminal tail
-            (prompt/cursor + up-levelled prompt buttons) it used to cover. Renders nothing — no
-            reserved space — when idle; auto-dismisses. */}
-        <StatusArea className="mx-3 mt-1.5 shrink-0" />
-
         {/* Read-only notice when this device isn't allowlisted (the composer below is disabled too). */}
         <ReadOnlyBanner device={device} />
 

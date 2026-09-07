@@ -9,24 +9,34 @@ import { setStatus } from "@/lib/status";
 //
 // The first snapshot never fires (prev is null), so opening the app doesn't spam the status line
 // for agents that were already blocked — matching the server's transition semantics.
-export function useAgentTransitions(agents: AgentView[], openPaneId: string | null) {
-  const prev = useRef<Map<string, AgentStatus> | null>(null);
+export function useAgentTransitions(agents: AgentView[], openPaneId: string | null, session?: string) {
+  const prev = useRef<{ session?: string; statuses: Map<string, AgentStatus> } | null>(null);
 
   useEffect(() => {
     const now = new Map(agents.map((a) => [a.paneId, a.status]));
-    const before = prev.current;
-    if (before) {
-      for (const a of agents) {
-        const was = before.get(a.paneId);
-        if (!was || was === a.status) continue;
-        if (a.paneId === openPaneId) continue; // you're already looking at it
-        if (a.status === "blocked") {
-          setStatus(`${a.agent} needs you · ${a.workspaceLabel}`, "warn");
-        } else if (a.status === "done") {
-          setStatus(`${a.agent} is done · ${a.workspaceLabel}`, "success");
-        }
-      }
-    }
-    prev.current = now;
-  }, [agents, openPaneId]);
+    const before = prev.current && prev.current.session === session ? prev.current.statuses : null;
+    prev.current = { session, statuses: now };
+    if (!before) return;
+
+    const changed = agents.filter((agent) => {
+      const was = before.get(agent.paneId);
+      return was !== undefined && was !== agent.status && agent.paneId !== openPaneId;
+    });
+    const blocked = changed.filter((agent) => agent.status === "blocked");
+    const attention = blocked.length ? blocked : changed.filter((agent) => agent.status === "done");
+    if (!attention.length) return;
+
+    const needsInput = blocked.length > 0;
+    const first = attention[0]!;
+    const name = first.agent.trim();
+    const subject = attention.length === 1
+      ? name ? name[0]!.toUpperCase() + name.slice(1) : "Agent"
+      : `${attention.length} agents`;
+    const title = `${subject} ${needsInput ? attention.length === 1 ? "needs your input" : "need your input" : "finished"}`;
+    const locations = [...new Set(attention.map((agent) =>
+      [agent.workspaceLabel || agent.workspaceId, agent.tabLabel].filter(Boolean).join(" · "),
+    ))];
+    const description = locations.slice(0, 3).join(", ") + (locations.length > 3 ? ` +${locations.length - 3} more` : "");
+    setStatus(title, needsInput ? "warn" : "success", undefined, { description, background: true });
+  }, [agents, openPaneId, session]);
 }

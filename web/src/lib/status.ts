@@ -1,52 +1,59 @@
 import { useSyncExternalStore } from "react";
 
-// A tiny global status channel. Anything that wants to tell the user something (lifecycle
-// transitions, send/kill confirmations, errors) calls setStatus(); the header's <StatusArea/>
-// renders the latest one inline and it auto-dismisses. Replaces the toast overlays — there's
-// nothing to close, and it never covers the UI.
+// One bounded notification channel. Foreground feedback wins over background lifecycle updates.
 export type StatusTone = "info" | "success" | "warn" | "error";
 
 export interface StatusMessage {
   id: number;
   text: string;
   tone: StatusTone;
+  description?: string;
 }
 
 let current: StatusMessage | null = null;
 let nextId = 1;
 let timer: ReturnType<typeof setTimeout> | null = null;
+let remaining: number | null = null;
+let deadline = 0;
 const listeners = new Set<() => void>();
 
 function emit() {
   for (const fn of listeners) fn();
 }
 
-/**
- * Publish a transient status. Latest wins. Errors persist until dismissed (tap the bar); everything
- * else auto-clears. Pass an explicit `ttlMs` (or `null` to persist) to override the per-tone default.
- */
-export function setStatus(text: string, tone: StatusTone = "info", ttlMs?: number | null): void {
+/** Latest foreground feedback wins; errors persist until explicitly dismissed. */
+export function setStatus(text: string, tone: StatusTone = "info", ttlMs?: number | null,
+  options: { description?: string; background?: boolean } = {}): void {
+  if (options.background && current?.tone === "error") return;
   if (timer) clearTimeout(timer);
   timer = null;
-  current = { id: nextId++, text, tone };
+  current = { id: nextId++, text, tone, ...(options.description ? { description: options.description } : {}) };
+  remaining = ttlMs === undefined ? (tone === "error" ? null : 2500) : ttlMs;
+  resumeStatus(current.id);
   emit();
-  const ttl = ttlMs === undefined ? (tone === "error" ? null : 2500) : ttlMs;
-  if (ttl != null) {
-    timer = setTimeout(() => {
-      current = null;
-      timer = null;
-      emit();
-    }, ttl);
-  }
 }
 
-export function clearStatus(): void {
-  if (timer) {
-    clearTimeout(timer);
-    timer = null;
-  }
+/** An old close handler must never dismiss a newer message. */
+export function clearStatus(id?: number): void {
+  if (id !== undefined && current?.id !== id) return;
+  if (timer) clearTimeout(timer);
+  timer = null;
+  remaining = null;
   current = null;
   emit();
+}
+
+export function pauseStatus(id: number): void {
+  if (current?.id !== id || !timer) return;
+  clearTimeout(timer);
+  timer = null;
+  remaining = Math.max(0, deadline - Date.now());
+}
+
+export function resumeStatus(id: number): void {
+  if (current?.id !== id || timer || remaining === null) return;
+  deadline = Date.now() + remaining;
+  timer = setTimeout(() => clearStatus(id), remaining);
 }
 
 function subscribe(cb: () => void): () => void {
