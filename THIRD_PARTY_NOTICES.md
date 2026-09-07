@@ -11,7 +11,7 @@ Collie's workbench uses theme values and layout/control styling adapted from
 - `apps/web/src/components/chat/ContextWindowMeter.tsx` and `lib/contextWindow.ts`: context ring and token formatting.
 - `apps/web/src/components/chat/ModelListRow.tsx`: native model and reasoning picker row styling.
 - `apps/web/src/routes/_chat.index.tsx`: home hero and contextual entry-point styling.
-- `apps/web/src/composer-logic.ts` and `components/ChatComposer.tsx`: provider-aware command completion and insert-only selection.
+- `apps/web/src/composer-logic.ts` and `apps/web/src/components/chat/ChatComposer.tsx`: provider-aware command completion and insert-only selection.
 - `apps/web/src/components/ui/toast.tsx`: compact top-right notification surface and typography.
 - `apps/web/src/components/chat/MessagesTimeline.tsx` and `MessagesTimeline.logic.ts`: work grouping, minimal disclosures, separate final answers, and isolated elapsed-time updates.
 
