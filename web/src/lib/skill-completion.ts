@@ -3,6 +3,7 @@ export interface SkillOption {
   name: string;
   description: string;
   invocation: string;
+  kind?: "command" | "skill";
 }
 
 export interface SkillCompletion {

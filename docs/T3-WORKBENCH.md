@@ -265,3 +265,35 @@ Codex execution produced two expandable tools/results with its final answer outs
 A second execution showed Working 5s through 15s and then folded to the reported Worked 14s.
 At 390×844 there was no horizontal overflow and typing remained possible with tool results open.
 Desktop and mobile browser emulation were checked; physical mobile Safari remains untested.
+
+## Composer, command discovery and home navigation (2026-09-08)
+
+The native chat composer removes the old labelled Quick/Agent controls bar. Attachment, Quick
+replies, Commands and Display are small icons beneath the full-width input, with 44px mobile hit
+areas. The legacy shell controls remain available for actual shell panes. Quick actions and command
+selection preserve the draft; disruptive/provider-configured command confirmation also applies to
+commands inserted from the inline drawer before Send executes them.
+
+Codex `/` uses a local command catalogue and `$` only installed skills. Claude `/` combines its
+commands and installed skills, deduplicated by invocation, and keeps commands available even if
+skill discovery fails. Selection only inserts text and keeps the keyboard in the input. The catalogue
+includes eight additional public Codex configuration/integration commands. Claude discovery now
+includes legacy personal/project/enabled-plugin commands, nested names and optional-frontmatter
+skills, retaining existing containment, precedence, invocation restrictions and bounded reads.
+Sources: [Claude skills](https://code.claude.com/docs/en/skills) and
+[Codex slash commands](https://developers.openai.com/codex/cli/slash-commands). Available commands
+can still depend on the installed CLI version and enabled features; these entries are suggestions.
+
+The home route now uses T3's contextual hero and compact thread list, plus real workspace/project
+actions. It no longer duplicates the old triage dashboard and Spaces table. Build diagnostics stay
+in Settings. A collapsed desktop sidebar has its own 44px rail outside the chat's layout; its reopen
+button cannot be covered by the composer. Mobile navigation remains accessible from the top bar.
+
+Validation: 4,220 frontend tests passed (30 existing TODOs); 769 backend tests and shell lifecycle
+checks passed. Both TypeScript targets and the production/PWA build passed. In actual browser QA,
+Codex `/` opened enabled options in 5.7ms without waiting for skill discovery; `/mod` filtered and
+inserted `/model ` without sending, retaining input focus. `$` independently listed 39 installed
+skills. Desktop sidebar collapse/reopen preserved the exact textarea element and draft, and the
+reopen button passed hit testing. At 390×844, mobile home and sidebar close/reopen had no horizontal
+overflow. The real primary home showed its three projects and eight threads in the new layout.
+Physical mobile Safari remains untested; the latency measurement is a local sample, not a guarantee.

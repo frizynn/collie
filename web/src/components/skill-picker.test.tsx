@@ -29,3 +29,17 @@ it("allows touch-style click selection without a mousedown and labels an empty r
   rerender(<SkillPicker id="skills" skills={[]} total={1} activeIndex={0} onSelect={onSelect} />);
   expect(screen.getByRole("status")).toHaveTextContent("No matching skills");
 });
+
+it("keeps commands visible with accurate search counts while optional skills are loading or fail", async () => {
+  const command = { name: "/config", invocation: "/config", description: "Open settings", kind: "command" as const };
+  const retry = vi.fn();
+  const { rerender } = render(<SkillPicker id="commands" label="Commands and skills" skills={[command]} total={5} activeIndex={0} onSelect={vi.fn()} loading />);
+  expect(screen.getByRole("listbox", { name: "Commands and skills" })).toBeVisible();
+  expect(screen.getByText("Commands and skills · 1 / 5")).toBeVisible();
+  expect(screen.getByRole("option", { name: /\/config/ })).toBeVisible();
+  expect(screen.getByRole("status")).toHaveTextContent("Loading skills");
+  rerender(<SkillPicker id="commands" label="Commands and skills" skills={[command]} total={5} activeIndex={0} onSelect={vi.fn()} error onRetry={retry} />);
+  expect(screen.getByRole("option", { name: /\/config/ })).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+  expect(retry).toHaveBeenCalledOnce();
+});

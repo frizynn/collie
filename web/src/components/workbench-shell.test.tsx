@@ -35,3 +35,33 @@ it("filters projects without disturbing a mounted composer draft", async () => {
   expect(screen.getByRole("textbox", { name: "Draft" })).toBe(draft);
   expect(draft).toHaveValue("Keep this draft plus edits");
 });
+
+it("keeps desktop reopening outside the composer region and preserves the mounted draft", async () => {
+  const { sidebar, user } = setup();
+  const draft = screen.getByRole("textbox", { name: "Draft" });
+  const collapse = sidebar.getByRole("button", { name: "Collapse sidebar" });
+  await user.click(collapse);
+  const expand = screen.getByRole("button", { name: "Expand sidebar" });
+  expect(expand.closest(".workbench-main")).toBeNull();
+  expect(expand.closest(".workbench-sidebar-rail")).not.toBeNull();
+  expect(expand).toHaveFocus();
+  await user.keyboard("{Enter}");
+  expect(screen.queryByRole("button", { name: "Expand sidebar" })).not.toBeInTheDocument();
+  expect(collapse).toHaveFocus();
+  expect(collapse).toHaveAttribute("aria-expanded", "true");
+  expect(screen.getByRole("textbox", { name: "Draft" })).toBe(draft);
+});
+
+it("can reopen the mobile workspace drawer after navigation and Escape", async () => {
+  const { user } = setup();
+  const trigger = screen.getByRole("button", { name: "Open workspaces" });
+  await user.click(trigger);
+  await user.click(within(screen.getByRole("dialog", { name: "Workspaces" })).getByRole("link", { name: /Improve interface/ }));
+  expect(screen.queryByRole("dialog", { name: "Workspaces" })).not.toBeInTheDocument();
+  await user.click(trigger);
+  expect(screen.getByRole("dialog", { name: "Workspaces" })).toBeInTheDocument();
+  await user.keyboard("{Escape}");
+  expect(trigger).toHaveFocus();
+  await user.click(trigger);
+  expect(screen.getByRole("dialog", { name: "Workspaces" })).toBeInTheDocument();
+});

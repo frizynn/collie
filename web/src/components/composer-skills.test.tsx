@@ -50,6 +50,44 @@ it("inserts a Claude slash skill by click without losing keyboard focus", async 
   expect(writes).not.toHaveBeenCalled();
 });
 
+it("Codex slash lists its commands without requesting skills and Enter only inserts the command", async () => {
+  const { user, input, writes, catalogs } = mount();
+  await user.type(input, "/");
+  expect(await screen.findByRole("listbox", { name: "Commands" })).toBeVisible();
+  expect(screen.getByRole("option", { name: /^\/permissions / })).toBeInTheDocument();
+  expect(screen.queryByRole("option", { name: /^\/config / })).not.toBeInTheDocument();
+  expect(catalogs).toHaveLength(0);
+  const total = screen.getAllByRole("option").length;
+  await user.type(input, "model");
+  expect(screen.getByText(`Commands · ${screen.getAllByRole("option").length} / ${total}`)).toBeVisible();
+  await user.keyboard("{Enter}");
+  expect(input).toHaveValue("/model ");
+  expect(input).toHaveFocus();
+  expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  expect(writes).not.toHaveBeenCalled();
+});
+
+it("Claude slash combines installed skills with its configuration commands", async () => {
+  const { user, input, writes } = mount("claude");
+  await user.type(input, "/");
+  expect(await screen.findByRole("listbox", { name: "Commands and skills" })).toBeVisible();
+  expect(await screen.findByRole("option", { name: /^\/build-agents / })).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: /^\/config / })).toBeInTheDocument();
+  expect(screen.queryByRole("option", { name: /^\/personality / })).not.toBeInTheDocument();
+  await user.type(input, "config");
+  await user.keyboard("{Tab}");
+  expect(input).toHaveValue("/config ");
+  expect(writes).not.toHaveBeenCalled();
+});
+
+it("Claude dollar text remains ordinary text and never offers Codex skills", async () => {
+  const { user, input, catalogs } = mount("claude");
+  await user.type(input, "$build");
+  expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  expect(catalogs).toHaveLength(0);
+  expect(input).toHaveValue("$build");
+});
+
 it("Escape dismisses skills while preserving the literal draft", async () => {
   const { user, input } = mount();
   await user.type(input, "$");

@@ -27,6 +27,58 @@ beforeEach(() => {
 });
 
 describe("useSkillComposer", () => {
+  it("opens Codex slash commands immediately without reading its skills endpoint", async () => {
+    const { result, updateInput } = setup({ ...defaults, input: "/mod" });
+    await act(async () => result.current.onFocus());
+    expect(result.current.open).toBe(true);
+    expect(result.current.label).toBe("Commands");
+    expect(result.current.loading).toBe(false);
+    expect(result.current.skills.some((row) => row.invocation === "/model")).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await act(async () => result.current.select(result.current.skills.find((row) => row.invocation === "/model")!));
+    expect(updateInput).toHaveBeenCalledWith("/model ");
+    expect(result.current.open).toBe(false);
+  });
+
+  it("keeps Claude commands usable while skills load, then merges skills without duplicates", async () => {
+    let resolve!: (value: PaneSkillsResponse) => void;
+    fetchMock.mockReturnValueOnce(new Promise((done) => { resolve = done; }));
+    const { result } = setup({ ...defaults, agent: "claude", input: "/" });
+    await act(async () => result.current.onFocus());
+    expect(result.current.label).toBe("Commands and skills");
+    expect(result.current.loading).toBe(true);
+    expect(result.current.skills.some((row) => row.invocation === "/config")).toBe(true);
+    const commandsTotal = result.current.total;
+    await act(async () => resolve({ paneId: "one", available: true, trigger: "/", total: 3, truncated: false, skills: [
+      { name: "project-check", invocation: "/project-check", description: "Check this project", source: "project" },
+      { name: "model", invocation: "/model", description: "Collision", source: "user" },
+      { name: "wrong-provider", invocation: "$wrong-provider", description: "Invalid provider", source: "user" },
+    ] }));
+    expect(result.current.total).toBe(commandsTotal + 1);
+    expect(result.current.skills.filter((row) => row.invocation === "/model")).toHaveLength(1);
+    expect(result.current.skills.some((row) => row.invocation === "/project-check")).toBe(true);
+    expect(result.current.skills.some((row) => row.invocation.startsWith("$"))).toBe(false);
+  });
+
+  it("a skills error cannot hide Claude configuration commands", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("offline"));
+    const { result } = setup({ ...defaults, agent: "claude", input: "/config" });
+    await act(async () => result.current.onFocus());
+    expect(result.current.error).toBe(true);
+    expect(result.current.skills[0]).toMatchObject({ invocation: "/config", kind: "command" });
+  });
+
+  it("switching Codex dollar to slash does not leak cached skills or preserve an old dismissed token", async () => {
+    const { result, rerender } = setup();
+    await act(async () => result.current.onFocus());
+    expect(result.current.skills.map((row) => row.invocation)).toEqual(["$review"]);
+    await act(async () => result.current.onKeyDown({ key: "Escape", nativeEvent: {}, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as KeyboardEvent<HTMLTextAreaElement>));
+    await act(async () => rerender({ ...defaults, input: "/" }));
+    expect(result.current.open).toBe(true);
+    expect(result.current.skills.every((row) => row.kind === "command")).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("does not fetch until a focused enabled input contains a trigger at its caret", async () => {
     const { result, rerender } = setup({ ...defaults, input: "hello" });
     expect(fetchMock).not.toHaveBeenCalled();

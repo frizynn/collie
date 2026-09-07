@@ -131,3 +131,42 @@ it("does not send or arm force when the model cannot be dismissed", async () => 
   await user.keyboard("{Control>}{Enter}{/Control}");
   expect(sendGuardedReply).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ force: false }));
 });
+
+it("keeps native composing free of the old labelled controls row", () => {
+  setup();
+  expect(screen.queryByText("Controls")).not.toBeInTheDocument();
+  expect(screen.queryByText("Quick")).not.toBeInTheDocument();
+  expect(screen.queryByText("Agent")).not.toBeInTheDocument();
+  const actions = screen.getByRole("toolbar", { name: "Message actions" });
+  expect(actions).toContainElement(screen.getByRole("button", { name: "Quick replies" }));
+  expect(actions).toContainElement(screen.getByRole("button", { name: "Commands" }));
+  expect(actions).toContainElement(screen.getByRole("button", { name: "Attach image" }));
+  expect(screen.getByRole("textbox").compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it("opens compact quick actions without changing or sending the draft", async () => {
+  const { user } = setup();
+  const input = screen.getByRole("textbox");
+  await user.type(input, "Keep writing here");
+  const toggle = screen.getByRole("button", { name: "Quick replies" });
+  await user.click(toggle);
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(input).toHaveValue("Keep writing here");
+  expect(sendGuardedReply).not.toHaveBeenCalled();
+  await user.click(toggle);
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  expect(input).toBeEnabled();
+});
+
+
+it("keeps the configured confirmation when a disruptive slash command is typed into the composer", async () => {
+  const { user } = setup();
+  const input = screen.getByRole("textbox");
+  await user.type(input, "/new");
+  await user.keyboard("{Escape}");
+  await user.click(screen.getByRole("button", { name: "Send" }));
+  expect(sendGuardedReply).not.toHaveBeenCalled();
+  expect(input).toHaveValue("/new");
+  await user.click(screen.getByRole("button", { name: "Really send?" }));
+  expect(sendGuardedReply).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ text: "/new", force: false }));
+});

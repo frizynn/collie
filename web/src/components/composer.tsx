@@ -351,8 +351,11 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   // its text tracks and that the send()-time pre-clear sweeps.
   const effectiveStable = suppressEcho(terminalDraft);
   const effectiveRaw = suppressEcho(rawTerminalDraft);
+  // One provider-scoped catalogue feeds both inline completion and the command palette.
+  const operatorCommands = useOperatorCommands();
+  const commands = commandsFor(agent, operatorCommands);
   const skills = useSkillComposer({
-    paneId, session, agent, input, updateInput, inputRef,
+    paneId, session, agent, input, updateInput, inputRef, mine: operatorCommands,
     enabled: !direct.active && !gone && !readOnly && drawer === null,
   });
 
@@ -364,7 +367,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       }
       const available = commandsFor(agent, operatorCommands).find((c) => c.command === command);
       if (!available || available.dangerous) {
-        setStatus("Open Agent commands to use this action with your configured confirmation.", "info");
+        setStatus("Open Commands to use this action with your configured confirmation.", "info");
         return false;
       }
       return send(command, false, false, command === "/model" ? "model" : "compact");
@@ -456,10 +459,6 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     focusInputEnd();
   }
 
-  // The operator's own palette rows, resolved against the shipped catalog for both the button's
-  // visibility test here and the palette's own list below (same call, same arguments).
-  const operatorCommands = useOperatorCommands();
-  const commands = commandsFor(agent, operatorCommands);
   // The Keys tray's preset row, resolved the same way from the same one-shot read of /api/config.
   const keyPresets = ctrlPresetsFor(agent, useOperatorKeys());
 
@@ -657,9 +656,10 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       send(input, true, true);
       return;
     }
-    const reason = isDestructiveInput(input);
+    const command = commands.find((candidate) => candidate.command === input.trimStart().split(/\s/, 1)[0]);
+    const reason = isDestructiveInput(input) ?? (command?.dangerous ? command.command : null);
     if (reason && !sendConfirm.confirm("send")) {
-      setStatus(`Destructive: ${reason} — tap Send again to confirm`, "info");
+      setStatus(`${reason} — tap Send again to confirm`, "info");
       return;
     }
     sendConfirm.reset();
@@ -835,7 +835,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             which is what squeezed the toggles; absolute costs nothing and the row gets the width
             back. `pt-3` on the row reserves the space it occupies so it can't collide with whatever
             sits above. */}
-        <div className={cn("relative mb-2 flex items-center gap-2", !nativeWorkbench && "pt-3")}>
+        {!nativeWorkbench && <div className="relative mb-2 flex items-center gap-2 pt-3">
           {!nativeWorkbench && <SectionLabel className="absolute left-0 top-0 text-[10px] leading-none opacity-80">
             Controls
           </SectionLabel>}
@@ -921,7 +921,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           >
             <Settings2 className="size-4" />
           </Button>
-        </div>
+        </div>}
         {/* Terminal-draft preview: a read-only view of a stranded "❯"-line draft (a message queued
             then recalled on the HOST, which stripChrome hides from the mirror). It appears only after
             the draft stabilises (never a blip/self-echo), then its text tracks the live line — host
@@ -979,19 +979,20 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         )}
         {/* gap-3, not gap-2: with the attach button moved inside the field this row is only the
             field and Send, and the old spacing left them looking joined. */}
-        <div className="flex items-end gap-3">
+        <div className={cn("items-end gap-3", nativeWorkbench ? "grid grid-cols-[1fr_auto] gap-y-1" : "flex")}>
           {/* The input and its attach button share one box: the button is positioned INSIDE the
               field, messenger-style, rather than sitting beside it as a third control in the row.
               It used to occupy a full-height slot to the left, which spent the widest part of the
               composer on the least-used action; inside the field it costs nothing but a strip of
               padding the text was not using anyway. `pr-11` on the textarea reserves that strip so a
               long line can never run underneath the icon. */}
-          <div className="relative min-w-0 flex-1">
-          {skills.open && (skills.loading || skills.error ? (
+          <div className={cn("relative min-w-0 flex-1", nativeWorkbench && "col-span-2")}>
+          {skills.open && (skills.skills.length === 0 && (skills.loading || skills.error) ? (
             <div className="absolute inset-x-0 bottom-full z-30 mb-2 rounded-xl border border-border bg-popover px-3 py-3 text-xs text-muted-foreground shadow-lg" role="status">
               {skills.loading ? "Loading skills…" : <span>Couldn't load skills. <button type="button" className="min-h-11 px-2 underline" onMouseDown={(e) => e.preventDefault()} onClick={skills.retry}>Retry</button></span>}
             </div>
-          ) : <SkillPicker id={skills.id} skills={skills.skills} total={skills.total} activeIndex={skills.activeIndex} onSelect={skills.select} />)}
+          ) : <SkillPicker id={skills.id} skills={skills.skills} total={skills.total} activeIndex={skills.activeIndex} onSelect={skills.select}
+            label={skills.label} loading={skills.loading} error={skills.error} truncated={skills.truncated} onRetry={skills.retry} />)}
           <ChatInput
             ref={inputRef}
             value={direct.active ? direct.value : input}
@@ -1000,7 +1001,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             onFocus={() => { skills.onFocus(); onInputFocus?.(); }}
             onBlur={skills.onBlur}
             aria-autocomplete={skills.open ? "list" : undefined}
-            aria-controls={skills.open && !skills.loading && !skills.error ? skills.id : undefined}
+            aria-controls={skills.open && (!(skills.loading || skills.error) || skills.skills.length > 0) ? skills.id : undefined}
             aria-activedescendant={skills.open && skills.skills.length > 0 ? `${skills.id}-option-${skills.activeIndex}` : undefined}
             onCompositionStart={direct.active ? direct.onCompositionStart : undefined}
             onCompositionEnd={direct.active ? direct.onCompositionEnd : undefined}
@@ -1036,14 +1037,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               // matters: a textarea is inline-level by default, so the wrapper inherits a few px of
               // baseline gap beneath it and the absolutely-positioned button hangs past the field's
               // bottom edge.
-              "block pr-11",
+              nativeWorkbench ? "block min-h-10 px-2 py-2" : "block pr-11",
               direct.active &&
                 "border-primary focus-visible:border-primary focus-visible:ring-primary/30",
             )}
             disabled={gone || readOnly}
             rows={1}
           />
-            <Button
+            {!nativeWorkbench && <Button
               type="button"
               variant="ghost"
               size="icon"
@@ -1061,8 +1062,23 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               ) : (
                 <ImagePlus className="size-4" />
               )}
-            </Button>
+            </Button>}
           </div>
+          {nativeWorkbench && <div className="flex min-w-0 items-center gap-0.5" role="toolbar" aria-label="Message actions">
+            <Button type="button" variant="ghost" size="icon" className="size-11 text-muted-foreground md:size-8" title="Attach image" aria-label="Attach image"
+              disabled={uploading || locked} onPointerDown={(e) => e.preventDefault()} onClick={() => fileRef.current?.click()}>
+              {uploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+            </Button>
+            <Button type="button" variant="ghost" size="icon" className={cn("size-11 md:size-8", drawer === "quick" ? CONTROL_ON : CONTROL_OFF)}
+              title="Quick replies" aria-label="Quick replies" disabled={locked} aria-expanded={drawer === "quick"}
+              onClick={() => requestDrawer(drawer === "quick" ? null : "quick")}><Zap className="size-4" /></Button>
+            {commands.length > 0 && <Button type="button" variant="ghost" size="icon" className="size-11 text-muted-foreground md:size-8"
+              title="Commands" aria-label="Commands" disabled={locked} aria-expanded={drawer === "cmd"}
+              onClick={() => requestDrawer(drawer === "cmd" ? null : "cmd")}><Slash className="size-4" /></Button>}
+            <Button type="button" variant="ghost" size="icon" className={cn("size-11 md:size-8", drawer === "display" ? CONTROL_ON : CONTROL_OFF)}
+              title="Display settings" aria-label="Display settings" aria-expanded={drawer === "display"}
+              onClick={() => requestDrawer(drawer === "display" ? null : "display")}><Settings2 className="size-4" /></Button>
+          </div>}
           {!direct.active && forcingSend ? (
             // The pre-flight refused and the user is being offered the override. Labelled for what it
             // actually does — TYPE the text into whatever is on screen — not "send", because the
@@ -1089,7 +1105,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           ) : (
             <Button
               size="icon"
-              className="size-11 shrink-0 rounded-full"
+              className={cn("size-11 shrink-0 rounded-full", nativeWorkbench && "md:size-8")}
               onClick={direct.active ? () => direct.deactivate() : onSendClick}
               disabled={locked || sending}
               aria-label={direct.active ? "Stop typing into terminal" : "Send"}

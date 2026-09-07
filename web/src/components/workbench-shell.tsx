@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { Folder, House, PanelLeft, Search, Settings, Terminal } from "lucide-react";
 
@@ -18,6 +18,15 @@ function threadLabel(pane: AgentView): string {
 export function WorkbenchShell({ data, children }: { data: HomeData; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const sidebarId = useId();
+  const expandButton = useRef<HTMLButtonElement>(null);
+  const collapseButton = useRef<HTMLButtonElement>(null);
+  const wasCollapsed = useRef(false);
+  useEffect(() => {
+    if (collapsed) expandButton.current?.focus();
+    else if (wasCollapsed.current) collapseButton.current?.focus();
+    wasCollapsed.current = collapsed;
+  }, [collapsed]);
   const location = useLocation();
   // A new route closes the drawer synchronously, including browser Back/Forward.
   const [drawerLocation, setDrawerLocation] = useState(location.key);
@@ -28,28 +37,31 @@ export function WorkbenchShell({ data, children }: { data: HomeData; children: R
 
   return (
     <div className="workbench-shell" data-sidebar-collapsed={collapsed}>
-      <aside className="workbench-sidebar" aria-label="Workspace sidebar">
+      <aside id={sidebarId} className="workbench-sidebar" aria-label="Workspace sidebar">
         <div className="workbench-brand-row">
           <Link to={homePath(data.session)} className="workbench-brand">
             <img src="/favicon.svg" alt="" width="22" height="22" />
             <span>Collie <span className="font-normal text-muted-foreground">Code</span></span>
           </Link>
-          <button className="workbench-icon-button" aria-label="Collapse sidebar" onClick={() => setCollapsed(true)}>
+          <button ref={collapseButton} type="button" className="workbench-icon-button" aria-label="Collapse sidebar" aria-expanded={!collapsed} aria-controls={sidebarId} onClick={() => setCollapsed(true)}>
             <PanelLeft aria-hidden="true" size={17} />
           </button>
         </div>
         <WorkspaceNavigation data={data} />
       </aside>
 
+      {collapsed && <div className="workbench-sidebar-rail">
+        <button ref={expandButton} type="button" className="workbench-expand workbench-icon-button" aria-label="Expand sidebar" aria-expanded="false" aria-controls={sidebarId} onClick={() => setCollapsed(false)}><PanelLeft aria-hidden="true" size={18} /></button>
+      </div>}
+
       <div className="workbench-main">
         <div className="workbench-mobile-bar">
-          <button className="workbench-icon-button" aria-label="Open workspaces" onClick={() => setMobileOpen(true)}>
+          <button type="button" className="workbench-icon-button" aria-label="Open workspaces" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}>
             <PanelLeft aria-hidden="true" size={18} />
           </button>
           <Link to={homePath(data.session)} className="workbench-brand">Collie <span className="font-normal text-muted-foreground">Code</span></Link>
           <SessionSwitcher sessions={data.sessions ?? []} current={data.session} />
         </div>
-        {collapsed && <button className="workbench-expand workbench-icon-button" aria-label="Expand sidebar" onClick={() => setCollapsed(false)}><PanelLeft aria-hidden="true" size={18} /></button>}
         {children}
       </div>
 
