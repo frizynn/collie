@@ -233,6 +233,31 @@ export interface TranscriptEntry {
  * false` is an ordinary answer (a shell pane, a harness with no session log, or the feature off) —
  * the UI hides the History affordance rather than showing an error.
  */
+/** Last reported journal metrics. Missing values are unknown, never inferred model limits. */
+export interface SessionTelemetry {
+  source: "journal";
+  observedAt?: string;
+  model?: string;
+  effort?: string;
+  tokens?: {
+    input?: number;
+    output?: number;
+    cachedInput?: number;
+    total?: number;
+    scope: "session" | "last-message";
+  };
+  context?: { usedTokens?: number; windowTokens?: number };
+  rateLimits?: Array<{
+    name: "primary" | "secondary";
+    usedPercent: number;
+    windowMinutes?: number;
+    /** Epoch seconds, as reported by the provider. */
+    resetsAt?: number;
+  }>;
+  /** The parsed log was tail-capped; metadata from its missing head may be unavailable. */
+  fileTruncated: boolean;
+}
+
 export type PaneHistoryResponse =
   | { paneId: string; available: false; reason: "disabled" | "no-session" | "no-log" }
   | {
@@ -244,6 +269,7 @@ export type PaneHistoryResponse =
       hasMore: boolean;
       total: number;
       fileTruncated: boolean;
+      telemetry?: SessionTelemetry;
     };
 
 export type ActionResponse =

@@ -64,6 +64,31 @@ export interface TranscriptEntry {
   parts: TranscriptPart[];
 }
 
+/** Last reported journal metrics. Missing values are unknown, never inferred model limits. */
+export interface SessionTelemetry {
+  source: "journal";
+  observedAt?: string;
+  model?: string;
+  effort?: string;
+  tokens?: {
+    input?: number;
+    output?: number;
+    cachedInput?: number;
+    total?: number;
+    scope: "session" | "last-message";
+  };
+  context?: { usedTokens?: number; windowTokens?: number };
+  rateLimits?: Array<{
+    name: "primary" | "secondary";
+    usedPercent: number;
+    windowMinutes?: number;
+    /** Epoch seconds, as reported by the provider. */
+    resetsAt?: number;
+  }>;
+  /** The parsed log was tail-capped; metadata from its missing head may be unavailable. */
+  fileTruncated: boolean;
+}
+
 /** What the history endpoint answers with, minus the pane id the route adds. */
 export interface TranscriptPage {
   paneId: string;
@@ -75,6 +100,7 @@ export interface TranscriptPage {
   total: number;
   /** True when the on-disk log exceeded the byte cap and we kept only its tail. */
   fileTruncated: boolean;
+  telemetry?: SessionTelemetry;
 }
 
 /**
@@ -109,4 +135,6 @@ export interface JournalAdapter {
   readonly agent: string;
   readonly source: TranscriptSource;
   parse(text: string): TranscriptEntry[];
+  /** Runs only when the cached log changes, over the same contained read as the transcript. */
+  parseUsage?(text: string): Omit<SessionTelemetry, "fileTruncated"> | undefined;
 }

@@ -23,6 +23,7 @@
 // rendering 705 fake "user" turns. `isSidechain` marks subagent traffic (dropped by default);
 // `isCompactSummary` marks the summary Claude writes when a session is compacted.
 
+import { parseClaudeUsage } from "./usage.ts";
 import { readdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
@@ -395,6 +396,7 @@ export class ClaudeTranscriptSource implements TranscriptSource {
 export function claudeJournal(roots: string | readonly string[]): JournalAdapter {
   return {
     agent: "claude",
+    parseUsage: parseClaudeUsage,
     source: new ClaudeTranscriptSource(roots),
     parse: (text) => parseClaudeTranscript(text),
   };

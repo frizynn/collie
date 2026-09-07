@@ -23,6 +23,7 @@
 // kind-`id` ref exactly like Claude's. It needs `herdr integration install codex`; without the hook
 // there is no id and the journal correctly reports "no-session".
 
+import { parseCodexUsage } from "./usage.ts";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -321,6 +322,7 @@ async function descending(dir: string): Promise<string[]> {
 export function codexJournal(roots: string | readonly string[]): JournalAdapter {
   return {
     agent: "codex",
+    parseUsage: parseCodexUsage,
     source: new CodexTranscriptSource(roots),
     parse: parseCodexTranscript,
   };

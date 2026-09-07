@@ -5,7 +5,7 @@
 // keyed by absolute path, which is why one store can serve every agent and every herdr session at
 // once: two sessions fronting panes whose agents write into the same root still hit the same entry.
 
-import type { AgentSessionRef, JournalAdapter, TranscriptEntry, TranscriptPage } from "./types.ts";
+import type { AgentSessionRef, JournalAdapter, SessionTelemetry, TranscriptEntry, TranscriptPage } from "./types.ts";
 
 /** How many parsed journals to keep hot. Each is re-parsed only when its file's size/mtime moves. */
 const CACHE_MAX = 4;
@@ -15,6 +15,7 @@ interface CacheEntry {
   mtimeMs: number;
   complete: boolean;
   entries: TranscriptEntry[];
+  telemetry?: SessionTelemetry;
 }
 
 /**
@@ -72,7 +73,11 @@ export class TranscriptStore {
       this.cache.set(path, entry);
     } else {
       const { text, complete, size, mtimeMs } = await adapter.source.load(path);
-      entry = { size, mtimeMs, complete, entries: adapter.parse(text) };
+      const usage = adapter.parseUsage?.(text);
+      entry = {
+        size, mtimeMs, complete, entries: adapter.parse(text),
+        ...(usage ? { telemetry: { ...usage, fileTruncated: !complete } } : {}),
+      };
       this.cache.set(path, entry);
       if (this.cache.size > CACHE_MAX) {
         const oldest = this.cache.keys().next().value;
@@ -88,6 +93,7 @@ export class TranscriptStore {
       hasMore: hasMore || (!complete && window.length > 0 && window[0] === entries[0]),
       total: entries.length,
       fileTruncated: !complete,
+      ...(entry.telemetry ? { telemetry: entry.telemetry } : {}),
     };
   }
 }
