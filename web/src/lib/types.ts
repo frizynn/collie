@@ -387,3 +387,20 @@ export const STATUS_LABEL: Record<AgentStatus, string> = {
   done: "done",
   unknown: "unknown",
 };
+
+/** Metadata inventory of filesystem-installed skills; not a claim about an agent's loaded context. */
+export interface PaneSkill {
+  name: string;
+  description: string;
+  invocation: string;
+  source: "project" | "user" | "plugin" | "system";
+}
+export interface PaneSkillsResponse {
+  paneId: string;
+  available: boolean;
+  trigger: "$" | "/" | null;
+  skills: PaneSkill[];
+  total: number;
+  truncated: boolean;
+  reason?: "unsupported-agent" | "no-pane";
+}
