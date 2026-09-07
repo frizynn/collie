@@ -6,7 +6,8 @@
 //   ~/.codex/sessions/YYYY/MM/DD/rollout-<ISO-ts>-<session-uuid>.jsonl
 //   {"timestamp":"…","type":"session_meta","payload":{"id":"<uuid>","cwd":"…","cli_version":"…"}}
 //   {"timestamp":"…","type":"response_item","payload":{"type":"message"|"reasoning"|
-//                                                      "function_call"|"function_call_output", …}}
+//                                                      "function_call"|"function_call_output"|
+//                                                      "custom_tool_call"|"custom_tool_call_output", …}}
 //   {"timestamp":"…","type":"event_msg","payload":{"type":"user_message"|"agent_message"|
 //                                                  "agent_reasoning"|"token_count", …}}
 //   {"timestamp":"…","type":"compacted","payload":{"message":"…","replacement_history":[…], …}}
@@ -18,8 +19,8 @@
 // THE TRAP: ROWS ARE DOUBLE-BOOKED. The same conversation is written twice — once as `response_item`
 // (the API-shaped record) and once as `event_msg` (the UI event stream). Measured on one session: 29
 // `response_item` user messages against 28 `event_msg` user_messages, and the same for assistant
-// turns. Parse both families and every turn renders twice. We take `response_item` and drop
-// `event_msg` wholesale, because only `response_item` carries tool RESULTS
+// turns. Parse both families as speech and every turn renders twice. We take `response_item` for
+// speech and retain only native lifecycle metadata from `event_msg`, because only `response_item` carries tool RESULTS
 // (`function_call_output`) — the event stream has the calls' narration but not their output.
 //
 // Where Herdr's id comes from: Codex's `SessionStart` hook reports `session_id` to
@@ -28,6 +29,7 @@
 // there is no id and the journal correctly reports "no-session".
 
 import { parseCodexUsage } from "./usage.ts";
+import { CodexTurnTracker } from "./turns.ts";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -102,6 +104,13 @@ function blockText(content: unknown): string {
  * output isn't JSON should still show its output rather than nothing.
  */
 export function codexToolOutput(raw: unknown): string {
+  // Custom-tool results use the Responses content-list shape, including text plus image blocks.
+  // Only literal textual output belongs in this transcript; never serialize image/binary payloads.
+  if (Array.isArray(raw)) return raw.flatMap((block) => {
+    if (!block || typeof block !== "object") return [];
+    const item = block as Record<string, unknown>;
+    return (item.type === "input_text" || item.type === "output_text" || item.type === "text") && typeof item.text === "string" ? [item.text] : [];
+  }).join("\n");
   if (typeof raw !== "string") return "";
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -146,6 +155,8 @@ interface CodexRow {
  */
 export function parseCodexTranscript(text: string): TranscriptEntry[] {
   const entries: TranscriptEntry[] = [];
+  const turns = new CodexTurnTracker();
+  const emit = (entry: TranscriptEntry) => { turns.attach(entry); entries.push(entry); };
   const seen = new Map<string, number>();
   // call_id → the part awaiting its output, so a `function_call_output` lands on its own call.
   const pendingTools = new Map<string, Extract<TranscriptPart, { kind: "tool" }>>();
@@ -158,6 +169,7 @@ export function parseCodexTranscript(text: string): TranscriptEntry[] {
     } catch {
       continue;
     }
+    turns.observe(row);
     const payload = row.payload;
     if (payload === null || typeof payload !== "object") continue;
     const p = payload as Record<string, unknown>;
@@ -165,7 +177,7 @@ export function parseCodexTranscript(text: string): TranscriptEntry[] {
     if (row.type === "compacted") {
       if (typeof p.message !== "string") continue;
       const summary = stripAnsi(p.message).trim() || "Context compacted";
-      entries.push({
+      emit({
         uuid: codexCursor(line, seen), ts, role: "summary",
         parts: [{ kind: "text", ...clamp(summary, MAX_TEXT_CHARS) }],
       });
@@ -185,7 +197,9 @@ export function parseCodexTranscript(text: string): TranscriptEntry[] {
       const body = stripAnsi(blockText(p.content));
       if (body.trim() === "") continue;
       if (role === "user" && isInjectedContext(body)) continue;
-      entries.push({ uuid, ts, role, parts: [{ kind: "text", ...clamp(body, MAX_TEXT_CHARS) }] });
+      emit({ uuid, ts, role, parts: [{ kind: "text", ...clamp(body, MAX_TEXT_CHARS) }],
+        ...(role === "assistant" && (p.phase === "commentary" || p.phase === "final_answer") ? { phase: p.phase } : {}),
+      });
       continue;
     }
 
@@ -203,7 +217,7 @@ export function parseCodexTranscript(text: string): TranscriptEntry[] {
             .join("\n\n")
         : "";
       if (summary.trim() === "") continue; // encrypted-only reasoning row — nothing to show
-      entries.push({
+      emit({
         uuid,
         ts,
         role: "assistant",
@@ -212,18 +226,20 @@ export function parseCodexTranscript(text: string): TranscriptEntry[] {
       continue;
     }
 
-    if (p.type === "function_call") {
+    if (p.type === "function_call" || p.type === "custom_tool_call") {
       const part: Extract<TranscriptPart, { kind: "tool" }> = {
         kind: "tool",
         name: typeof p.name === "string" ? p.name : "tool",
-        summary: codexToolSummary(p.arguments),
+        // Custom tools carry raw code/text, not JSON arguments (even when the code happens to be
+        // valid JSON). Keep a bounded literal one-line gist instead of guessing its structure.
+        summary: p.type === "custom_tool_call" ? typeof p.input === "string" ? oneLine(stripAnsi(p.input)) : "" : codexToolSummary(p.arguments),
       };
       if (typeof p.call_id === "string") pendingTools.set(p.call_id, part);
-      entries.push({ uuid, ts, role: "assistant", parts: [part] });
+      emit({ uuid, ts, role: "assistant", parts: [part] });
       continue;
     }
 
-    if (p.type === "function_call_output") {
+    if (p.type === "function_call_output" || p.type === "custom_tool_call_output") {
       const id = typeof p.call_id === "string" ? p.call_id : "";
       const target = pendingTools.get(id);
       const outputText = stripAnsi(codexToolOutput(p.output));
@@ -235,7 +251,7 @@ export function parseCodexTranscript(text: string): TranscriptEntry[] {
       } else if (outputText.trim() !== "") {
         // Orphan output (its call fell outside a tail-read window) — kept unattached so the window
         // never silently drops output.
-        entries.push({
+        emit({
           uuid,
           ts,
           role: "assistant",
@@ -247,7 +263,7 @@ export function parseCodexTranscript(text: string): TranscriptEntry[] {
     }
   }
 
-  return entries;
+  return turns.finish(entries);
 }
 
 /**

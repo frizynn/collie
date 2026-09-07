@@ -223,6 +223,17 @@ export interface TranscriptEntry {
   ts: string;
   role: "user" | "assistant" | "summary" | "note";
   parts: TranscriptPart[];
+  turnId?: string;
+  phase?: "commentary" | "final_answer";
+  turn?: TranscriptTurn;
+}
+
+export interface TranscriptTurn {
+  status: "running" | "completed" | "aborted";
+  startedAt?: string;
+  completedAt?: string;
+  /** Native reported work duration, not a timestamp estimate. */
+  durationMs?: number;
 }
 
 /**

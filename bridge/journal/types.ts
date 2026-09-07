@@ -62,6 +62,19 @@ export interface TranscriptEntry {
   ts: string;
   role: "user" | "assistant" | "summary" | "note";
   parts: TranscriptPart[];
+  /** Native turn id, or a Claude group anchored to its human/continuation message uuid. */
+  turnId?: string;
+  /** Present only when the journal explicitly distinguishes narration from a final answer. */
+  phase?: "commentary" | "final_answer";
+  turn?: TranscriptTurn;
+}
+
+export interface TranscriptTurn {
+  status: "running" | "completed" | "aborted";
+  startedAt?: string;
+  completedAt?: string;
+  /** Native reported work duration; never calculated from message timestamps. */
+  durationMs?: number;
 }
 
 /** Last reported journal metrics. Missing values are unknown, never inferred model limits. */

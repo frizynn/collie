@@ -24,6 +24,7 @@
 // `isCompactSummary` marks the summary Claude writes when a session is compacted.
 
 import { parseClaudeUsage } from "./usage.ts";
+import { ClaudeTurnTracker } from "./turns.ts";
 import { readdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
@@ -113,7 +114,7 @@ function toolResultText(content: unknown): string {
     .join("\n");
 }
 
-interface RawRow {
+interface RawRow extends Record<string, unknown> {
   type?: unknown;
   uuid?: unknown;
   timestamp?: unknown;
@@ -137,6 +138,7 @@ export function parseClaudeTranscript(
   opts: { includeSidechains?: boolean } = {},
 ): TranscriptEntry[] {
   const entries: TranscriptEntry[] = [];
+  const turns = new ClaudeTurnTracker();
   // tool_use id → the part awaiting its result, so a `tool_result` row lands on the call that made it.
   const pendingTools = new Map<string, Extract<TranscriptPart, { kind: "tool" }>>();
 
@@ -149,12 +151,17 @@ export function parseClaudeTranscript(
       continue; // partial trailing write, or the clipped first line of a tail read
     }
     const type = row.type;
-    if (type !== "user" && type !== "assistant") continue;
     if (row.isSidechain === true && !opts.includeSidechains) continue;
+    if (type !== "user" && type !== "assistant") { turns.observe(row); continue; }
 
     const message = row.message;
     if (message === null || typeof message !== "object") continue;
     const content = (message as { content?: unknown }).content;
+    const human = type === "user" && row.isCompactSummary !== true && (
+      typeof content === "string" ? classifyUserText(content)?.role === "user" :
+      Array.isArray(content) && content.some((block) => block?.type === "text" && typeof block.text === "string" && classifyUserText(block.text)?.role === "user")
+    );
+    turns.observe(row, human);
     const uuid = typeof row.uuid === "string" ? row.uuid : "";
     const ts = typeof row.timestamp === "string" ? row.timestamp : "";
     const parts: TranscriptPart[] = [];
@@ -224,10 +231,15 @@ export function parseClaudeTranscript(
         : type === "assistant"
           ? "assistant"
           : (roleOverride ?? "user");
-    entries.push({ uuid, ts, role, parts });
+    const stop = (message as { stop_reason?: unknown }).stop_reason;
+    const phase = role === "assistant" && parts.some((part) => part.kind === "text")
+      ? stop === "end_turn" ? "final_answer" : stop === "tool_use" ? "commentary" : undefined : undefined;
+    const entry: TranscriptEntry = { uuid, ts, role, parts, ...(phase ? { phase } : {}) };
+    turns.attach(entry);
+    entries.push(entry);
   }
 
-  return entries;
+  return turns.finish(entries);
 }
 
 /**
