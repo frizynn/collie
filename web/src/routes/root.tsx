@@ -8,6 +8,7 @@ import { useConnectionLost } from "@/hooks/use-connection-lost";
 import { UpdateAvailableBanner } from "@/components/update-available-banner";
 import { ConnectionBanner } from "@/components/connection-banner";
 import { DogGallop } from "@/components/dog-gallop";
+import { WorkbenchShell } from "@/components/workbench-shell";
 import { homePath } from "@/lib/nav";
 import { SESSION_PARAM, normalizeSession } from "@/lib/session";
 import { PANE_ROUTE_ID, type HomeData, type PaneData } from "@/lib/loaders";
@@ -76,7 +77,7 @@ export function RootLayout() {
         authError={data.authError}
         lastSeenAt={shownLastSeenAt(data, pane)}
       />
-      <Outlet />
+      <WorkbenchShell data={data}><Outlet /></WorkbenchShell>
     </div>
   );
 }
