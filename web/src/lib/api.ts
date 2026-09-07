@@ -305,6 +305,10 @@ export async function fetchPane(
  * Small live windows use a bounded memory-only ETag cache. Full history and older pages are not
  * retained here; the history route owns those larger bodies. HTTP storage stays disabled.
  */
+export function fetchModelCatalog(paneId: string, session?: string, signal?: AbortSignal): Promise<{ available: boolean; models: Array<{ name: string; description: string }>; source?: string }> {
+  return req(withSession(`/api/pane/${encodeURIComponent(paneId)}/models`, session), { signal });
+}
+
 export function fetchSkills(paneId: string, session?: string, signal?: AbortSignal): Promise<PaneSkillsResponse> {
   return req<PaneSkillsResponse>(withSession(`/api/pane/${encodeURIComponent(paneId)}/skills`, session), { signal });
 }

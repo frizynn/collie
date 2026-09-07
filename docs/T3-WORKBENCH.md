@@ -197,3 +197,35 @@ Validation: 4,057 frontend tests passed (30 existing TODOs); build and TypeScrip
 An isolated real Codex message answered TOAST_OK; the success card left textarea focus intact.
 At 390x844 the card was 358px wide with no horizontal overflow, and closing it left conversation
 bounds identical. At 1440x900 it was bounded to 360px. Physical mobile Safari remains untested.
+
+
+## Instant local model selection (September 8)
+
+The previous optimization still disabled cached rows while `/model` opened remotely. The normal
+picker now opens and selects entirely locally, with no terminal request until explicit Use model.
+A read-only pane-scoped models endpoint preloads candidates when the chat mounts. Codex reads
+its matched profile's models_cache.json; Claude uses known native aliases and its matched profile's
+supplemental options. These are candidates, not entitlement promises. Apply resolves the chosen
+name against a fresh native menu, uses guarded arrows, verifies the resulting highlight and then
+uses the advertised session action (Claude `s`, never default-writing Enter; Codex enters its
+reasoning picker). Existing reasoning/default controls remain under an explicit advanced action.
+Closing or typing cancels any pending Apply before releasing actual CLI input; browsing alone
+needs no remote cancellation. Repeated clicks cannot apply a stale local selection.
+
+The browser retains only names/descriptions for up to eight pane/session/agent scopes, for 24 hours
+and at most 100KB. No menu signature, keystroke, transcript, or credential is persisted. Observed
+native rows supersede pending metadata results; every applied choice still needs live validation.
+The former display-only menu cache and its unused implementation are removed. No polling, CLI
+subprocess, new dependency or model request is added by opening/reopening the local picker.
+
+Live isolated QA: the initial models HTTP read returned seven entries /674 bytes in 4ms. Eleven
+openings produced seven ENABLED rows in 0.9–2ms (not merely a loading shell), with zero terminal
+writes; row selection also stayed local. Claude's existing pane exposed its five candidates via a
+read-only request, without touching its terminal. These are local samples, not network/application
+speed guarantees. Applying the current Codex model reached its actual reasoning picker; the
+existing High effort was verified before confirmation.
+
+Final validation: 4,134 frontend tests passed (30 existing TODOs), 749 backend tests and the
+shell lifecycle checks passed; the bounded metadata reader was rechecked after its final cap.
+Both TypeScript targets passed. The QA config SHA-256 remained byte-identical after model/effort
+confirmation. Physical mobile Safari remains untested.

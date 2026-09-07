@@ -7,6 +7,8 @@ interface Options {
   otherDialogPresent: boolean;
   writable: boolean;
   openModel: () => Promise<boolean>;
+  modelInputActive?: () => boolean;
+  beforeDismissModel?: () => Promise<void>;
   dismissModel: (signal: AbortSignal) => Promise<{ ok: boolean; error?: string }>;
   onError: (message: string) => void;
 }
@@ -60,6 +62,7 @@ export function useWorkbenchPanels(options: Options) {
     setClosing(true);
     const operation = (async () => {
       try {
+        if (latest.current.beforeDismissModel) await latest.current.beforeDismissModel();
         if (opening.current) await opening.current;
         if (signal.aborted || !latest.current.writable) return false;
         const result = await latest.current.dismissModel(signal);
@@ -93,7 +96,7 @@ export function useWorkbenchPanels(options: Options) {
 
   const changePanel = useCallback(async (next: WorkbenchPanel) => {
     const request = ++version.current;
-    const hadModel = panelRef.current === "model" || latest.current.modelPresent || opening.current || cancelling.current;
+    const hadModel = (latest.current.modelInputActive?.() ?? (panelRef.current === "model" || latest.current.modelPresent || opening.current)) || cancelling.current;
     show(null);
     if (hadModel && !(await releaseModel())) return;
     if (request !== version.current || abort.current.signal.aborted) return;
@@ -125,7 +128,7 @@ export function useWorkbenchPanels(options: Options) {
   const prepareSend = useCallback(async () => {
     const request = ++version.current;
     const signal = abort.current.signal;
-    const hadModel = panelRef.current === "model" || latest.current.modelPresent || opening.current || cancelling.current;
+    const hadModel = (latest.current.modelInputActive?.() ?? (panelRef.current === "model" || latest.current.modelPresent || opening.current)) || cancelling.current;
     show(null);
     if (hadModel) {
       const ready = await releaseModel();

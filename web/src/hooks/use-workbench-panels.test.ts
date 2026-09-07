@@ -242,3 +242,73 @@ describe("useWorkbenchPanels — pane/session lifetime", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 });
+
+describe("useWorkbenchPanels — local model browsing versus CLI ownership", () => {
+  it.each(["usage", "context", null] as const)("closes local browsing to %s without cancelling any remote input", async (next) => {
+    const beforeDismissModel = vi.fn(async () => {});
+    const { result, dismissModel } = setup({ modelInputActive: () => false, beforeDismissModel });
+    await act(async () => result.current.changePanel("model"));
+    expect(result.current.panel).toBe("model");
+    await act(async () => result.current.changePanel(next));
+    expect(result.current.panel).toBe(next);
+    expect(beforeDismissModel).not.toHaveBeenCalled();
+    expect(dismissModel).not.toHaveBeenCalled();
+  });
+
+  it("permits sending after local browsing without remote cancellation", async () => {
+    const beforeDismissModel = vi.fn(async () => {});
+    const { result, dismissModel } = setup({ modelInputActive: () => false, beforeDismissModel });
+    await act(async () => result.current.changePanel("model"));
+    await act(async () => { expect(await result.current.prepareSend()).toBe(true); });
+    expect(result.current.panel).toBeNull();
+    expect(beforeDismissModel).not.toHaveBeenCalled();
+    expect(dismissModel).not.toHaveBeenCalled();
+  });
+
+  it("waits for the pending Apply to stop, then dismisses the real picker before opening another panel", async () => {
+    const applying = deferred<void>();
+    const closing = deferred<{ ok: boolean }>();
+    const beforeDismissModel = vi.fn(() => applying.promise);
+    const { result, dismissModel, update } = setup({ modelInputActive: () => true, beforeDismissModel });
+    dismissModel.mockReturnValueOnce(closing.promise);
+    let change!: Promise<void>;
+    act(() => { change = result.current.changePanel("usage"); });
+    expect(beforeDismissModel).toHaveBeenCalledOnce();
+    expect(dismissModel).not.toHaveBeenCalled();
+    expect(result.current.panel).toBeNull();
+    expect(result.current.closing).toBe(true);
+    act(() => update({ modelPresent: true }));
+    expect(result.current.panel).toBeNull();
+    await act(async () => { applying.resolve(); await applying.promise; });
+    expect(dismissModel).toHaveBeenCalledOnce();
+    expect(result.current.panel).toBeNull();
+    await act(async () => { closing.resolve({ ok: true }); await change; });
+    expect(result.current.panel).toBe("usage");
+  });
+
+  it("holds a draft until pending Apply cancellation and actual picker dismissal both finish", async () => {
+    const applying = deferred<void>();
+    const closing = deferred<{ ok: boolean }>();
+    const beforeDismissModel = vi.fn(() => applying.promise);
+    const { result, dismissModel } = setup({ modelInputActive: () => true, beforeDismissModel });
+    dismissModel.mockReturnValueOnce(closing.promise);
+    let sending!: Promise<boolean>, finished = false;
+    act(() => { sending = result.current.prepareSend().then((ready) => { finished = true; return ready; }); });
+    expect(dismissModel).not.toHaveBeenCalled();
+    await act(async () => { applying.resolve(); await applying.promise; });
+    expect(dismissModel).toHaveBeenCalledOnce();
+    expect(finished).toBe(false);
+    await act(async () => { closing.resolve({ ok: true }); expect(await sending).toBe(true); });
+  });
+
+  it("does not dismiss the new scope after an old pending Apply cancellation completes", async () => {
+    const applying = deferred<void>();
+    const { result, dismissModel, update } = setup({ modelInputActive: () => true, beforeDismissModel: () => applying.promise });
+    let change!: Promise<void>;
+    act(() => { change = result.current.changePanel("usage"); });
+    act(() => update({ scope: "another", modelInputActive: () => false }));
+    await act(async () => { applying.resolve(); await change; });
+    expect(dismissModel).not.toHaveBeenCalled();
+    expect(result.current.panel).toBeNull();
+  });
+});

@@ -66,7 +66,7 @@ export function claudeModels(data: unknown = {}): ModelCatalog {
     { name: "Haiku", description: "Haiku model family" },
   ];
   const extra = object(data).additionalModelOptionsCache;
-  if (Array.isArray(extra)) for (const entry of extra.slice(0, 100)) {
+  if (Array.isArray(extra)) for (const entry of extra.slice(0, 96)) {
     const row = object(entry), name = clean(row.label, 128);
     if (!name || !/^[a-zA-Z0-9][a-zA-Z0-9 .()[\]_-]*$/.test(name) || models.some((model) => model.name === name)) continue;
     models.push({ name, description: clean(row.description, 600) });
