@@ -23,6 +23,12 @@ import { Composer, type ComposerHandle } from "@/components/composer";
 import { LiveConversation } from "@/components/live-conversation";
 import { WorkbenchTelemetry } from "@/components/workbench-telemetry";
 import { useLiveConversation } from "@/hooks/use-live-conversation";
+import { useModelMenuSource } from "@/hooks/use-model-menu-source";
+import { useCachedModelMenu } from "@/hooks/use-cached-model-menu";
+import { useWorkbenchPanels } from "@/hooks/use-workbench-panels";
+import { WorkbenchPopover } from "@/components/ui/workbench-popover";
+import { parseNativeModelMenu } from "@/lib/native-model-menu";
+import { dismissModelPicker } from "@/lib/dismiss-model-picker";
 import { commandsFor } from "@/lib/agent-commands";
 import { useOperatorCommands } from "@/lib/operator-config";
 import { ThreadSidebar } from "@/components/agent-sidebar";
@@ -39,7 +45,7 @@ import { submitMultiSelectIntent, type MultiSelectIntent } from "@/lib/multi-sel
 import { submitMenuKeys } from "@/lib/menu-action";
 import type { PromptBlockAction } from "@/components/prompt-select-block";
 import type { PreviewBlockAction } from "@/components/preview-select-block";
-import type { MenuBlockAction } from "@/components/menu-block";
+import { MenuBlock, type MenuBlockAction } from "@/components/menu-block";
 import { canGrowRequestedLines, growRequestedLines } from "@/lib/loaders";
 import { shortCwd } from "@/lib/format";
 import { historyPath, spacePath } from "@/lib/nav";
@@ -196,12 +202,14 @@ export function AgentChat({
   // the composer as a read-only preview the user can deliberately Take over — the input is otherwise
   // exclusively phone-owned. Same parse source + same adapter as the statusline, so the two can't
   // drift; null when raw-terminal is on, there's no adapter, no box is at the tail, or the line is empty.
+  const modelSource = useModelMenuSource({ paneId, session, agent: agent?.agent, requestedLines, text, revision });
+  const inputLines = useMemo(() => splitLines(parseAnsi(modelSource.text)), [modelSource.text]);
   const rawTerminalDraft = useMemo(
     () =>
       grammarsOn
-        ? adapterFor(agent?.agent)?.extractInputDraft(splitLines(parseAnsi(text))) ?? null
+        ? adapterFor(agent?.agent)?.extractInputDraft(inputLines) ?? null
         : null,
-    [text, agent?.agent, grammarsOn],
+    [inputLines, agent?.agent, grammarsOn],
   );
   // Is a dialog (prompt/wizard/preview/multi-select) on screen right now? Any non-raw block means
   // the TUI's keyboard belongs to it, so the composer must refuse a free-text send: the text would
@@ -209,15 +217,33 @@ export function AgentChat({
   // the two probes above, so the three can't drift. This is the zero-latency fail-fast; the
   // load-bearing protection is reply-action's verify-before-submit, which also covers a dialog that
   // appears after this render.
-  const dialogPresent = useMemo(
-    () =>
-      grammarsOn
-        ? (adapterFor(agent?.agent)?.buildBlocks(splitLines(parseAnsi(text))) ?? []).some(
-            (b) => b.kind !== "raw",
-          )
-        : false,
-    [text, agent?.agent, grammarsOn],
+  const liveBlocks = useMemo(
+    () => grammarsOn ? adapterFor(agent?.agent)?.buildBlocks(inputLines) ?? [] : [],
+    [inputLines, agent?.agent, grammarsOn],
   );
+  const dialogPresent = liveBlocks.some((block) => block.kind !== "raw");
+  const modelPresent = liveBlocks.some((block) => block.kind === "menu" && parseNativeModelMenu(block.menu, block.lines));
+  const cachedModelMenu = useCachedModelMenu(modelSource.scope, liveBlocks.find((block) => block.kind === "menu"));
+  const modelTriggerRef = useRef<HTMLButtonElement>(null);
+  const writableRef = useRef(false);
+  writableRef.current = !readOnly && !gone && !connecting;
+  const panels = useWorkbenchPanels({
+    scope: JSON.stringify([paneId, session]), modelPresent,
+    otherDialogPresent: dialogPresent && !modelPresent, writable: writableRef.current,
+    openModel: async () => {
+      const sent = await composerRef.current?.openModelPicker() ?? false;
+      if (sent) { void modelSource.refresh(); revalidator.revalidate(); }
+      return sent;
+    },
+    dismissModel: async (signal) => {
+      modelSource.clear();
+      const result = await dismissModelPicker({ paneId, session, agent: agent?.agent, requestedLines,
+        signal, canWrite: () => writableRef.current });
+      if (!signal.aborted) revalidator.revalidate();
+      return result;
+    },
+    onError: (message) => setStatus(message, "error"),
+  });
   useEffect(() => {
     if (agent?.hasSession && dialogPresent) {
       setFollowing(true);
@@ -332,7 +358,7 @@ export function AgentChat({
     listRef.current?.scrollToBottom();
   };
 
-  const interactionRevision = showConversation ? revision : shown.revision;
+  const interactionRevision = showConversation ? modelSource.revision : shown.revision;
 
   // Tap a prompt-select option. This can type into a real terminal, so it runs the revision-based
   // race guard first (fresh fetch → revision + re-derived-menu equality); only a clean match sends
@@ -834,7 +860,15 @@ export function AgentChat({
             overlay just above the composer, but it covered the terminal tail (the prompt/cursor and
             up-levelled prompt buttons) — it now lives as a slim row just below the header. */}
         <div className="workbench-composer relative">
-          {showConversation && dialogPresent && (
+          {showConversation && <WorkbenchPopover open={panels.panel === "model"} anchorRef={modelTriggerRef}
+            label="Model picker" onDismiss={() => { void panels.changePanel(null); }}
+            className="w-[min(28rem,calc(100vw-2rem))]">
+            {modelPresent && !panels.openingModel ? <AnsiOutput text={modelSource.text} nativeOnly agent={agent?.agent}
+              onMenuAction={handleMenuAction} promptDisabled={readOnly || gone || connecting || panels.closing} />
+              : <><p role="status" className="px-3 py-2 text-xs text-muted-foreground">{cachedModelMenu ? "Refreshing models…" : "Loading models…"}</p>
+                {cachedModelMenu && <MenuBlock menu={cachedModelMenu.menu} lines={cachedModelMenu.lines} disabled onAction={() => {}} />}</>}
+          </WorkbenchPopover>}
+          {showConversation && dialogPresent && !modelPresent && (
             <section aria-label="Agent interaction" className="absolute inset-x-0 bottom-full z-20 mb-2 max-h-[min(32rem,60dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-2 shadow-xl sm:left-2 sm:right-auto sm:w-[min(28rem,calc(100vw-3rem))]">
               <AnsiOutput text={text} nativeOnly agent={agent?.agent}
                 onPromptAction={handlePromptAction} onWizardAction={handleWizardAction}
@@ -906,9 +940,9 @@ export function AgentChat({
             stale={conversation.error || connecting}
             modelAvailable={modelAvailable}
             disabled={readOnly || gone || connecting || dialogPresent}
-            onChooseModel={() => {
-              void composerRef.current?.openModelPicker();
-            }}
+            panel={panels.panel} onPanelChange={(next) => { void panels.changePanel(next); }}
+            modelOpen={panels.panel === "model"} modelTriggerRef={modelTriggerRef}
+            onChooseModel={panels.toggleModel}
             onCompact={() => { void composerRef.current?.compactContext(); }}
           />}
           <Composer
@@ -921,6 +955,8 @@ export function AgentChat({
             readOnly={readOnly}
             disconnected={connecting}
             nativeWorkbench={showConversation}
+            prepareSend={showConversation ? panels.prepareSend : undefined}
+            onInputFocus={() => { void panels.changePanel(null); }}
             dialogPresent={dialogPresent}
             text={text}
             terminalDraft={terminalDraft}

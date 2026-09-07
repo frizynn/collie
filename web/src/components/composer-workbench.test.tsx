@@ -103,3 +103,31 @@ it("does not arm a normal draft override when a toolbar command is rejected", as
   await user.keyboard("{Control>}{Enter}{/Control}");
   expect(sendGuardedReply).toHaveBeenLastCalledWith(expect.objectContaining({ text: "A normal draft", force: false }));
 });
+
+it("waits for verified model dismissal before sending, preserving edits made during the wait", async () => {
+  let finish!: (ready: boolean) => void;
+  const prepareSend = vi.fn(() => new Promise<boolean>((resolve) => { finish = resolve; }));
+  const { user } = setup({ dialogPresent: true, prepareSend });
+  const input = screen.getByRole("textbox");
+  await user.type(input, "Send this message");
+  await user.keyboard("{Control>}{Enter}{/Control}");
+  expect(prepareSend).toHaveBeenCalledOnce();
+  expect(sendGuardedReply).not.toHaveBeenCalled();
+  await user.type(input, " and keep these new words");
+  await act(async () => finish(true));
+  expect(sendGuardedReply).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ text: "Send this message", force: false }));
+  expect(input).toHaveValue("Send this message and keep these new words");
+});
+
+it("does not send or arm force when the model cannot be dismissed", async () => {
+  const prepareSend = vi.fn().mockResolvedValue(false);
+  const { user } = setup({ dialogPresent: true, prepareSend });
+  const input = screen.getByRole("textbox");
+  await user.type(input, "Keep me");
+  await user.keyboard("{Control>}{Enter}{/Control}");
+  expect(sendGuardedReply).not.toHaveBeenCalled();
+  expect(input).toHaveValue("Keep me");
+  prepareSend.mockResolvedValue(true);
+  await user.keyboard("{Control>}{Enter}{/Control}");
+  expect(sendGuardedReply).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ force: false }));
+});

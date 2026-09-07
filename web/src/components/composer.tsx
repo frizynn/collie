@@ -54,6 +54,8 @@ interface ComposerProps {
   /** Transport unavailable: stop terminal writes while keeping the local draft editable. */
   disconnected?: boolean;
   nativeWorkbench?: boolean;
+  prepareSend?: () => Promise<boolean>;
+  onInputFocus?: () => void;
   /** A dialog (prompt/wizard/preview/multi-select) is on screen, so the TUI's keyboard belongs to it.
    * Free-text sending is refused while true — see send(). Answer it with its own buttons instead. */
   dialogPresent: boolean;
@@ -146,7 +148,7 @@ function ComposerDock({
 }
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  { paneId, session, agent, isShell, gone, readOnly, disconnected = false, nativeWorkbench = false, dialogPresent, text, terminalDraft, rawTerminalDraft, prefs, setWrap, stepFontSize, setRawTerminal, setTapToFocus, onSent },
+  { paneId, session, agent, isShell, gone, readOnly, disconnected = false, nativeWorkbench = false, prepareSend, onInputFocus, dialogPresent, text, terminalDraft, rawTerminalDraft, prefs, setWrap, stepFontSize, setRawTerminal, setTapToFocus, onSent },
   ref,
 ) {
   const revalidator = useRevalidator();
@@ -484,12 +486,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     // kept: the user answers the dialog with its own buttons, then taps Send again. We never
     // queue-and-auto-send, because the text may be a reaction to state the dialog just changed —
     // sending is consent, and the conditions moved.
-    if (dialogPresent) {
+    if (dialogPresent && !(nativeWorkbench && prepareSend)) {
       setStatus("A dialog is waiting — answer it first, then send.", "error");
       return false;
     }
     setSending(true);
     try {
+      if (action !== "model" && prepareSend && !(await prepareSend())) return false;
+      if (lockedRef.current) return false;
       // Guarded: types the text, verifies it reached the input box, and only THEN sends the submit
       // key. A "stalled" outcome means nothing was submitted and the draft must survive (#34).
       const res = await sendGuardedReply({
@@ -569,7 +573,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       if (res.status === "sent") {
         // Phone-owned input — cleared once the reply is on its way. Via updateInput, so the stored
         // draft goes with it (an empty value removes the key).
-        if (isDraft) updateInput("");
+        if (isDraft) updateInput((current) => current === value ? "" : current);
         // Remember what/when we sent, so the next few polls recognise this text echoing on the "❯"
         // line as our own in-flight reply rather than a stranded draft (suppressEcho above).
         lastSentRef.current = { text: t, at: Date.now() };
@@ -990,7 +994,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             value={direct.active ? direct.value : input}
             onChange={direct.active ? direct.onChange : (e) => skills.onChange(e.target.value, e.target.selectionStart)}
             onSelect={(e) => skills.onSelect(e.currentTarget.selectionStart)}
-            onFocus={skills.onFocus}
+            onFocus={() => { skills.onFocus(); onInputFocus?.(); }}
             onBlur={skills.onBlur}
             aria-autocomplete={skills.open ? "list" : undefined}
             aria-controls={skills.open && !skills.loading && !skills.error ? skills.id : undefined}

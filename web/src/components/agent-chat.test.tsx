@@ -19,6 +19,8 @@ vi.mock("@/lib/wizard-action", () => ({
 
 import { server } from "@/test/setup";
 import { clearStatus } from "@/lib/status";
+import { dismissModelPicker } from "@/lib/dismiss-model-picker";
+vi.mock("@/lib/dismiss-model-picker", () => ({ dismissModelPicker: vi.fn() }));
 import { submitPromptOption } from "@/lib/prompt-action";
 import { submitWizardKeys } from "@/lib/wizard-action";
 import { fixtureAgents } from "@/test/handlers";
@@ -32,7 +34,7 @@ beforeAll(() => {
   // jsdom doesn't implement scrollTo; the terminal mirror's auto-scroll calls it.
   if (!Element.prototype.scrollTo) Element.prototype.scrollTo = () => {};
 });
-beforeEach(() => clearStatus());
+beforeEach(() => { clearStatus(); vi.mocked(dismissModelPicker).mockReset(); vi.mocked(dismissModelPicker).mockResolvedValue({ ok: true }); });
 
 function renderChat(overrides: Partial<ComponentProps<typeof AgentChat>> = {}) {
   const agent = fixtureAgents[0]!; // a blocked claude agent
@@ -608,9 +610,10 @@ describe("AgentChat — native workbench interactions", () => {
   it("keeps conversation and draft editable while a native model picker owns agent input", async () => {
     const agent = { ...fixtureAgents[1]!, hasSession: true };
     const menu = readFileSync("src/lib/harness/codex/fixtures/model-picker.txt", "utf8");
-    renderChat({ agent, agents: [agent], text: `Old terminal output that must not become the conversation\n${menu}` });
+    renderChat({ paneId: agent.paneId, agent, agents: [agent], text: `Old terminal output that must not become the conversation\n${menu}` });
     expect(screen.getByRole("region", { name: "Live conversation" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Agent interaction" })).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "Model picker" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Choose model" })).toBeEnabled();
     expect(screen.getByRole("radio", { name: "gpt-6-astra, Current" })).toBeVisible();
     expect(screen.queryByText("Old terminal output that must not become the conversation")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Live terminal" })).not.toBeInTheDocument();
@@ -618,6 +621,7 @@ describe("AgentChat — native workbench interactions", () => {
     const input = screen.getByRole("textbox");
     await userEvent.type(input, "My next message");
     expect(input).toHaveValue("My next message");
-    expect(screen.getByRole("button", { name: "Choose model" })).toBeDisabled();
+    expect(screen.queryByRole("dialog", { name: "Model picker" })).not.toBeInTheDocument();
+    expect(dismissModelPicker).toHaveBeenCalledWith(expect.objectContaining({ paneId: agent.paneId, agent: "codex" }));
   });
 });

@@ -138,3 +138,39 @@ then the 12-case live-conversation suite passed with two additional search/histo
 The final backend suite passed 741 tests and the shell lifecycle checks. Both TypeScript targets
 and the production PWA build passed. Codex's actual `compacted` envelope now renders one native
 completion summary; replacement/guardian history remains internal and is never displayed.
+
+
+## Picker lifecycle and latency correction (September 8)
+
+The stuck overlays had two separate owners: Usage used an uncontrolled details element,
+while hiding a model panel did not release the CLI's real input ownership. The workbench now
+controls Model, Context and Usage through one panel state. Following T3's controlled
+ProviderModelPicker and dismissible Base UI popover behavior, inspectors close on outside
+interaction, Escape, their trigger or an explicit close button. They do not trap focus or lock
+scroll; entering the composer dismisses the inspector and preserves the caret and draft.
+The single shared panel controller is Collie's implementation, not copied T3 state management.
+
+Closing models verifies the live menu, sends only its advertised Escape cancellation, and
+verifies the resulting input state. Sending waits for that release; unrelated permissions or
+questions cannot be dismissed by this path. Pane/session changes, disconnects, superseding
+requests and route changes abort pending work. The fast read also tracks route generations,
+because Herdr can return revision zero: an A → permission B → A transition must not resurrect
+an old model response. Draft edits made while a send is pending are preserved.
+
+The most recently observed model catalogue is cached in memory for 15 minutes, bounded to eight
+pane/session/agent scopes. Cached rows appear immediately but remain disabled until a fresh
+menu is verified. No transcript, disk persistence, background prefetch or cache timer is added.
+A bounded immediate read after opening removes the wait for the ordinary route poll. Closing
+nested menus reads immediately after Escape instead of paying a fixed delay at every level.
+
+In the isolated Codex browser session, one cold opening displayed the panel in 3 ms and enabled
+seven actual rows in 687 ms. One warm reopening displayed cached rows in 3 ms and verified them
+in 443 ms. These are local samples, not a whole-app speed multiplier. Two-level cancellation
+unit timing removed 700 ms of mandatory waiting. Live checks also confirmed Usage/model
+exclusion and a real PANEL_OK reply sent after dismissing models through the composer.
+Regression tests cover overlay dismissal/focus, shared cancellation, permission preservation,
+cache expiry/isolation, stale reads, unmounts and edits during send. Physical mobile Safari and
+voice recognition hardware have not been exercised.
+
+Validation for this correction: all 4,039 frontend tests passed (30 existing TODOs), including
+33 lifecycle/fast-read race cases. Bridge, frontend and worker TypeScript checks passed.

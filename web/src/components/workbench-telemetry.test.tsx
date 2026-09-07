@@ -1,12 +1,15 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
+import userEvent from "@testing-library/user-event";
 import { WorkbenchTelemetry } from "./workbench-telemetry";
+import type { WorkbenchPanel } from "./workbench-telemetry";
 
 it("leaves unreported context and limits unknown", () => {
   render(<WorkbenchTelemetry modelAvailable={false} disabled={false} onChooseModel={vi.fn()} />);
   expect(screen.getByRole("button", { name: "Choose model" })).toBeDisabled();
   fireEvent.click(screen.getByText("Usage"));
-  expect(screen.getByText("Account limits not reported by this agent.")).toBeVisible();
-  expect(screen.getByText("Tokens not reported")).toBeVisible();
+  expect(screen.getByText("Usage is not available yet.")).toBeVisible();
+  expect(screen.queryByText("Tokens not reported")).not.toBeInTheDocument();
   expect(screen.queryByText(/0%/)).not.toBeInTheDocument();
 });
 
@@ -17,6 +20,8 @@ it("distinguishes last-message totals from context and flags stale or clipped me
   expect(screen.getByText("Last message")).toBeVisible();
   expect(screen.getByText(/values may be out of date/)).toBeVisible();
   expect(screen.getByText(/Only the tail/)).toBeVisible();
+  expect(screen.queryByText("Context window")).not.toBeInTheDocument();
+  expect(screen.queryByText(/Account limits not reported/)).not.toBeInTheDocument();
 });
 
 it("keeps a disabled model control from initiating a terminal action", () => {
@@ -24,4 +29,42 @@ it("keeps a disabled model control from initiating a terminal action", () => {
   render(<WorkbenchTelemetry modelAvailable disabled onChooseModel={choose} />);
   fireEvent.click(screen.getByRole("button", { name: "Choose model" }));
   expect(choose).not.toHaveBeenCalled();
+});
+
+it("keeps Usage and Context exclusive and closes them when typing resumes", async () => {
+  render(<><WorkbenchTelemetry modelAvailable disabled={false} onChooseModel={vi.fn()} /><textarea aria-label="Draft" /></>);
+  await userEvent.click(screen.getByRole("button", { name: "Usage" }));
+  expect(screen.getByRole("dialog", { name: "Last reported usage" })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Context usage: Unknown" }));
+  expect(screen.queryByRole("dialog", { name: "Last reported usage" })).not.toBeInTheDocument();
+  expect(screen.getByRole("dialog", { name: "Context window" })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("textbox"));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.getByRole("textbox")).toHaveFocus();
+});
+
+it("lets the parent own model toggling and one active inspection panel", async () => {
+  const choose = vi.fn();
+  const panelChange = vi.fn();
+  function Controlled() {
+    const [panel, setPanel] = useState<WorkbenchPanel>(null);
+    return <>
+      <WorkbenchTelemetry panel={panel} modelOpen={panel === "model"} modelAvailable disabled={panel === "model"}
+        onChooseModel={() => { choose(); setPanel((value) => value === "model" ? null : "model"); }}
+        onPanelChange={(value) => { panelChange(value); setPanel(value); }} />
+      {panel === "model" && <div role="dialog" aria-label="Model picker" />}
+    </>;
+  }
+  render(<Controlled />);
+  await userEvent.click(screen.getByRole("button", { name: "Choose model" }));
+  expect(panelChange).not.toHaveBeenCalled();
+  expect(screen.getByRole("dialog", { name: "Model picker" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Choose model" })).toBeEnabled();
+  await userEvent.click(screen.getByRole("button", { name: "Choose model" }));
+  expect(choose).toHaveBeenCalledTimes(2);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Usage" }));
+  await userEvent.click(screen.getByRole("button", { name: "Choose model" }));
+  expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  expect(screen.getByRole("dialog", { name: "Model picker" })).toBeInTheDocument();
 });

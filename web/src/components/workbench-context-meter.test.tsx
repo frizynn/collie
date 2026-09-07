@@ -6,7 +6,8 @@ it("does not represent missing measurements as zero context usage", async () => 
   render(<WorkbenchContextMeter usedTokens={null} maxTokens={null} />);
   await userEvent.click(screen.getByRole("button", { name: "Context usage: Unknown" }));
   expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
-  expect(screen.getByText("Unknown / Unknown")).toBeInTheDocument();
+  expect(screen.getByText("Context usage is not available yet.")).toBeInTheDocument();
+  expect(screen.queryByText("Unknown / Unknown")).not.toBeInTheDocument();
 });
 
 it("bounds the ring when the reported usage exceeds the window", async () => {
