@@ -27,6 +27,8 @@ export { menusEqual, menusSameIdentity } from "./harness/menu-model";
  */
 export async function submitMenuKeys(args: {
   paneId: string;
+  signal?: AbortSignal;
+  canWrite?: () => boolean;
   requestedLines: number;
   /** The `revision` the rendered menu was detected against. */
   detectedRevision: number;

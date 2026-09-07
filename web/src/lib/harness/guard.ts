@@ -51,8 +51,9 @@ export async function readModel<M>(
   requestedLines: number,
   session: string | undefined,
   detect: Detect<M>,
+  signal?: AbortSignal,
 ): Promise<{ revision: number; model: M | null }> {
-  const fresh = await fetchPane(paneId, requestedLines, session);
+  const fresh = signal ? await fetchPane(paneId, requestedLines, session, signal) : await fetchPane(paneId, requestedLines, session);
   return { revision: fresh.revision, model: detect(splitLines(parseAnsi(fresh.text))) };
 }
 
@@ -74,6 +75,7 @@ export async function entryGuard<M>(
     requestedLines: number;
     /** The `revision` the rendered dialog was detected against. */
     detectedRevision: number;
+    signal?: AbortSignal;
     /** The session the pane lives in (undefined = primary) — scopes the read. */
     session?: string;
   },
@@ -84,7 +86,7 @@ export async function entryGuard<M>(
 ): Promise<GuardOutcome> {
   let fresh;
   try {
-    fresh = await readModel(args.paneId, args.requestedLines, args.session, detect);
+    fresh = await readModel(args.paneId, args.requestedLines, args.session, detect, args.signal);
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);
     return { ok: false, result: { status: "error", error } };
