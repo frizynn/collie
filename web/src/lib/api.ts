@@ -10,6 +10,7 @@ import type {
   CreateResponse,
   NotifyPrefs,
   PaneHistoryResponse,
+  PaneSkillsResponse,
   PaneReadResponse,
   SnapshotResponse,
   UpdateInfo,
@@ -301,10 +302,18 @@ export async function fetchPane(
  * pane runs on the alternate screen, which has no scrollback ring). Newest-anchored: no cursor gives
  * the most recent turns; `before` walks backwards from a turn already on screen.
  *
- * Deliberately NOT ETag-cached like fetchPane: history is fetched on navigation and on an explicit
- * "load older" tap, never on the poll loop, so there's no repeat-fetch to save.
+ * Small live windows use a bounded memory-only ETag cache. Full history and older pages are not
+ * retained here; the history route owns those larger bodies. HTTP storage stays disabled.
  */
-export function fetchHistory(
+export function fetchSkills(paneId: string, session?: string, signal?: AbortSignal): Promise<PaneSkillsResponse> {
+  return req<PaneSkillsResponse>(withSession(`/api/pane/${encodeURIComponent(paneId)}/skills`, session), { signal });
+}
+
+const historyCache = new Map<string, { etag: string | null; response: PaneHistoryResponse; sequence: number }>();
+let historySequence = 0;
+let historyAuthEpoch = 0;
+
+export async function fetchHistory(
   paneId: string,
   opts: { limit?: number; before?: string } = {},
   session?: string,
@@ -315,12 +324,46 @@ export function fetchHistory(
   if (opts.before) q.set("before", opts.before);
   const qs = q.toString();
   const path = `/api/pane/${encodeURIComponent(paneId)}/history${qs ? `?${qs}` : ""}`;
-  // Reading the transcript is looking at the pane — and history is a READ, so like fetchPane it
-  // carries the header that lets the bridge count it (bridge/server.ts → marksPaneSeen).
-  return req<PaneHistoryResponse>(withSession(path, session), {
-    signal,
-    headers: { "x-collie-seen": "1" },
-  });
+  const url = withSession(path, session);
+  const cacheable = opts.limit !== undefined && opts.limit > 0 && opts.limit <= 120 && !opts.before;
+  const sequence = ++historySequence;
+  const authEpoch = historyAuthEpoch;
+  const assertCurrentAuthorization = () => {
+    if (authEpoch !== historyAuthEpoch) throw new ApiError("History authorization changed during this request; retry", 401);
+  };
+  const cached = cacheable ? historyCache.get(url) : undefined;
+  const headers: Record<string, string> = { "x-collie-seen": "1", [XHR_HEADER]: XHR_HEADER_VALUE };
+  if (cached?.etag) headers["if-none-match"] = cached.etag;
+  const requestSignal = withTimeout(signal, GET_TIMEOUT_MS);
+  const res = await apiFetch(url, { signal: requestSignal, headers, cache: "no-store" });
+  captureBuild(res);
+  // A superseded pane must never populate the cache, even if a transport delivered after abort.
+  requestSignal?.throwIfAborted();
+  if (res.status === 304 && cached?.etag) {
+    assertCurrentAuthorization();
+    return historyCache.get(url)?.response ?? cached.response;
+  }
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      historyAuthEpoch++;
+      historyCache.clear();
+    } else assertCurrentAuthorization();
+    throw new ApiError(`${url} → ${res.status} ${await errorDetail(res)}`, res.status);
+  }
+  assertCurrentAuthorization();
+  const data = await res.json() as PaneHistoryResponse;
+  requestSignal?.throwIfAborted();
+  assertCurrentAuthorization();
+  if (cacheable) {
+    const newer = historyCache.get(url);
+    if (newer && newer.sequence > sequence) return newer.response;
+    // Keep the latest response even without a validator, to stop an older overlapping success
+    // reviving a superseded page. Only a valid available-page ETag can drive a conditional GET.
+    const etag = data.available ? res.headers.get("etag") : null;
+    historyCache.set(url, { etag, response: data, sequence });
+    if (historyCache.size > 8) historyCache.delete(historyCache.keys().next().value!);
+  }
+  return data;
 }
 
 export function sendReply(

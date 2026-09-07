@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { fetchHistory } from "@/lib/api";
+import { fetchHistory, isApiErrorStatus } from "@/lib/api";
 import { isLocked, useLocked } from "@/lib/idle";
 import type { PaneHistoryResponse } from "@/lib/types";
 
@@ -32,6 +32,8 @@ export function useLiveConversation({
     loading: false,
     error: false,
   });
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const busyRef = useRef(busy);
   busyRef.current = busy;
   const refreshRef = useRef<() => void>(() => {});
@@ -40,6 +42,7 @@ export function useLiveConversation({
   useEffect(() => {
     if (!enabled || !paneId || locked) return;
     let disposed = false;
+    const publish = (next: ConversationState) => { stateRef.current = next; setState(next); };
     let timer: ReturnType<typeof setTimeout> | undefined;
     let request: AbortController | undefined;
 
@@ -55,20 +58,21 @@ export function useLiveConversation({
       clearTimeout(timer);
       const controller = new AbortController();
       request = controller;
-      setState((previous) => ({
-        scope,
-        history: previous.scope === scope ? previous.history : null,
-        loading: true,
-        error: previous.scope === scope && previous.error,
-      }));
+      if (stateRef.current.scope !== scope || !stateRef.current.history) {
+        publish({ scope, history: null, loading: true, error: false });
+      }
       try {
         const history = await fetchHistory(paneId, { limit: 60 }, session, controller.signal);
         if (!disposed && !controller.signal.aborted) {
-          setState({ scope, history, loading: false, error: false });
+          const previous = stateRef.current;
+          if (previous.scope !== scope || previous.history !== history || previous.loading || previous.error) {
+            publish({ scope, history, loading: false, error: false });
+          }
         }
-      } catch {
+      } catch (error) {
         if (!disposed && !controller.signal.aborted) {
-          setState((previous) => ({ ...previous, loading: false, error: true }));
+          const authError = isApiErrorStatus(error, 401) || isApiErrorStatus(error, 403);
+          publish({ ...stateRef.current, history: authError ? null : stateRef.current.history, loading: false, error: true });
         }
       } finally {
         if (request === controller) request = undefined;

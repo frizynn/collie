@@ -106,6 +106,17 @@ describe("TranscriptStore", () => {
     expect(calls.stat).toBe(2);
   });
 
+  test("unchanged page objects retain identity by exact cursor/limit and invalidate on writes", async () => {
+    const { adapter, append } = fakeAdapter(["u1", "u2", "u3"]);
+    const store = new TranscriptStore();
+    const first = await store.page(adapter, REF, { limit: 2 });
+    expect(await store.page(adapter, REF, { limit: 2 })).toBe(first);
+    expect(await store.page(adapter, REF, { limit: 1 })).not.toBe(first);
+    expect(await store.page(adapter, REF, { limit: 2, before: "u2" })).not.toBe(first);
+    append("u4");
+    expect(await store.page(adapter, REF, { limit: 2 })).not.toBe(first);
+  });
+
   test("a moved file is re-read and re-parsed", async () => {
     const { adapter, calls, append } = fakeAdapter(["u1", "u2"]);
     const store = new TranscriptStore();

@@ -1,3 +1,4 @@
+import { historyResponse } from "./history-response.ts";
 import { discoverPaneSkills } from "./skills.ts";
 import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -608,7 +609,7 @@ async function paneHistory(
   try {
     const page = await transcripts.page(adapter, pane.agentSession, historyParams(url));
     if (page === null) return unavailable("no-log");
-    return json({ paneId, available: true, ...page } satisfies PaneHistoryResponse, accept);
+    return secure(historyResponse(page, paneId, req.headers.get("if-none-match"), accept));
   } catch (err) {
     return text(`transcript read failed: ${(err as Error).message}`, 502);
   }

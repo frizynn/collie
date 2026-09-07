@@ -1,12 +1,14 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchHistory } from "@/lib/api";
+import { fetchHistory, fetchSkills } from "@/lib/api";
+import { http, HttpResponse } from "msw";
+import { server } from "@/test/setup";
 import { setLocked } from "@/lib/idle";
 import type { PaneHistoryResponse } from "@/lib/types";
 import { useLiveConversation } from "./use-live-conversation";
 
-vi.mock("@/lib/api", () => ({ fetchHistory: vi.fn() }));
+vi.mock("@/lib/api", async (original) => ({ ...await original<typeof import("@/lib/api")>(), fetchHistory: vi.fn() }));
 const fetchMock = vi.mocked(fetchHistory);
 const history = (paneId: string): PaneHistoryResponse => ({
   paneId,
@@ -107,4 +109,35 @@ describe("useLiveConversation", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     unmount();
   });
+  it("unchanged background polls retain history identity without rerendering the hook", async () => {
+    let renders = 0;
+    const stable = history("stable");
+    fetchMock.mockResolvedValue(stable);
+    const { result, unmount } = renderHook(() => {
+      renders++;
+      return useLiveConversation({ paneId: "stable", enabled: true, busy: true });
+    });
+    await act(async () => {});
+    const before = renders;
+    await act(async () => { await vi.advanceTimersByTimeAsync(40_000); });
+    expect(fetchMock).toHaveBeenCalledTimes(11);
+    expect(result.current.history).toBe(stable);
+    expect(renders).toBe(before);
+    unmount();
+  });
+
+  it("drops the last good transcript when the next poll loses read authorization", async () => {
+    server.use(http.get(/\/api\/pane\/[^/]+\/skills$/, () => new HttpResponse("Forbidden", { status: 403 })));
+    let denied: unknown;
+    try { await fetchSkills("forbidden"); } catch (error) { denied = error; }
+    const { result, unmount } = renderHook(() => useLiveConversation({ paneId: "auth", enabled: true }));
+    await act(async () => {});
+    expect(result.current.history).not.toBeNull();
+    fetchMock.mockRejectedValueOnce(denied);
+    await act(async () => result.current.refresh());
+    expect(result.current.history).toBeNull();
+    expect(result.current.error).toBe(true);
+    unmount();
+  });
+
 });

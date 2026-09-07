@@ -16,6 +16,7 @@ interface CacheEntry {
   complete: boolean;
   entries: TranscriptEntry[];
   telemetry?: SessionTelemetry;
+  pages: Map<string, Omit<TranscriptPage, "paneId">>;
 }
 
 /**
@@ -75,7 +76,7 @@ export class TranscriptStore {
       const { text, complete, size, mtimeMs } = await adapter.source.load(path);
       const usage = adapter.parseUsage?.(text);
       entry = {
-        size, mtimeMs, complete, entries: adapter.parse(text),
+        size, mtimeMs, complete, entries: adapter.parse(text), pages: new Map(),
         ...(usage ? { telemetry: { ...usage, fileTruncated: !complete } } : {}),
       };
       this.cache.set(path, entry);
@@ -84,10 +85,13 @@ export class TranscriptStore {
         if (oldest !== undefined) this.cache.delete(oldest);
       }
     }
+    const key = JSON.stringify([opts.limit, opts.before ?? null]);
+    const cachedPage = entry.pages.get(key);
+    if (cachedPage) return cachedPage;
     const { entries, complete } = entry;
 
     const { window, hasMore } = pageEntries(entries, opts);
-    return {
+    const page = {
       entries: window,
       // A clipped file always has more behind it, even at the window's start.
       hasMore: hasMore || (!complete && window.length > 0 && window[0] === entries[0]),
@@ -95,5 +99,8 @@ export class TranscriptStore {
       fileTruncated: !complete,
       ...(entry.telemetry ? { telemetry: entry.telemetry } : {}),
     };
+    entry.pages.set(key, page);
+    if (entry.pages.size > 8) entry.pages.delete(entry.pages.keys().next().value!);
+    return page;
   }
 }
