@@ -9,6 +9,10 @@
 //                                                      "function_call"|"function_call_output", …}}
 //   {"timestamp":"…","type":"event_msg","payload":{"type":"user_message"|"agent_message"|
 //                                                  "agent_reasoning"|"token_count", …}}
+//   {"timestamp":"…","type":"compacted","payload":{"message":"…","replacement_history":[…], …}}
+// Compaction's envelope was verified on the isolated Collie QA session, 2026-09-07. Its message
+// can be empty; the native event is still completion evidence. Never render replacement_history,
+// which contains rewritten model input and would duplicate conversation and injected instructions.
 // `{timestamp,type,payload}` are the ONLY top-level keys.
 //
 // THE TRAP: ROWS ARE DOUBLE-BOOKED. The same conversation is written twice — once as `response_item`
@@ -154,12 +158,21 @@ export function parseCodexTranscript(text: string): TranscriptEntry[] {
     } catch {
       continue;
     }
-    // The double-booking guard: everything the UI stream carries is already in `response_item`.
-    if (row.type !== "response_item") continue;
     const payload = row.payload;
     if (payload === null || typeof payload !== "object") continue;
     const p = payload as Record<string, unknown>;
     const ts = typeof row.timestamp === "string" ? row.timestamp : "";
+    if (row.type === "compacted") {
+      if (typeof p.message !== "string") continue;
+      const summary = stripAnsi(p.message).trim() || "Context compacted";
+      entries.push({
+        uuid: codexCursor(line, seen), ts, role: "summary",
+        parts: [{ kind: "text", ...clamp(summary, MAX_TEXT_CHARS) }],
+      });
+      continue;
+    }
+    // The double-booking guard: ordinary UI stream events already occur in response_item.
+    if (row.type !== "response_item") continue;
     const uuid = codexCursor(line, seen);
 
     if (p.type === "message") {

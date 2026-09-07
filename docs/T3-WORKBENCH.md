@@ -45,7 +45,8 @@ Functional checkpoints: `cd39049` journal telemetry, `3f4b521` live conversation
 The shell uses explicit pane/session names, then tab/title fallbacks, to distinguish agents
 sharing a project. Model selection opens the actual harness picker; it does not introduce a
 second provider catalog or silently change the persisted default. Controls remain unavailable
-while the agent is working, disconnected, read-only, or awaiting a dialog. Operator-required
+while disconnected, read-only, or awaiting a dialog; the fresh send guard determines readiness
+instead of relying on the delayed working/idle badge. Operator-required
 model confirmations continue through the existing Agent command palette.
 
 Verification on macOS:
@@ -89,4 +90,51 @@ in this repository.
 
 Rollback: stop through the plugin action and check out the prior code checkpoint, rebuild,
 then start again. No transcript or Herdr workspace migration was introduced. The original
-mirror remains accessible under Live terminal; the full History route remains available.
+mirror remains an explicit diagnostic option under Display settings > Raw terminal. The primary
+agent view keeps conversation, history, controls and composing in one route.
+
+
+## Native interaction correction (September 7)
+
+The first delivery still switched from the journal to the terminal when a picker appeared.
+That exposed a terminal-framed model menu and made history navigation feel disconnected from
+composing. The workbench now leaves the conversation mounted and presents verified native
+interaction panels above the composer:
+
+- Model/reasoning rows use the live agent catalogue, native selection and explicit apply/cancel
+  actions. Row movement uses a full observed-menu signature; it never sends model-number keys
+  or implicitly persists a default. Codex slash autocomplete is recognized before verified submit.
+- Approval, question, preview and generic menu content is native. Approval subjects retain the
+  signed command/diff/reason so hiding terminal output cannot conceal what would be approved.
+- `$` in Codex and `/` in Claude open a minimal skill list with actual count and filtering.
+  Catalogues are loaded on demand, bounded and scoped to pane/session/project. Choosing a skill
+  only inserts into the local draft; keyboard focus and existing surrounding text survive.
+- Context details provide an explicit Compact context action using the same guarded command path.
+- Older messages and transcript search stay in the live route. Reading position and draft survive
+  incoming polling and opening models. Sending a message explicitly returns to the latest turn.
+- Temporary disconnection blocks writes but leaves the local draft editable. Toolbar commands
+  cannot arm a later forced message send if the agent refuses the command.
+
+Performance evidence: a real 60-entry Claude response previously transferred 54,323 raw bytes
+(16,092 gzip bytes) on an unchanged poll. Conditional requests now return 304 with no body and
+skip repeated JSON/gzip generation. Ten unchanged polls produced zero hook renders; ten unrelated
+parent updates produced zero TranscriptView renders. Changed history still renders. Hidden/locked
+clients stop conversation polling. Authentication, source containment, file stat and HTTP request
+headers still cost work; this does not establish zero machine consumption or a whole-app 10x gain.
+Caches are bounded and memory-only, and concurrent late responses cannot restore history after
+an authorization failure or supersede a newer unavailable response.
+
+Browser verification used an isolated Codex QA session: a real prompt answered QA_OK; model and
+reasoning changed through guarded actions and were restored with byte-identical global config.
+The native browser rows were exercised separately. With a 45-line reply scrolled to the top,
+completing a skill and opening models left scrollTop at zero and the draft unchanged. Native
+compact completed in that QA session and updated reported context. The user's existing Claude
+model picker was inspected without sending it actions: conversation stayed mounted, five native
+model rows were visible, and there were zero terminal pre elements. Desktop1440x900 and mobile
+390x844 had no horizontal overflow. Actual mobile Safari hardware remains untested.
+
+Final local validation: 3,965 frontend tests passed in the full suite (30 existing TODOs),
+then the 12-case live-conversation suite passed with two additional search/history regressions.
+The final backend suite passed 741 tests and the shell lifecycle checks. Both TypeScript targets
+and the production PWA build passed. Codex's actual `compacted` envelope now renders one native
+completion summary; replacement/guardian history remains internal and is never displayed.

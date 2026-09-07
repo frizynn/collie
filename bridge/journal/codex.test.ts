@@ -73,6 +73,34 @@ describe("parseCodexTranscript", () => {
     ]);
   });
 
+  test("native compacted completion renders once without exposing replacement history", () => {
+    const compacted = JSON.stringify({
+      timestamp: "2026-09-07T21:27:52.812Z", type: "compacted",
+      payload: {
+        message: "", replacement_history: [{ role: "developer", content: "Private injected instructions" }],
+        guardian_history: [], window_number: 1, window_id: "opaque-window", latest_token_usage_record: {},
+      },
+    });
+    const entries = parseCodexTranscript([message("user", "Before compaction"), compacted, message("assistant", "After compaction")].join("\n"));
+    expect(entries.map((entry) => entry.role)).toEqual(["user", "summary", "assistant"]);
+    expect(entries[1]?.parts).toEqual([{ kind: "text", text: "Context compacted" }]);
+    expect(entries[1]?.ts).toBe("2026-09-07T21:27:52.812Z");
+    expect(parseCodexTranscript(compacted)[0]?.uuid).toBe(entries[1]?.uuid);
+    expect(JSON.stringify(entries)).not.toContain("Private injected instructions");
+  });
+
+  test("compaction preserves a bounded actual summary and ignores malformed bookkeeping", () => {
+    const row = (payload: unknown) => JSON.stringify({ type: "compacted", payload });
+    const entries = parseCodexTranscript(row({ message: "\u001b[31m" + "Summary ".repeat(4000) + "\u001b[0m" }));
+    const part = entries[0]?.parts[0];
+    expect(part?.kind).toBe("text");
+    if (part?.kind !== "text") throw new Error("missing summary");
+    expect(part.text.startsWith("Summary ")).toBe(true);
+    expect(part.text.length).toBe(20_000);
+    expect(part.truncated).toBe(true);
+    expect(parseCodexTranscript([row(null), row({}), row({ message: { secret: "not text" } })].join("\n"))).toEqual([]);
+  });
+
   test("session_meta and other bookkeeping rows render nothing", () => {
     expect(parseCodexTranscript(meta())).toEqual([]);
   });
