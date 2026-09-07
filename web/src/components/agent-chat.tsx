@@ -26,9 +26,8 @@ import { useLiveConversation } from "@/hooks/use-live-conversation";
 import { useModelMenuSource } from "@/hooks/use-model-menu-source";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
 import { useLocalModelApply } from "@/hooks/use-local-model-apply";
-import { LocalModelPicker } from "@/components/local-model-picker";
+import { WorkbenchModelPanel } from "@/components/workbench-model-panel";
 import { useWorkbenchPanels } from "@/hooks/use-workbench-panels";
-import { WorkbenchPopover } from "@/components/ui/workbench-popover";
 import { parseNativeModelMenu } from "@/lib/native-model-menu";
 import { dismissModelPicker } from "@/lib/dismiss-model-picker";
 import { commandsFor } from "@/lib/agent-commands";
@@ -225,10 +224,8 @@ export function AgentChat({
   const dialogPresent = liveBlocks.some((block) => block.kind !== "raw");
   const modelPresent = liveBlocks.some((block) => block.kind === "menu" && parseNativeModelMenu(block.menu, block.lines));
   const liveModelBlock = liveBlocks.find((block) => block.kind === "menu");
-  const parsedModel = liveModelBlock ? parseNativeModelMenu(liveModelBlock.menu, liveModelBlock.lines) : null;
   const catalog = useModelCatalog({ paneId, session, agent: agent?.agent, live: liveModelBlock,
     enabled: !!agent?.hasSession && !isShell && !gone && !connecting });
-  const [advancedModel, setAdvancedModel] = useState(false);
   const modelTriggerRef = useRef<HTMLButtonElement>(null);
   const writableRef = useRef(false);
   writableRef.current = !readOnly && !gone && !connecting;
@@ -260,7 +257,6 @@ export function AgentChat({
     },
     onError: (message) => setStatus(message, "error"),
   });
-  useEffect(() => { setAdvancedModel(false); }, [paneId, session, panels.panel]);
   useEffect(() => {
     if (agent?.hasSession && dialogPresent) {
       setFollowing(true);
@@ -868,37 +864,15 @@ export function AgentChat({
           </ChatMessageList>
         </div>}
 
-        {/* Bottom region: the pane-switch handle + composer. The status line USED to float here as an
-            overlay just above the composer, but it covered the terminal tail (the prompt/cursor and
-            up-levelled prompt buttons) — it now lives as a slim row just below the header. */}
+        {/* Composer and its controls stay mounted while the workbench's inspectors open and close. */}
         <div className="workbench-composer relative">
-          {showConversation && <WorkbenchPopover open={panels.panel === "model"} anchorRef={modelTriggerRef}
-            label="Model picker" onDismiss={() => { void panels.changePanel(null); }}
-            className="w-[min(28rem,calc(100vw-2rem))]">
-            {parsedModel?.kind === "reasoning" || (advancedModel && modelPresent) ? <AnsiOutput text={modelSource.text} nativeOnly agent={agent?.agent}
-              onMenuAction={handleMenuAction} promptDisabled={readOnly || gone || connecting || panels.closing} />
-              : advancedModel ? <p role="status" className="p-3 text-sm text-muted-foreground">Loading model settings…</p>
-              : catalog.rows.length ? <><LocalModelPicker rows={catalog.rows}
-                currentModel={parsedModel?.rows.find((row) => row.current)?.name ?? (conversation.history?.available ? conversation.history.telemetry?.model : undefined)}
-                disabled={readOnly || gone || connecting || panels.closing}
-                onApply={async (name) => {
-                  try { await localModel.apply(name); }
-                  catch (error) { revalidator.revalidate(); throw error; }
-                }} onCancel={() => { void panels.changePanel(null); }} />
-                <button type="button" disabled={readOnly || gone || connecting || panels.closing}
-                  className="mt-2 min-h-11 w-full rounded-md text-xs text-muted-foreground hover:bg-accent"
-                  onClick={() => {
-                    setAdvancedModel(true);
-                    void localModel.load().catch((error: unknown) => { setAdvancedModel(false); setStatus(error instanceof Error ? error.message : "Could not load model settings", "error"); });
-                  }}>Reasoning and default settings</button></>
-              : <div className="p-3 text-sm text-muted-foreground">
-                <p role="status">{catalog.loading ? "Loading model catalogue…" : "Model catalogue unavailable."}</p>
-                {!catalog.loading && <button type="button" disabled={readOnly || gone || connecting}
-                  className="mt-3 min-h-11 rounded-md border border-border px-3 text-foreground"
-                  onClick={() => { void localModel.load().catch((error: unknown) => setStatus(error instanceof Error ? error.message : "Could not load models", "error")); }}>Load from agent</button>}
-              </div>}
-
-          </WorkbenchPopover>}
+          {showConversation && <WorkbenchModelPanel scope={JSON.stringify([paneId, session])}
+            open={panels.panel === "model"} anchorRef={modelTriggerRef} agent={agent?.agent}
+            text={modelSource.text} menu={liveModelBlock} modelPresent={modelPresent} catalog={catalog}
+            reportedModel={conversation.history?.available ? conversation.history.telemetry?.model : undefined}
+            disabled={readOnly || gone || connecting} closing={panels.closing}
+            onDismiss={() => { void panels.changePanel(null); }} onLoad={localModel.load} onMenuAction={handleMenuAction}
+            onApply={localModel.apply} onApplyError={() => revalidator.revalidate()} />}
           {showConversation && dialogPresent && !modelPresent && (
             <section aria-label="Agent interaction" className="absolute inset-x-0 bottom-full z-20 mb-2 max-h-[min(32rem,60dvh)] overflow-y-auto rounded-xl border border-border bg-popover p-2 shadow-xl sm:left-2 sm:right-auto sm:w-[min(28rem,calc(100vw-3rem))]">
               <AnsiOutput text={text} nativeOnly agent={agent?.agent}
