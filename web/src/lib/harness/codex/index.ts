@@ -7,6 +7,8 @@
 // current question and submits on the last). Digits confirm directly on all three (probed;
 // notes files). The notes flow of a question card stays in the terminal: the focused-notes
 // state refuses to raw, because a digit would type into the box.
+// Model/effort pickers use the shared menu contract: captured footer keys and arrow navigation,
+// never digit shortcuts. Exact-command slash autocomplete remains composer chrome (SLASH_NOTES.md).
 //
 // The review bar is #99 (agy): exact agent string only, and every emitted keystroke probed on
 // the captured screen. Registered as `agent: "codex"`; variant folding belongs in
@@ -25,6 +27,7 @@ import { detectApprovalRegion } from "./approval";
 import { detectAskRegion } from "./ask";
 import { detectTrustRegion } from "./trust";
 import { codexDraftCarriesSend } from "./paste";
+import { detectModelMenuRegion } from "./model-menu";
 
 export function codexBuildBlocks(lines: StyledLine[]): Block[] {
   const trust = detectTrustRegion(lines);
@@ -55,6 +58,15 @@ export function codexBuildBlocks(lines: StyledLine[]): Block[] {
     const blocks: Block[] = [];
     if (before.length > 0) blocks.push({ kind: "raw", lines: before });
     blocks.push({ kind: "prompt-select", prompt: ask.model, lines: lines.slice(ask.startLine) });
+    return blocks;
+  }
+
+  const menu = detectModelMenuRegion(lines);
+  if (menu) {
+    const before = trimTrailingBlank(lines.slice(0, menu.startLine));
+    const blocks: Block[] = [];
+    if (before.length > 0) blocks.push({ kind: "raw", lines: before });
+    blocks.push({ kind: "menu", menu: menu.model, lines: lines.slice(menu.startLine) });
     return blocks;
   }
 

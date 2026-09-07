@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Loader2 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import type { MenuModel, StyledLine } from "@/lib/blocks";
 import {
   MENU_DOWN_KEYS,
@@ -10,8 +9,10 @@ import {
   MENU_RIGHT_KEYS,
   MENU_UP_KEYS,
 } from "@/lib/harness/menu-hints";
-import { MIRROR_INVERT, MIRROR_SPACE, styleFor } from "@/components/mirror-space";
 import { OptionGroupCaption, PromptPanel } from "@/components/option-button";
+import { parseNativeModelMenu } from "@/lib/native-model-menu";
+import { NativeModelMenu } from "@/components/native-model-menu";
+import { NativeMenuContent } from "@/components/native-menu-content";
 
 /** What a tap asks for: the keys to send, and whether it is a non-committal arrow (which takes the
  *  weaker identity-only guard in lib/menu-action.ts). */
@@ -23,7 +24,7 @@ export interface MenuBlockAction {
 export interface MenuBlockProps {
   /** The detected menu: its title, the keys its footer named, and the nav it advertised. */
   menu: MenuModel;
-  /** The region's own styled lines — rendered verbatim above the controls (see below). */
+  /** The region's content, displayed as native text and rows above the verified controls. */
   lines: StyledLine[];
   /**
    * Injected send handler (from AgentChat). Presentational contract: this component NEVER touches
@@ -36,19 +37,18 @@ export interface MenuBlockProps {
 
 // Native, tappable rendering of a generic modal menu — the `/model` picker and its kin.
 //
-// Unlike the other block renderers this one KEEPS the terminal region visible above the controls,
-// and that is the whole design: the grammar understands the screen's FOOTER, not its body, so the
-// options, their descriptions and the `❯` highlight only exist as terminal text. Replacing them with
-// a synthesised list would be inventing structure we did not parse. So the body is mirrored verbatim
-// and the buttons below it drive it.
-//
-// Text is React text nodes only — colour and weight come from the ANSI parse, never markup. Same XSS
-// boundary as the mirror, and the same dark colour space (MIRROR_SPACE/MIRROR_INVERT, ADR 0002),
-// because these are the agent's own terminal colours.
+// Known model menus have fully parsed clickable rows. Generic content remains display-only: its
+// labels, descriptions and cursor become native text, while only the verified footer/nav acts.
+// Content stays React text nodes, never HTML. No terminal palette is needed on these app surfaces.
 //
 // There are NO digit buttons, and there never will be: in the `/model` picker a digit confirms AND
 // persists the choice as the user's default (.adr/0009). Only footer-named keys and arrows ship.
-export function MenuBlock({ menu, lines, onAction, disabled }: MenuBlockProps) {
+export function MenuBlock(props: MenuBlockProps) {
+  const parsed = parseNativeModelMenu(props.menu, props.lines);
+  return parsed ? <NativeModelMenu menu={props.menu} parsed={parsed} onAction={props.onAction} disabled={props.disabled} /> : <GenericMenuBlock {...props} />;
+}
+
+function GenericMenuBlock({ menu, lines, onAction, disabled }: MenuBlockProps) {
   const [sending, setSending] = useState<string | null>(null);
   const locked = disabled || sending !== null;
 
@@ -83,26 +83,7 @@ export function MenuBlock({ menu, lines, onAction, disabled }: MenuBlockProps) {
     <PromptPanel ariaLabel={menu.title}>
       <OptionGroupCaption>{menu.title}</OptionGroupCaption>
 
-      {/* The region, mirrored verbatim. Scrolls horizontally on its own so a wide picker never makes
-          the page pan (the option/description columns are laid out for a desktop width). */}
-      <pre
-        className={cn(
-          "m-0 overflow-x-auto rounded-lg px-2 py-1.5 font-mono text-[11px] leading-[1.25] whitespace-pre",
-          MIRROR_SPACE,
-          MIRROR_INVERT,
-        )}
-      >
-        {lines.map((line, li) => (
-          <span key={li}>
-            {li > 0 ? "\n" : null}
-            {line.segments.map((s, si) => (
-              <span key={si} style={styleFor(s)}>
-                {s.text}
-              </span>
-            ))}
-          </span>
-        ))}
-      </pre>
+      <NativeMenuContent menu={menu} lines={lines} />
 
       {/* Arrow cluster — only the directions the screen itself advertised (a `❯` row for Up/Down, an
           "←/→ to <verb>" row for Left/Right). Each is one keystroke; they move a highlight and commit

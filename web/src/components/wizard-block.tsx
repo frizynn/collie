@@ -108,7 +108,6 @@ function QuestionStep({
             <OptionButton
               key={i}
               tone={busy ? "busy" : option.chosen ? "selected" : "default"}
-              keyLabel={option.keys[0]}
               label={option.label}
               description={option.description}
               disabled={locked}

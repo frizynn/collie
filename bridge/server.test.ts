@@ -1019,3 +1019,21 @@ describe("marksPaneSeen — CSRF guard on marking a pane seen", () => {
     expect(marksPaneSeen(withHeader({ [SEEN_HEADER]: "anything" }), undefined)).toBe(true);
   });
 });
+
+describe("skills reads retain the existing access and seen-state guards", () => {
+  test("a preloaded models catalog cannot mark a pane seen without the same-origin header", () => {
+    expect(marksPaneSeen(req({}), "models")).toBe(false);
+    expect(marksPaneSeen(req({ [SEEN_HEADER]: "1" }), "models")).toBe(true);
+  });
+  test("a cross-site skills read cannot mark a pane seen", () => {
+    expect(marksPaneSeen(req({}), "skills")).toBe(false);
+    expect(marksPaneSeen(req({ [SEEN_HEADER]: "1" }), "skills")).toBe(true);
+  });
+
+  test("read-only devices may discover skills but remain unable to write", () => {
+    const config = cfg({ deviceHeader: "x-device", deviceAllowlist: ["allowed"] });
+    const request = req({ host: "localhost:8787", origin: "http://localhost:8787", "x-device": "not-allowed" });
+    expect(guard(request, config, "read")).toBeNull();
+    expect(guard(request, config, "write")?.status).toBe(403);
+  });
+});

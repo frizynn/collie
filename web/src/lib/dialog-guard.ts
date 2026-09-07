@@ -45,6 +45,9 @@ import {
 /** What identifies the dialog a tap is aimed at: where it lives, when it was seen, and what it was. */
 export interface DialogTarget<K extends DialogKind> {
   paneId: string;
+  /** Optional lifecycle gate for bounded multi-step callers. */
+  signal?: AbortSignal;
+  canWrite?: () => boolean;
   requestedLines: number;
   /** The `revision` the rendered dialog was detected against. */
   detectedRevision: number;
@@ -123,8 +126,12 @@ export async function sendGuardedKeys<K extends DialogKind>(
   keys: string[],
   compare: Compare = "commits",
 ): Promise<ActionResult> {
+  const stopped = () => target.signal?.aborted || target.canWrite?.() === false;
+  if (stopped()) return { status: "error", error: "Action cancelled: pane is no longer writable" };
   const guarded = await guardDialog(target, compare);
   if (!guarded.ok) return guarded.result;
+  // The lifecycle can change during the fresh-read round trip. Check immediately before the write.
+  if (stopped()) return { status: "error", error: "Action cancelled: pane is no longer writable" };
   return sendBoundKeys(target, keys, guarded.region);
 }
 

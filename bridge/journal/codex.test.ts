@@ -73,6 +73,34 @@ describe("parseCodexTranscript", () => {
     ]);
   });
 
+  test("native compacted completion renders once without exposing replacement history", () => {
+    const compacted = JSON.stringify({
+      timestamp: "2026-09-07T21:27:52.812Z", type: "compacted",
+      payload: {
+        message: "", replacement_history: [{ role: "developer", content: "Private injected instructions" }],
+        guardian_history: [], window_number: 1, window_id: "opaque-window", latest_token_usage_record: {},
+      },
+    });
+    const entries = parseCodexTranscript([message("user", "Before compaction"), compacted, message("assistant", "After compaction")].join("\n"));
+    expect(entries.map((entry) => entry.role)).toEqual(["user", "summary", "assistant"]);
+    expect(entries[1]?.parts).toEqual([{ kind: "text", text: "Context compacted" }]);
+    expect(entries[1]?.ts).toBe("2026-09-07T21:27:52.812Z");
+    expect(parseCodexTranscript(compacted)[0]?.uuid).toBe(entries[1]?.uuid);
+    expect(JSON.stringify(entries)).not.toContain("Private injected instructions");
+  });
+
+  test("compaction preserves a bounded actual summary and ignores malformed bookkeeping", () => {
+    const row = (payload: unknown) => JSON.stringify({ type: "compacted", payload });
+    const entries = parseCodexTranscript(row({ message: "\u001b[31m" + "Summary ".repeat(4000) + "\u001b[0m" }));
+    const part = entries[0]?.parts[0];
+    expect(part?.kind).toBe("text");
+    if (part?.kind !== "text") throw new Error("missing summary");
+    expect(part.text.startsWith("Summary ")).toBe(true);
+    expect(part.text.length).toBe(20_000);
+    expect(part.truncated).toBe(true);
+    expect(parseCodexTranscript([row(null), row({}), row({ message: { secret: "not text" } })].join("\n"))).toEqual([]);
+  });
+
   test("session_meta and other bookkeeping rows render nothing", () => {
     expect(parseCodexTranscript(meta())).toEqual([]);
   });
@@ -168,6 +196,42 @@ describe("parseCodexTranscript", () => {
       item({ type: "function_call_output", call_id: "gone", output: '{"output":"stranded"}' }),
     );
     expect(entries[0]!.parts[0]).toMatchObject({ kind: "tool", name: "result" });
+  });
+
+  test("custom raw-code calls keep their literal input and fold content-list results by call_id", () => {
+    const entries = parseCodexTranscript([
+      event({ type: "task_started", turn_id: "custom-turn" }),
+      item({ type: "custom_tool_call", name: "exec", input: 'const result = await run();\ntext(result);', call_id: "custom-one" }),
+      item({ type: "custom_tool_call", name: "exec", input: '"literal JSON-looking code"', call_id: "custom-two" }),
+      item({ type: "custom_tool_call_output", call_id: "custom-two", output: [{ type: "input_text", text: "Second result" }] }),
+      item({ type: "custom_tool_call_output", call_id: "custom-one", output: [
+        { type: "input_text", text: "Script completed" },
+        { type: "input_text", text: '\u001b[31mError: <script>alert("literal")</script>\u001b[0m' },
+        { type: "input_image", image_url: "data:image/png;base64,PRIVATE_IMAGE", text: "not a text block" },
+      ] }),
+      event({ type: "task_complete", turn_id: "custom-turn", duration_ms: 50 }),
+    ].join("\n"));
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({ turnId: "custom-turn", turn: { status: "completed", durationMs: 50 } });
+    expect(entries[0]!.parts[0]).toEqual({ kind: "tool", name: "exec", summary: "const result = await run(); text(result);", result: { text: 'Script completed\nError: <script>alert("literal")</script>' } });
+    expect(entries[1]!.parts[0]).toMatchObject({ summary: '"literal JSON-looking code"', result: { text: "Second result" } });
+    expect(JSON.stringify(entries)).not.toContain("PRIVATE_IMAGE");
+    expect(parseCodexTranscript([
+      item({ type: "custom_tool_call", name: "exec", input: 'const result = await run();\ntext(result);', call_id: "custom-one" }),
+    ].join("\n"))[0]!.uuid).toBe(entries[0]!.uuid);
+  });
+
+  test("custom tool text is bounded, supports string results, and preserves orphan output", () => {
+    const entries = parseCodexTranscript([
+      item({ type: "custom_tool_call", name: "exec", input: "x".repeat(400), call_id: "long" }),
+      item({ type: "custom_tool_call_output", call_id: "long", output: [{ type: "input_text", text: "y".repeat(3000) }] }),
+      item({ type: "custom_tool_call_output", call_id: "missing", output: "Literal tool error" }),
+      item({ type: "custom_tool_call_output", call_id: "ignored", output: [null, {}, { type: "input_text", text: 3 }, { type: "input_image", image_url: "hidden" }] }),
+    ].join("\n"));
+    expect(entries).toHaveLength(2);
+    const part = entries[0]!.parts[0];
+    expect(part).toMatchObject({ kind: "tool", summary: `${"x".repeat(200)}…`, result: { text: "y".repeat(2000), truncated: true } });
+    expect(entries[1]!.parts[0]).toEqual({ kind: "tool", name: "result", summary: "", result: { text: "Literal tool error" } });
   });
 
   test("injected environment context is dropped, not rendered as something you said", () => {

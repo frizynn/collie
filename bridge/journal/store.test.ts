@@ -65,6 +65,26 @@ describe("TranscriptStore", () => {
     expect(page!.fileTruncated).toBe(false);
   });
 
+  test("telemetry shares the contained read and cache, preserves tail provenance, and refreshes with the log", async () => {
+    const { adapter, calls, append } = fakeAdapter(["u1"], { complete: false });
+    let usageParses = 0;
+    adapter.parseUsage = () => {
+      usageParses++;
+      return { source: "journal", tokens: { scope: "session", total: usageParses } };
+    };
+    const store = new TranscriptStore();
+    const first = await store.page(adapter, REF, { limit: 1 });
+    const cached = await store.page(adapter, REF, { limit: 1 });
+    expect(first?.telemetry).toEqual({ source: "journal", tokens: { scope: "session", total: 1 }, fileTruncated: true });
+    expect(cached?.telemetry).toEqual(first?.telemetry);
+    expect(calls.load).toBe(1);
+    expect(usageParses).toBe(1);
+    append("u2");
+    const updated = await store.page(adapter, REF, { limit: 1 });
+    expect(updated?.telemetry?.tokens?.total).toBe(2);
+    expect(calls.load).toBe(2);
+  });
+
   test("an unresolvable ref is null, not an error", async () => {
     const { adapter } = fakeAdapter(["u1"]);
     const page = await new TranscriptStore().page(adapter, { kind: "id", value: "unknown" }, {
@@ -84,6 +104,17 @@ describe("TranscriptStore", () => {
     expect(calls.load).toBe(1);
     expect(calls.parse).toBe(1);
     expect(calls.stat).toBe(2);
+  });
+
+  test("unchanged page objects retain identity by exact cursor/limit and invalidate on writes", async () => {
+    const { adapter, append } = fakeAdapter(["u1", "u2", "u3"]);
+    const store = new TranscriptStore();
+    const first = await store.page(adapter, REF, { limit: 2 });
+    expect(await store.page(adapter, REF, { limit: 2 })).toBe(first);
+    expect(await store.page(adapter, REF, { limit: 1 })).not.toBe(first);
+    expect(await store.page(adapter, REF, { limit: 2, before: "u2" })).not.toBe(first);
+    append("u4");
+    expect(await store.page(adapter, REF, { limit: 2 })).not.toBe(first);
   });
 
   test("a moved file is re-read and re-parsed", async () => {

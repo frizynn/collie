@@ -50,7 +50,7 @@ export const NAVIGATION_NETWORK_ONLY = [
 ] as const;
 
 /**
- * The bundled Nerd Font faces (index.css). The SW caches these on first use rather than precaching
+ * The bundled Nerd Font and T3 UI faces (index.css / workbench.css). The SW caches them on first use rather than precaching
  * them — `unicode-range` keeps them lazy and ~1.1 MB is not something to charge an install for — and
  * sweeps anything else out of that cache on activate, which is why the live set has to be a value
  * both sides can read. The version is part of the filename: `public/` assets are unhashed, so a
@@ -60,6 +60,9 @@ export const NAVIGATION_NETWORK_ONLY = [
 export const FONT_URLS = [
   "/fonts/nerd-symbols-3.5.0-pua.woff2",
   "/fonts/nerd-symbols-3.5.0-spua.woff2",
+  "/fonts/dm-sans-latin-wght-normal-5.2.8.woff2",
+  "/fonts/jetbrains-mono-latin-400-normal-5.2.8.woff2",
+  "/fonts/jetbrains-mono-latin-500-normal-5.2.8.woff2",
 ] as const;
 
 /**

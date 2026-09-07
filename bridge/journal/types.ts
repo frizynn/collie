@@ -62,6 +62,44 @@ export interface TranscriptEntry {
   ts: string;
   role: "user" | "assistant" | "summary" | "note";
   parts: TranscriptPart[];
+  /** Native turn id, or a Claude group anchored to its human/continuation message uuid. */
+  turnId?: string;
+  /** Present only when the journal explicitly distinguishes narration from a final answer. */
+  phase?: "commentary" | "final_answer";
+  turn?: TranscriptTurn;
+}
+
+export interface TranscriptTurn {
+  status: "running" | "completed" | "aborted";
+  startedAt?: string;
+  completedAt?: string;
+  /** Native reported work duration; never calculated from message timestamps. */
+  durationMs?: number;
+}
+
+/** Last reported journal metrics. Missing values are unknown, never inferred model limits. */
+export interface SessionTelemetry {
+  source: "journal";
+  observedAt?: string;
+  model?: string;
+  effort?: string;
+  tokens?: {
+    input?: number;
+    output?: number;
+    cachedInput?: number;
+    total?: number;
+    scope: "session" | "last-message";
+  };
+  context?: { usedTokens?: number; windowTokens?: number };
+  rateLimits?: Array<{
+    name: "primary" | "secondary";
+    usedPercent: number;
+    windowMinutes?: number;
+    /** Epoch seconds, as reported by the provider. */
+    resetsAt?: number;
+  }>;
+  /** The parsed log was tail-capped; metadata from its missing head may be unavailable. */
+  fileTruncated: boolean;
 }
 
 /** What the history endpoint answers with, minus the pane id the route adds. */
@@ -75,6 +113,7 @@ export interface TranscriptPage {
   total: number;
   /** True when the on-disk log exceeded the byte cap and we kept only its tail. */
   fileTruncated: boolean;
+  telemetry?: SessionTelemetry;
 }
 
 /**
@@ -109,4 +148,6 @@ export interface JournalAdapter {
   readonly agent: string;
   readonly source: TranscriptSource;
   parse(text: string): TranscriptEntry[];
+  /** Runs only when the cached log changes, over the same contained read as the transcript. */
+  parseUsage?(text: string): Omit<SessionTelemetry, "fileTruncated"> | undefined;
 }

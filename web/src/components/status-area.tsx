@@ -1,49 +1,66 @@
+import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { clearStatus, useStatus, type StatusTone } from "@/lib/status";
+import { clearStatus, pauseStatus, resumeStatus, useStatus, type StatusTone } from "@/lib/status";
 
-// A slim, self-contained status line. Rendered inside a pointer-events-none positioning wrapper (an
-// overlay above the composer / at the bottom of home), it shows the latest status with a tone colour
-// + icon. Non-errors fade on their own; errors persist and are tap-to-dismiss (the bar re-enables
-// pointer events + shows an ✕ for that). Renders nothing when there's no status.
 const TONE: Record<StatusTone, string> = {
   info: "text-muted-foreground",
   success: "text-status-done",
   warn: "text-status-working",
   error: "text-status-blocked",
 };
+const ICONS = { info: Info, success: CheckCircle2, warn: AlertTriangle, error: AlertCircle } as const;
 
-const ICONS = {
-  info: Info,
-  success: CheckCircle2,
-  warn: AlertTriangle,
-  error: AlertCircle,
-} as const;
-
-export function StatusArea({ className }: { className?: string }) {
+/** One app-wide, nonmodal notification surface, styled after T3's top-right toasts. */
+export function StatusArea() {
   const status = useStatus();
-  if (!status) return null;
-  const Icon = ICONS[status.tone];
-  const dismissable = status.tone === "error";
-  return (
-    <div
-      key={status.id}
-      role="status"
-      aria-live="polite"
-      onClick={dismissable ? () => clearStatus() : undefined}
-      className={cn(
-        "flex items-center justify-center gap-1.5 rounded-md border bg-background/95 px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur duration-200 animate-in fade-in",
-        dismissable
-          ? "pointer-events-auto cursor-pointer border-status-blocked/50"
-          : "border-border/60",
-        TONE[status.tone],
-        className,
-      )}
-    >
-      <Icon className="size-3.5 shrink-0" />
-      <span className="truncate">{status.text}</span>
-      {dismissable && <X className="size-3.5 shrink-0 opacity-70" />}
-    </div>
+  const card = useRef<HTMLDivElement>(null);
+  const hovered = useRef(false);
+  const focused = useRef(false);
+  useEffect(() => {
+    hovered.current = card.current?.matches(":hover") ?? false;
+    focused.current = card.current?.contains(document.activeElement) ?? false;
+    if (!status) return;
+    const sync = () => {
+      if (document.hidden || hovered.current || focused.current) pauseStatus(status.id);
+      else resumeStatus(status.id);
+    };
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
+  }, [status]);
+
+  const syncInteraction = () => {
+    if (!status) return;
+    if (document.hidden || hovered.current || focused.current) pauseStatus(status.id);
+    else resumeStatus(status.id);
+  };
+  const Icon = status ? ICONS[status.tone] : Info;
+  return createPortal(
+    <section aria-label="Notifications" data-notification-viewport=""
+      className="pointer-events-none fixed right-[max(1rem,env(safe-area-inset-right))] top-[calc(env(safe-area-inset-top)_+_10.25rem)] z-50 w-[calc(100%-2rem)] max-w-90 md:right-[max(2rem,env(safe-area-inset-right))] md:top-[calc(env(safe-area-inset-top)_+_7.5rem)]">
+      {status && <div ref={card} key={status.id} role={status.tone === "error" ? "alert" : "status"} aria-atomic="true"
+        onMouseEnter={() => { hovered.current = true; syncInteraction(); }}
+        onMouseLeave={() => { hovered.current = false; syncInteraction(); }}
+        onFocus={() => { focused.current = true; syncInteraction(); }}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) { focused.current = false; syncInteraction(); }
+        }}
+        className="pointer-events-auto relative rounded-lg border border-foreground/10 bg-popover text-popover-foreground shadow-[0_16px_40px_-18px_rgb(0_0_0_/_55%)] motion-safe:animate-in motion-safe:fade-in motion-safe:duration-150">
+        <div className="flex items-start gap-2.5 py-3 pl-3.5 pr-11">
+          <Icon aria-hidden="true" className={cn("mt-0.5 size-4 shrink-0", TONE[status.tone])} />
+          <div className="max-h-[min(16rem,40dvh)] min-w-0 overflow-y-auto overscroll-contain text-sm leading-5 [overflow-wrap:anywhere]">
+            <p className="whitespace-pre-wrap font-medium">{status.text}</p>
+            {status.description && <p className="mt-0.5 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{status.description}</p>}
+          </div>
+        </div>
+        <button type="button" aria-label="Dismiss notification" onClick={() => clearStatus(status.id)}
+          className="absolute right-0 top-0 flex size-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+          <X aria-hidden="true" className="size-3.5" />
+        </button>
+      </div>}
+    </section>, document.body,
   );
 }

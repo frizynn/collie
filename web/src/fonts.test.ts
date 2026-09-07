@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import { FONT_URLS } from "@/lib/sw-routes";
 
-// The bundled Nerd Font faces are the only webfont Collie ships, and the design rests on three facts
+// The bundled Nerd Font faces remain lazy alongside the T3 UI fonts. The design rests on three facts
 // that are silent when broken: the stylesheet, the service worker and the disk agree on which files
 // exist; each face is range-restricted so it stays lazy; and neither file re-enters the precache. A
 // renamed file is a tofu box again (#70); a woff2 back in `globPatterns` charges every install
@@ -13,6 +13,7 @@ const root = resolve(import.meta.dirname, "..");
 const read = (p: string) => readFileSync(resolve(root, p), "utf8");
 const css = read("src/index.css");
 const cssUrls = [...css.matchAll(/url\("([^"]+\.woff2)"\)/g)].map((m) => m[1]!);
+const workbenchUrls = [...read("src/workbench.css").matchAll(/url\("([^"]+\.woff2)"\)/g)].map((m) => m[1]!);
 
 describe("bundled fonts", () => {
   it("declares one face per private-use plane", () => {
@@ -24,7 +25,7 @@ describe("bundled fonts", () => {
   // Drift here is the whole failure mode: the SW sweeps every font-cache entry it can't name, so a
   // stylesheet URL missing from FONT_URLS would be re-fetched on every cold load, forever.
   it("names the same files in the stylesheet and the service worker", () => {
-    expect(cssUrls).toEqual([...FONT_URLS]);
+    expect([...cssUrls, ...workbenchUrls]).toEqual([...FONT_URLS]);
   });
 
   it.each(FONT_URLS)("ships %s", (url) => {

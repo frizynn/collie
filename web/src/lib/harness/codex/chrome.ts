@@ -21,8 +21,10 @@ import {
 export interface ComposerBox {
   /** The `› ` prompt row. */
   promptRow: number;
-  /** The status row under it (last non-blank row of the frame). */
+  /** The status or exact-command autocomplete row at the tail. */
   statusRow: number;
+  /** A verified command suggestion replaces status while the slash command is being typed. */
+  autocomplete?: true;
 }
 
 // A draft wraps onto indented continuation rows between the prompt row and the status row.
@@ -44,6 +46,24 @@ const MAX_DRAFT_ROWS = 100;
 // or `• ` row still starts at column 0, so neither can pass as a continuation.
 const CONTINUATION = /^ {2}\s*\S/;
 const PROMPT_PREFIX = "› ";
+
+// Codex 0.153.4 replaces its statusline with this ONE suggestion after a complete slash command.
+// Enter executes that exact command. Partial/multiple suggestions and skill insertion pickers do
+// not establish that meaning, so they stay refused. See SLASH_NOTES.md and the captured fixtures.
+const COMMAND_SUGGESTION = /^ {2}(\/[a-z][a-z0-9_-]*) {2,}\S.{0,250}$/;
+
+function locateCommandAutocomplete(lines: StyledLine[], texts: string[], tail: number): ComposerBox | null {
+  const command = COMMAND_SUGGESTION.exec(texts[tail] ?? "")?.[1];
+  if (!command) return null;
+  const promptRow = skipBlanksUp(texts, tail - 1);
+  // One or two blank rows separate the command from its suggestion in the observed renderer.
+  if (promptRow < 0 || promptRow === tail - 1 || promptText(texts[promptRow]!) !== command) return null;
+  if (promptRow > 0 && !isBlank(texts[promptRow - 1]!)) return null;
+  // The live composer marker is bold. A plain-text transcript lookalike must not claim a composer.
+  const marker = lines[promptRow]!.segments.find((segment) => segment.text.length > 0);
+  if (!marker?.text.startsWith("›") || marker.bold !== true) return null;
+  return { promptRow, statusRow: tail, autocomplete: true };
+}
 
 /** The exact placeholder text is still a valid thing an operator might deliberately type. Codex
  * distinguishes its empty hint by painting the whole body dim, so extraction should use that
@@ -72,7 +92,10 @@ function isEmptyPlaceholder(line: StyledLine): boolean {
 export function locateComposer(lines: StyledLine[]): ComposerBox | null {
   const texts = lines.map((l) => rstrip(lineText(l)));
   const statusRow = lastNonBlankIndex(texts);
-  if (statusRow < 0 || !isStatusRow(texts[statusRow]!, lines[statusRow])) return null;
+  if (statusRow < 0) return null;
+  if (!isStatusRow(texts[statusRow]!, lines[statusRow])) {
+    return locateCommandAutocomplete(lines, texts, statusRow);
+  }
 
   // One blank row separates the prompt/draft run from the status row (every capture); above the
   // gap the run is CONTIGUOUS non-blank rows — wrapped-draft continuations under the `› ` prompt.
@@ -100,7 +123,7 @@ export function stripChrome(lines: StyledLine[]): StyledLine[] {
 /** The status row, styled, for the strip above the phone composer. Empty when no composer. */
 export function extractStatusLines(lines: StyledLine[]): StyledLine[] {
   const box = locateComposer(lines);
-  if (box === null) return [];
+  if (box === null || box.autocomplete) return [];
   return [lines[box.statusRow]!];
 }
 

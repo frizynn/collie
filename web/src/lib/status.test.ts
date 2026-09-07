@@ -1,6 +1,6 @@
 import { renderHook, act } from "@testing-library/react";
 
-import { clearStatus, setStatus, useStatus } from "./status";
+import { clearStatus, pauseStatus, resumeStatus, setStatus, useStatus } from "./status";
 
 // The global status channel: latest-wins, errors persist, everything else auto-clears on a TTL.
 // We observe it through useStatus (the public read) and drive the TTL with fake timers.
@@ -53,5 +53,47 @@ describe("status channel", () => {
     act(() => setStatus("sticky", "info", null));
     act(() => vi.advanceTimersByTime(10_000));
     expect(result.current?.text).toBe("sticky");
+  });
+});
+
+
+describe("notification interaction lifecycle", () => {
+  beforeEach(() => { vi.useFakeTimers(); clearStatus(); });
+  afterEach(() => { clearStatus(); vi.useRealTimers(); });
+
+  it("preserves a foreground error when an agent finishes in the background", () => {
+    const { result } = renderHook(() => useStatus());
+    act(() => setStatus("Could not send. Your draft is safe.", "error"));
+    const error = result.current;
+    act(() => setStatus("Codex finished", "success", undefined, { background: true }));
+    expect(result.current).toBe(error);
+    act(() => setStatus("Sent", "success"));
+    expect(result.current?.text).toBe("Sent");
+  });
+
+  it("resumes only the remaining visible lifetime, without extending it on repeated resume", () => {
+    const { result } = renderHook(() => useStatus());
+    act(() => setStatus("Finished", "success"));
+    const id = result.current!.id;
+    act(() => vi.advanceTimersByTime(1000));
+    act(() => pauseStatus(id));
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(result.current?.text).toBe("Finished");
+    act(() => { resumeStatus(id); resumeStatus(id); });
+    act(() => vi.advanceTimersByTime(1499));
+    expect(result.current).not.toBeNull();
+    act(() => vi.advanceTimersByTime(1));
+    expect(result.current).toBeNull();
+  });
+
+  it("ignores stale dismissal and pause handlers after replacement", () => {
+    const { result } = renderHook(() => useStatus());
+    act(() => setStatus("Old"));
+    const old = result.current!.id;
+    act(() => setStatus("New", "success", undefined, { description: "project · tab" }));
+    act(() => { clearStatus(old); pauseStatus(old); resumeStatus(old); });
+    expect(result.current?.description).toBe("project · tab");
+    act(() => vi.advanceTimersByTime(2500));
+    expect(result.current).toBeNull();
   });
 });

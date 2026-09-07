@@ -1,0 +1,12 @@
+  [0m[1mSelect Model and Effort[0m
+  [0m[2mAccess legacy models by running codex -m <model_name> or in your config.toml[0m
+ 
+› 1. gpt-6-astra (current)  Our most capable model for complex, demanding work.
+  2. gpt-5.6-sol            [0m[2mReliable agentic workhorse for everyday tasks.[0m
+  3. gpt-5.6-terra          [0m[2mBalanced agentic coding model for everyday work.[0m
+  4. gpt-5.6-luna           [0m[2mFast and affordable agentic coding model.[0m
+  5. gpt-5.5                [0m[2mProven previous-generation model for coding and general work.[0m
+  6. gpt-5.4-mini           [0m[2mSmall, fast, and cost-efficient model for simpler coding tasks.[0m
+  7. gpt-5.3-codex-spark    [0m[2mUltra-fast coding model.[0m
+ 
+  [0m[2mPress enter to confirm or esc to go back                                                   [0m

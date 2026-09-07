@@ -1,4 +1,5 @@
 import { useState, type ComponentProps } from "react";
+import { readFileSync } from "node:fs";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -18,10 +19,13 @@ vi.mock("@/lib/wizard-action", () => ({
 
 import { server } from "@/test/setup";
 import { clearStatus } from "@/lib/status";
+import { dismissModelPicker } from "@/lib/dismiss-model-picker";
+vi.mock("@/lib/dismiss-model-picker", () => ({ dismissModelPicker: vi.fn() }));
 import { submitPromptOption } from "@/lib/prompt-action";
 import { submitWizardKeys } from "@/lib/wizard-action";
 import { fixtureAgents } from "@/test/handlers";
 import { AgentChat } from "./agent-chat";
+import { StatusArea } from "./status-area";
 
 // The detail view's core job: type a reply and submit it to the bridge. This drives the whole wired
 // path (composer → api.sendReply → MSW → optimistic clear / error surfacing) end-to-end, which no
@@ -31,7 +35,7 @@ beforeAll(() => {
   // jsdom doesn't implement scrollTo; the terminal mirror's auto-scroll calls it.
   if (!Element.prototype.scrollTo) Element.prototype.scrollTo = () => {};
 });
-beforeEach(() => clearStatus());
+beforeEach(() => { clearStatus(); vi.mocked(dismissModelPicker).mockReset(); vi.mocked(dismissModelPicker).mockResolvedValue({ ok: true }); });
 
 function renderChat(overrides: Partial<ComponentProps<typeof AgentChat>> = {}) {
   const agent = fixtureAgents[0]!; // a blocked claude agent
@@ -46,7 +50,7 @@ function renderChat(overrides: Partial<ComponentProps<typeof AgentChat>> = {}) {
     onSelect: vi.fn(),
     ...overrides,
   };
-  const router = createMemoryRouter([{ path: "/", element: <AgentChat {...props} /> }]);
+  const router = createMemoryRouter([{ path: "/", element: <><AgentChat {...props} /><StatusArea /></> }]);
   render(<RouterProvider router={router} />);
   return props;
 }
@@ -338,6 +342,20 @@ describe("AgentChat — prompt-select race guard wiring (frozen {text, revision}
     expect(mockSubmit).toHaveBeenCalledWith(expect.objectContaining({ detectedRevision: 2 }));
   });
 
+  it("does not let a frozen old dialog block writing or the model control after the live pane clears", async () => {
+    const user = userEvent.setup();
+    const advance = renderWithLivePane({ text: MENU_TEXT, revision: 1 });
+    expect(screen.getByRole("button", { name: "Choose model" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Find in output" }));
+    act(() => advance({ text: STATUS_TEXT, revision: 2 }));
+    expect(screen.getByRole("button", { name: "Choose model" })).toBeEnabled();
+    const input = screen.getByRole("textbox", { name: "" });
+    await user.type(input, "Writing while reading older output");
+    expect(input).toHaveValue("Writing while reading older output");
+    // The old approval remains frozen for reading; its action still carries revision 1.
+    expect(screen.getByRole("button", { name: "Yes" })).toBeInTheDocument();
+  });
+
   // Same frozen-pair guarantee for the wizard path (the guard mirrors prompt-select's; this locks the
   // wiring so the live-vs-frozen-revision bug can't regress here either).
   it("wizard: passes the FROZEN revision when the mirror is frozen and the pane advances", async () => {
@@ -543,6 +561,9 @@ describe("AgentChat — top-of-mirror history affordance", () => {
     // A Claude pane: alt-screen, so readableLines is just its viewport — there IS no scrollback.
     const agent = { ...fixtureAgents[0]!, hasSession: true, readableLines: 51 };
     renderChat({ agent, agents: [agent], requestedLines: 600 });
+    expect(screen.getByRole("region", { name: "Live conversation" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Display settings" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Raw terminal" }));
     expect(showHistory()).toBeInTheDocument();
     expect(loadOlder()).not.toBeInTheDocument();
   });
@@ -578,7 +599,62 @@ describe("AgentChat — top-of-mirror history affordance", () => {
   it("a transcript wins even when the pane also reports scrollback", () => {
     const agent = { ...fixtureAgents[0]!, hasSession: true, readableLines: 6946 };
     renderChat({ agent, agents: [agent], requestedLines: 600 });
+    fireEvent.click(screen.getByRole("button", { name: "Display settings" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Raw terminal" }));
     expect(showHistory()).toBeInTheDocument();
     expect(loadOlder()).not.toBeInTheDocument();
   });
+});
+
+
+describe("AgentChat — native workbench interactions", () => {
+  it("keeps conversation and draft editable while a native model picker owns agent input", async () => {
+    const agent = { ...fixtureAgents[1]!, hasSession: true };
+    const menu = readFileSync("src/lib/harness/codex/fixtures/model-picker.txt", "utf8");
+    renderChat({ paneId: agent.paneId, agent, agents: [agent], text: `Old terminal output that must not become the conversation\n${menu}` });
+    expect(screen.getByRole("region", { name: "Live conversation" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Model picker" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Choose model" })).toBeEnabled();
+    expect(screen.getByRole("radio", { name: "gpt-6-astra" })).toBeVisible();
+    expect(screen.queryByText("Old terminal output that must not become the conversation")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Live terminal" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Type into terminal" })).not.toBeInTheDocument();
+    const input = screen.getByRole("textbox");
+    await userEvent.type(input, "My next message");
+    expect(input).toHaveValue("My next message");
+    expect(screen.queryByRole("dialog", { name: "Model picker" })).not.toBeInTheDocument();
+    expect(dismissModelPicker).toHaveBeenCalledWith(expect.objectContaining({ paneId: agent.paneId, agent: "codex" }));
+  });
+});
+
+
+it("preloads once and opens, selects and closes models without terminal requests", async () => {
+  let catalogs = 0;
+  const writes = vi.fn();
+  server.use(
+    http.get(/\/api\/pane\/[^/]+\/models$/, () => {
+      catalogs++;
+      return HttpResponse.json({ available: true, models: [
+        { name: "gpt-6-astra", description: "Complex tasks" },
+        { name: "gpt-5.6-sol", description: "Everyday tasks" },
+      ] });
+    }),
+    http.post(/\/api\/pane\/[^/]+\/(reply|keys)$/, () => { writes(); return HttpResponse.json({ ok: true }); }),
+  );
+  const agent = { ...fixtureAgents[1]!, paneId: "instant-model-qa", hasSession: true };
+  renderChat({ paneId: agent.paneId, agent, agents: [agent] });
+  await waitFor(() => expect(catalogs).toBe(1));
+  fireEvent.click(screen.getByRole("button", { name: "Choose model" }));
+  const option = await screen.findByRole("radio", { name: "gpt-5.6-sol" });
+  expect(option).toBeEnabled();
+  fireEvent.click(option);
+  expect(option).toHaveAttribute("aria-checked", "true");
+  expect(writes).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByRole("dialog", { name: "Model picker" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Choose model" }));
+  expect(screen.getByRole("radio", { name: "gpt-6-astra" })).toBeEnabled();
+  expect(catalogs).toBe(1);
+  expect(writes).not.toHaveBeenCalled();
+  expect(dismissModelPicker).not.toHaveBeenCalled();
 });

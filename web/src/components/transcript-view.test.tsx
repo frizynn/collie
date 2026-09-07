@@ -17,6 +17,12 @@ const turn = (over: Partial<TranscriptEntry> = {}): TranscriptEntry => ({
   ...over,
 });
 
+async function openToolGroup() {
+  const work = screen.getByRole("button", { name: /^Work log/ });
+  if (work.getAttribute("aria-expanded") === "false") await userEvent.click(work);
+  await userEvent.click(screen.getByRole("button", { name: /^1 tool call/ }));
+}
+
 describe("TranscriptView", () => {
   it("renders a human turn and an assistant turn with their role labels", () => {
     render(
@@ -57,16 +63,18 @@ describe("TranscriptView", () => {
       />,
     );
 
+    expect(screen.queryByText("git log --oneline")).not.toBeInTheDocument();
+    await openToolGroup();
     expect(screen.getByText("Bash")).toBeInTheDocument();
     expect(screen.getByText("git log --oneline")).toBeInTheDocument();
     // Collapsed by default — a real thread is mostly tool traffic, and expanding it all buries the prose.
     expect(screen.queryByText(/abc1234 the commit body/)).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { expanded: false }));
+    await userEvent.click(screen.getByRole("button", { name: "Bash git log --oneline", expanded: false }));
     expect(screen.getByText(/abc1234 the commit body/)).toBeInTheDocument();
   });
 
-  it("a tool call with no result isn't expandable (nothing to reveal)", () => {
+  it("a historical tool with missing output reports unknown rather than pretending it is still running", async () => {
     render(
       <TranscriptView
         entries={[
@@ -77,7 +85,12 @@ describe("TranscriptView", () => {
         ]}
       />,
     );
-    expect(screen.getByRole("button")).toBeDisabled();
+    await openToolGroup();
+    const tool = screen.getByRole("button", { name: "Read /a.ts No output recorded" });
+    expect(tool).toBeEnabled();
+    expect(screen.queryByText("Running…")).not.toBeInTheDocument();
+    await userEvent.click(tool);
+    expect(screen.getAllByText("No output recorded")).toHaveLength(2);
   });
 
   it("flags truncated output rather than silently dropping the tail", async () => {
@@ -98,7 +111,8 @@ describe("TranscriptView", () => {
         ]}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { expanded: false }));
+    await openToolGroup();
+    await userEvent.click(screen.getByRole("button", { name: "Read /big Truncated", expanded: false }));
     expect(screen.getByText(/output truncated/)).toBeInTheDocument();
   });
 
@@ -166,7 +180,8 @@ describe("TranscriptView", () => {
   });
 
   it("tool output is NOT markdown-parsed — it's command output, kept verbatim", async () => {
-    render(
+    const hostile = '<img src=x onerror="alert(1)"><script>alert(2)</script>';
+    const { container } = render(
       <TranscriptView
         entries={[
           turn({
@@ -176,15 +191,18 @@ describe("TranscriptView", () => {
                 kind: "tool",
                 name: "Bash",
                 summary: "cat notes.md",
-                result: { text: "## literal heading\n**literal stars**" },
+                result: { text: `## literal heading\n**literal stars**\n${hostile}` },
               },
             ],
           }),
         ]}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { expanded: false }));
+    await openToolGroup();
+    await userEvent.click(screen.getByRole("button", { name: "Bash cat notes.md", expanded: false }));
     expect(screen.getByText(/## literal heading/)).toBeInTheDocument();
+    expect(container.textContent).toContain(hostile);
+    expect(container.querySelector("img,script,strong,h2")).toBeNull();
   });
 
   it("groups turns under a day divider, once per day", () => {
@@ -291,5 +309,76 @@ describe("TranscriptView — system notes", () => {
     );
     expect(screen.getByText(/Context compacted/)).toBeInTheDocument();
     expect(screen.getByText(/System/)).toBeInTheDocument();
+  });
+});
+
+describe("TranscriptView — work folding", () => {
+  const activity = turn({ uuid: "work-entry", role: "assistant", turnId: "native-turn", phase: "commentary",
+    parts: [{ kind: "text", text: "Checking the import graph." }, { kind: "thinking", text: "Compare dependency direction." }],
+    turn: { status: "running", startedAt: "2026-07-25T06:22:00Z" } });
+  const final = turn({ uuid: "final-entry", role: "assistant", turnId: "native-turn", phase: "final_answer",
+    parts: [{ kind: "text", text: "The dependency cycle is fixed." }],
+    turn: { status: "completed", durationMs: 21_000 } });
+
+  it("collapses completed work while leaving the answer and measured duration visible", async () => {
+    render(<TranscriptView entries={[activity, final]} activityStatus="done" />);
+    const fold = screen.getByRole("button", { name: "Worked for 21s", expanded: false });
+    expect(screen.getByText("The dependency cycle is fixed.")).toBeVisible();
+    expect(screen.queryByText("Checking the import graph.")).not.toBeInTheDocument();
+    await userEvent.click(fold);
+    expect(screen.getByText("Checking the import graph.")).toBeVisible();
+    expect(screen.getByText("The dependency cycle is fixed.")).toBeVisible();
+    await userEvent.click(fold);
+    expect(screen.queryByText("Checking the import graph.")).not.toBeInTheDocument();
+    expect(screen.getByText("The dependency cycle is fixed.")).toBeVisible();
+  });
+
+  it("opens active work, then collapses it automatically on completion", () => {
+    const { rerender } = render(<TranscriptView entries={[activity]} activityStatus="working" />);
+    expect(screen.getByRole("button", { name: /^Thinking|^Working/, expanded: true })).toBeInTheDocument();
+    expect(screen.getByText("Checking the import graph.")).toBeVisible();
+    rerender(<TranscriptView entries={[activity, final]} activityStatus="done" />);
+    expect(screen.getByRole("button", { name: "Worked for 21s", expanded: false })).toBeInTheDocument();
+    expect(screen.queryByText("Checking the import graph.")).not.toBeInTheDocument();
+    expect(screen.getByText("The dependency cycle is fixed.")).toBeVisible();
+  });
+
+  it("preserves an explicit open choice so completion does not remove work being read", async () => {
+    const { rerender } = render(<TranscriptView entries={[activity]} activityStatus="working" />);
+    const fold = screen.getByRole("button", { name: /^Thinking|^Working/, expanded: true });
+    await userEvent.click(fold);
+    await userEvent.click(fold);
+    rerender(<TranscriptView entries={[activity, final]} activityStatus="done" />);
+    expect(screen.getByRole("button", { name: "Worked for 21s", expanded: true })).toBeInTheDocument();
+    expect(screen.getByText("Checking the import graph.")).toBeVisible();
+    expect(screen.getByText("The dependency cycle is fixed.")).toBeVisible();
+  });
+
+  it("a query opens completed work and its matching thinking detail, then restores the fold", () => {
+    const { rerender } = render(<TranscriptView entries={[activity, final]} activityStatus="done" query="dependency direction" />);
+    expect(screen.getByRole("button", { name: "Worked for 21s", expanded: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Thinking", expanded: true })).toBeInTheDocument();
+    expect(screen.getByText("dependency direction")).toBeVisible();
+    rerender(<TranscriptView entries={[activity, final]} activityStatus="done" />);
+    expect(screen.getByRole("button", { name: "Worked for 21s", expanded: false })).toBeInTheDocument();
+  });
+
+  it("a focused tool entry opens all nested disclosures and has one scroll marker", () => {
+    const action = turn({ uuid: "tool-entry", role: "assistant", turnId: "native-turn", parts: [{ kind: "tool", name: "Read", summary: "src/app.ts", result: { text: "source contents" } }] });
+    const { container } = render(<TranscriptView entries={[action, final]} activityStatus="done" focusedUuid="tool-entry" />);
+    expect(screen.getByRole("button", { name: /^Worked for 21s/, expanded: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^1 tool call/, expanded: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Read src/app.ts", expanded: true })).toBeInTheDocument();
+    expect(screen.getByText("source contents")).toBeVisible();
+    expect(container.querySelectorAll('[data-turn="tool-entry"]')).toHaveLength(1);
+  });
+
+  it("preserves an expanded fold when older unrelated turns are prepended", async () => {
+    const { rerender } = render(<TranscriptView entries={[activity, final]} activityStatus="done" />);
+    await userEvent.click(screen.getByRole("button", { name: "Worked for 21s" }));
+    const old = turn({ uuid: "old-work", role: "assistant", turnId: "old-turn", parts: [{ kind: "tool", name: "Read", summary: "old.ts" }], turn: { status: "completed" } });
+    rerender(<TranscriptView entries={[old, activity, final]} activityStatus="done" />);
+    expect(screen.getByRole("button", { name: "Worked for 21s", expanded: true })).toBeInTheDocument();
+    expect(screen.getByText("Checking the import graph.")).toBeVisible();
   });
 });

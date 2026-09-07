@@ -39,6 +39,8 @@ type GenericMenuBlock = Extract<Block, { kind: "menu" }>;
 
 export interface AnsiOutputProps {
   text: string;
+  /** Render verified interactions only, without terminal output or ANSI chrome. */
+  nativeOnly?: boolean;
   className?: string;
   /** true = wrap; the block breaks at the viewport width instead of scrolling horizontally. Default
    *  true — the mirror is mostly agent prose, and a phone shows far fewer columns than the desktop
@@ -148,6 +150,7 @@ function preClass(wrap: boolean, className?: string): string {
 // emits the segment's own string, exactly as the pre-find flat renderer did.
 export const AnsiOutput = memo(function AnsiOutput({
   text,
+  nativeOnly = false,
   className,
   wrap = true,
   fontSize = 11,
@@ -166,8 +169,8 @@ export const AnsiOutput = memo(function AnsiOutput({
   const blocks = useMemo(() => buildBlocks(splitLines(segments), { agent }), [segments, agent]);
 
   const rawBlocks = useMemo(
-    () => blocks.filter((b): b is RawBlock => b.kind === "raw"),
-    [blocks],
+    () => nativeOnly ? [] : blocks.filter((b): b is RawBlock => b.kind === "raw"),
+    [blocks, nativeOnly],
   );
   const promptBlock = useMemo(
     () => blocks.find((b): b is PromptBlock => b.kind === "prompt-select") ?? null,

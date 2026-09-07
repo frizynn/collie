@@ -1,11 +1,11 @@
 // Domain model for the bridge. These are OUR types, decoupled from Herdr's wire shapes
 // (which live only in herdr-client.ts). The rest of the app talks in these terms.
 
-import type { AgentSessionRef, TranscriptEntry } from "./journal/types.ts";
+import type { AgentSessionRef, SessionTelemetry, TranscriptEntry } from "./journal/types.ts";
 
 // Re-exported so the wire surface has ONE import site: a consumer of PaneHistoryResponse gets the
 // entry shape from here too, without reaching into an adapter module.
-export type { TranscriptEntry, TranscriptPart } from "./journal/types.ts";
+export type { SessionTelemetry, TranscriptEntry, TranscriptPart } from "./journal/types.ts";
 
 export type AgentStatus = "idle" | "working" | "blocked" | "done" | "unknown";
 
@@ -250,6 +250,7 @@ export type PaneHistoryResponse =
       total: number;
       /** The log exceeded the read cap, so only its tail was parsed. */
       fileTruncated: boolean;
+      telemetry?: SessionTelemetry;
     };
 
 /**
@@ -372,3 +373,20 @@ export const STATUS_RANK: Record<AgentStatus, number> = {
   idle: 3,
   done: 4,
 };
+
+/** Metadata inventory of filesystem-installed skills; not a claim about an agent's loaded context. */
+export interface PaneSkill {
+  name: string;
+  description: string;
+  invocation: string;
+  source: "project" | "user" | "plugin" | "system";
+}
+export interface PaneSkillsResponse {
+  paneId: string;
+  available: boolean;
+  trigger: "$" | "/" | null;
+  skills: PaneSkill[];
+  total: number;
+  truncated: boolean;
+  reason?: "unsupported-agent" | "no-pane";
+}

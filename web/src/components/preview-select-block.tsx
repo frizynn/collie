@@ -9,10 +9,10 @@ import {
 } from "lucide-react";
 
 import { WizardStepper } from "@/components/wizard-stepper";
+import { PreviewContent } from "@/components/preview-content";
 import { cn } from "@/lib/utils";
 import type { PreviewOption, PreviewSelectModel } from "@/lib/blocks";
 import {
-  KeyBadge,
   OptionGroupCaption,
   optionSurface,
   PromptPanel,
@@ -83,8 +83,8 @@ export function PreviewSelectBlock({ preview, onAction, disabled }: PreviewSelec
   return (
     <PromptPanel ariaLabel={preview.question}>
       {/* Wizard form only: the stepper chips + Left/Right navigation, exactly as in WizardBlock —
-          a preview question is just one step of the same dialog. Single-question dialogs keep
-          their question/chip line in the raw mirror above, so neither renders here. */}
+          a preview question is just one step of the same dialog. The visible question belongs
+          to this native panel for both single-question and wizard forms. */}
       {wizard && (
         <WizardStepper
           steps={preview.steps!}
@@ -96,12 +96,11 @@ export function PreviewSelectBlock({ preview, onAction, disabled }: PreviewSelec
           onNext={() => press("nav-next", { kind: "nav", keys: WIZARD_NEXT_KEYS })}
         />
       )}
-      {wizard && <QuestionHeading>{preview.question}</QuestionHeading>}
       {!wizard && <OptionGroupCaption>Choose an option</OptionGroupCaption>}
+      <QuestionHeading>{preview.question}</QuestionHeading>
 
-      {/* Options. Tapping one selects it outright (the handler drives digit → verify → Enter). Each
-          row leads with the pointer chevron (whose preview shows below) then its terminal-menu digit
-          (KeyBadge), on the shared elevated option surface. */}
+      {/* Tapping a native option keeps the same guarded digit → verify → Enter choreography.
+          The chevron identifies the option whose preview is shown below. */}
       <div className="flex flex-col gap-1">
         {preview.options.map((option, i) => {
           const id = `opt-${i}`;
@@ -122,7 +121,6 @@ export function PreviewSelectBlock({ preview, onAction, disabled }: PreviewSelec
                 )}
                 aria-label={option.pointed ? "Previewed below" : undefined}
               />
-              <KeyBadge tone={tone}>{option.n}</KeyBadge>
               <span className="min-w-0 flex-1 text-sm font-medium text-foreground">
                 {option.label}
               </span>
@@ -139,7 +137,7 @@ export function PreviewSelectBlock({ preview, onAction, disabled }: PreviewSelec
         })}
       </div>
 
-      {/* The pointed option's preview pane, verbatim (mono text nodes — never markup). */}
+      {/* Native preview content, without the terminal widget's frame. */}
       {preview.preview.length > 0 && (
         <div className="rounded-lg border border-border/60 bg-muted/20 px-2 py-1.5">
           {pointedLabel && (
@@ -147,9 +145,7 @@ export function PreviewSelectBlock({ preview, onAction, disabled }: PreviewSelec
               Preview · {pointedLabel}
             </div>
           )}
-          <pre className="m-0 min-w-0 w-full max-w-full overflow-x-auto font-mono text-[10px] leading-[1.3] text-foreground/80">
-            {preview.preview.join("\n")}
-          </pre>
+          <PreviewContent lines={preview.preview} />
         </div>
       )}
 
@@ -157,7 +153,7 @@ export function PreviewSelectBlock({ preview, onAction, disabled }: PreviewSelec
           attached-note card with edit/remove, or the add-note affordance — plus our own editor. */}
       {terminalEditing ? (
         <div className="rounded-lg border border-dashed border-status-working/50 px-3 py-2 text-xs text-status-working">
-          Note is being edited in the terminal — controls resume when it closes.
+          Note is being edited in the agent session — controls resume when editing finishes.
           {preview.note.text ? <span className="text-muted-foreground"> ({preview.note.text})</span> : null}
         </div>
       ) : editorOpen ? (
