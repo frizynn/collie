@@ -1021,6 +1021,10 @@ describe("marksPaneSeen — CSRF guard on marking a pane seen", () => {
 });
 
 describe("skills reads retain the existing access and seen-state guards", () => {
+  test("a preloaded models catalog cannot mark a pane seen without the same-origin header", () => {
+    expect(marksPaneSeen(req({}), "models")).toBe(false);
+    expect(marksPaneSeen(req({ [SEEN_HEADER]: "1" }), "models")).toBe(true);
+  });
   test("a cross-site skills read cannot mark a pane seen", () => {
     expect(marksPaneSeen(req({}), "skills")).toBe(false);
     expect(marksPaneSeen(req({ [SEEN_HEADER]: "1" }), "skills")).toBe(true);
