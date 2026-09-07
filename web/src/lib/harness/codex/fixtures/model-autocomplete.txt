@@ -1,0 +1,4 @@
+ 
+[0m[1m›[0m /model
+ 
+  /model  choose what model and reasoning effort to use

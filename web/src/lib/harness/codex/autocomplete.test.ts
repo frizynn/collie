@@ -1,0 +1,52 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+import { parseAnsi } from "../../ansi";
+import { splitLines } from "../../blocks";
+import { draftCarriesSend } from "../../reply-action";
+import { codexAdapter } from "./index";
+import { locateComposer } from "./chrome";
+
+const capture = (name: string) => readFileSync(join(import.meta.dirname, "fixtures", `${name}.txt`), "utf8");
+const lines = (text: string) => splitLines(parseAnsi(text));
+
+describe("Codex 0.153.4 command autocomplete", () => {
+  it("verifies a complete slash command despite its replaced statusline", () => {
+    const pane = lines(capture("model-autocomplete"));
+    expect(locateComposer(pane)?.autocomplete).toBe(true);
+    expect(codexAdapter.composerReady?.(pane)).toBe(true);
+    expect(codexAdapter.extractInputDraft?.(pane)).toBe("/model");
+    expect(draftCarriesSend("/model", codexAdapter.extractInputDraft?.(pane) ?? null)).toBe(true);
+    expect(codexAdapter.composerPrompt?.(pane)).toBe("› /model");
+    expect(codexAdapter.extractStatusLines?.(pane)).toEqual([]);
+  });
+
+  it("refuses partial commands, several suggestions, missing spacing and a plain-text echo", () => {
+    const text = capture("model-autocomplete");
+    const cases = [
+      text.replace(" /model\n", " /mo\n"),
+      text + "  /models  another command\n",
+      text.replace(/\n \n/, "\n"),
+      text.replace(/\x1b\[[0-9;]*m/g, ""),
+      text + "  Press enter to confirm or esc to go back\n",
+    ];
+    for (const candidate of cases) {
+      expect(codexAdapter.composerReady?.(lines(candidate))).toBe(false);
+      expect(codexAdapter.extractInputDraft?.(lines(candidate))).toBeNull();
+    }
+  });
+
+  it.each(["model-picker", "model-reasoning", "skill-picker"])("keeps the native %s modal out of the reply path", (name) => {
+    const pane = lines(capture(name));
+    expect(codexAdapter.composerReady?.(pane)).toBe(false);
+    expect(codexAdapter.extractInputDraft?.(pane)).toBeNull();
+  });
+
+  it("verifies a skill invocation followed by a real request through ordinary composer grammar", () => {
+    const pane = lines(capture("skill-prompt"));
+    expect(codexAdapter.composerReady?.(pane)).toBe(true);
+    expect(codexAdapter.extractInputDraft?.(pane)).toBe("$build-agents This is a UI test only. Do not use tools. Reply with QA_OK.");
+    expect(locateComposer(pane)?.autocomplete).toBeUndefined();
+  });
+});

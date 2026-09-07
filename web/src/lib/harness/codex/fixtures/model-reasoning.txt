@@ -1,0 +1,9 @@
+  [0m[1mSelect Reasoning Level for gpt-5.6-sol[0m
+ 
+› 1. Low (default)    Fast responses with lighter reasoning
+  2. Medium           [0m[2mBalances speed and reasoning depth for everyday tasks[0m
+  3. High             [0m[2mGreater reasoning depth for complex problems[0m
+  4. Extra high       [0m[2mExtra high reasoning depth for complex problems[0m
+  5. More reasoning…  [0m[2mMax and Ultra consume usage limits faster[0m
+ 
+  [0m[2mPress enter to confirm or esc to go back                                                   [0m

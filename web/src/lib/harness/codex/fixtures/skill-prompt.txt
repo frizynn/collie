@@ -1,0 +1,4 @@
+ 
+[0m[1m›[0m $build-agents This is a UI test only. Do not use tools. Reply with QA_OK.
+ 
+  gpt-6-astra high · /tmp/collie-qa · Context 0% used · weekly 37% left
