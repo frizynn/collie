@@ -7,6 +7,11 @@ import { BottomSheet } from "@/components/ui/sheet";
 import type { HomeData } from "@/lib/loaders";
 import { homePath, panePath, settingsPath, spacePath } from "@/lib/nav";
 import { paneDisplayName, STATUS_LABEL } from "@/lib/types";
+import type { AgentView } from "@/lib/types";
+
+function threadLabel(pane: AgentView): string {
+  return pane.paneLabel || pane.sessionName || pane.tabLabel || pane.terminalTitle || paneDisplayName(pane);
+}
 
 // Layout adapted from T3 Code AppSidebarLayout / SidebarChrome at 191a4ef.
 // Routing, session selection and pane lifecycle remain owned by Collie.
@@ -63,7 +68,7 @@ function WorkspaceNavigation({ data, onNavigate }: { data: HomeData; onNavigate?
   const groups = data.workspaces.map((space) => ({
     ...space,
     panes: panes.filter((pane) => pane.workspaceId === space.workspaceId &&
-      (!needle || `${space.label} ${paneDisplayName(pane)} ${pane.cwd} ${pane.agent}`.toLocaleLowerCase().includes(needle))),
+      (!needle || `${space.label} ${threadLabel(pane)} ${pane.cwd} ${pane.agent}`.toLocaleLowerCase().includes(needle))),
   })).filter((space) => !needle || space.panes.length > 0 || space.label.toLocaleLowerCase().includes(needle));
 
   return (
@@ -83,9 +88,9 @@ function WorkspaceNavigation({ data, onNavigate }: { data: HomeData; onNavigate?
               <Folder aria-hidden="true" size={15} /><span>{space.label || `Workspace ${space.number}`}</span><span className="workbench-count" aria-hidden="true">{space.panes.length}</span>
             </Link>
             {space.panes.map((pane) => (
-              <Link key={pane.paneId} className="workbench-thread" to={panePath(pane.paneId, data.session)} onClick={onNavigate} aria-current={paneId === pane.paneId ? "page" : undefined} title={`${paneDisplayName(pane)} · ${STATUS_LABEL[pane.status]}`}>
+              <Link key={pane.paneId} className="workbench-thread" to={panePath(pane.paneId, data.session)} onClick={onNavigate} aria-current={paneId === pane.paneId ? "page" : undefined} title={`${threadLabel(pane)} · ${pane.agent} · ${STATUS_LABEL[pane.status]}`}>
                 {pane.kind === "shell" ? <Terminal aria-hidden="true" size={13} /> : <span className="workbench-status-dot" data-status={pane.status} aria-hidden="true" />}
-                <span className="workbench-thread-name">{paneDisplayName(pane)}</span>
+                <span className="workbench-thread-name">{threadLabel(pane)}</span>
                 <span className="sr-only"> · {STATUS_LABEL[pane.status]}</span>
               </Link>
             ))}

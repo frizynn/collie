@@ -32,6 +32,8 @@ import { NoEchoNotice } from "@/components/no-echo-notice";
 export interface ComposerHandle {
   /** Focus the input and put the caret at the end — used by the mirror-tap-to-focus in AgentChat. */
   focusInput: () => void;
+  /** Opens the harness's own model picker through the same verified send as a reply. */
+  openModelPicker: () => Promise<boolean>;
 }
 
 interface ComposerProps {
@@ -342,7 +344,22 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   const effectiveStable = suppressEcho(terminalDraft);
   const effectiveRaw = suppressEcho(rawTerminalDraft);
 
-  useImperativeHandle(ref, () => ({ focusInput: focusInputImmediately }), []);
+  useImperativeHandle(ref, () => ({
+    focusInput: focusInputImmediately,
+    openModelPicker: async () => {
+      // Do not clear a host-side draft or race direct typing just to open a picker.
+      if (direct.active || sending || locked || rawTerminalDraft !== null) {
+        setStatus("Finish the current terminal input before changing models.", "info");
+        return false;
+      }
+      const modelCommand = commandsFor(agent, operatorCommands).find((c) => c.command === "/model");
+      if (!modelCommand || modelCommand.dangerous) {
+        setStatus("Open Agent commands to change models with your configured confirmation.", "info");
+        return false;
+      }
+      return send("/model", false);
+    },
+  }));
 
   useEffect(
     () => () => {
@@ -727,7 +744,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
   return (
     <>
-      <div className="border-t border-border/60 bg-muted px-3 pb-[calc(env(safe-area-inset-bottom)_+_0.5rem)] pt-2.5">
+      <div className="workbench-composer-surface border-t border-border/60 bg-muted px-3 pb-[calc(env(safe-area-inset-bottom)_+_0.5rem)] pt-2.5">
         {/* Pending-send preview: visible from send until the mirror echoes back (or 6s). Shows the
             user what landed so they don't double-tap while waiting for the terminal to update. */}
         {lastSent && (

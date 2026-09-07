@@ -20,6 +20,11 @@ import { splitLines } from "@/lib/blocks";
 import { adapterFor } from "@/lib/harness";
 import { FindBar } from "@/components/find-bar";
 import { Composer, type ComposerHandle } from "@/components/composer";
+import { LiveConversation } from "@/components/live-conversation";
+import { WorkbenchTelemetry } from "@/components/workbench-telemetry";
+import { useLiveConversation } from "@/hooks/use-live-conversation";
+import { commandsFor } from "@/lib/agent-commands";
+import { useOperatorCommands } from "@/lib/operator-config";
 import { ThreadSidebar } from "@/components/agent-sidebar";
 import { AgentIcon } from "@/components/agent-icon";
 import { TabStrip } from "@/components/tab-strip";
@@ -130,6 +135,12 @@ export function AgentChat({
   const closeDrawer = () => setDrawer(null);
   const listRef = useRef<ChatMessageListHandle>(null);
   const composerRef = useRef<ComposerHandle>(null);
+  const [surface, setSurface] = useState<"conversation" | "terminal">("conversation");
+  const conversation = useLiveConversation({
+    paneId, session, enabled: Boolean(agent?.hasSession), busy: agent?.status === "working",
+  });
+  const operatorCommands = useOperatorCommands();
+  const modelAvailable = commandsFor(agent?.agent, operatorCommands).some((c) => c.command === "/model" && !c.dangerous);
 
   const gone = !agent;
 
@@ -206,6 +217,9 @@ export function AgentChat({
         : false,
     [display, agent?.agent, grammarsOn],
   );
+  // Approvals and native pickers own the terminal keyboard. Bring their verified controls into
+  // view even while the journal is selected; transcript text never impersonates an approval UI.
+  const showConversation = Boolean(agent?.hasSession) && surface === "conversation" && !dialogPresent && !prefs.rawTerminal;
 
   // Both are threaded to the composer: the RAW value (live) plus a stabilised one. extractInputDraft
   // is stateless, so it can't distinguish a stranded draft from the ~350ms flash where our OWN
@@ -560,7 +574,7 @@ export function AgentChat({
   }
 
   return (
-    <div className="flex min-h-0 w-full min-w-0 max-w-[100dvw] flex-1 flex-col overflow-x-hidden">
+    <div className="workbench-chat flex min-h-0 w-full min-w-0 max-w-[100dvw] flex-1 flex-col overflow-x-hidden">
       {/* Header — the SAME AppHeader shell the dashboard and space mount, so the Collie mark is
           identical on every screen (no hand-rolled bar to drift). The pane's own bits ride in via
           slots: the `space › tab` breadcrumb as the center, the agent StatusBadge as the right-cluster
@@ -729,7 +743,24 @@ export function AgentChat({
             straight into terminal output — the chrome and the mirror read as one surface. Drawing it
             here rather than as a border-b on PaneStrip covers the case where that strip is absent
             (a tab holding a single pane), which is the common one. */}
-        <div className="min-h-0 min-w-0 flex-1 border-t border-border/40" onClick={focusFromMirror}>
+        {agent?.hasSession && (
+          <div className="flex shrink-0 items-center gap-1 border-t border-border/40 px-3" aria-label="Session view">
+            <button type="button" aria-pressed={showConversation} className="min-h-11 rounded-md px-3 text-xs aria-pressed:text-foreground text-muted-foreground hover:bg-accent" onClick={() => {
+              setFollowing(true);
+              setShown({ text, revision });
+              setSurface("conversation");
+            }}>Conversation</button>
+            <button type="button" aria-pressed={!showConversation} className="min-h-11 rounded-md px-3 text-xs aria-pressed:text-foreground text-muted-foreground hover:bg-accent" onClick={() => setSurface("terminal")}>Live terminal</button>
+            {dialogPresent && <span className="ml-auto text-xs text-status-blocked">Agent needs input</span>}
+          </div>
+        )}
+        {showConversation ? (
+          <div className="min-h-0 min-w-0 flex-1 border-t border-border/40">
+            <LiveConversation paneId={paneId} session={session} agent={agent?.agent}
+              history={conversation.history} loading={conversation.loading} error={conversation.error}
+              onRetry={conversation.refresh} />
+          </div>
+        ) : <div className="min-h-0 min-w-0 flex-1 border-t border-border/40" onClick={focusFromMirror}>
           <ChatMessageList
             ref={listRef}
             dep={display}
@@ -797,12 +828,12 @@ export function AgentChat({
               <div className="py-16 text-center text-sm text-muted-foreground">(no recent output)</div>
             )}
           </ChatMessageList>
-        </div>
+        </div>}
 
         {/* Bottom region: the pane-switch handle + composer. The status line USED to float here as an
             overlay just above the composer, but it covered the terminal tail (the prompt/cursor and
             up-levelled prompt buttons) — it now lives as a slim row just below the header. */}
-        <div className="relative">
+        <div className="workbench-composer relative">
 
           {/* Swipe-up / tap handle for the quick pane switcher — the sheet that switches AND closes
               panes (each row has a ✕). A tall, full-width hit area so the swipe is easy to land (and a
@@ -862,6 +893,17 @@ export function AgentChat({
             </div>
           )}
 
+          {!isShell && <WorkbenchTelemetry
+            telemetry={conversation.history?.available ? conversation.history.telemetry : undefined}
+            stale={conversation.error || connecting}
+            modelAvailable={modelAvailable}
+            disabled={readOnly || gone || connecting || dialogPresent || agent?.status === "working"}
+            onChooseModel={() => {
+              void composerRef.current?.openModelPicker().then((sent) => {
+                if (sent) setSurface("terminal");
+              });
+            }}
+          />}
           <Composer
             ref={composerRef}
             paneId={paneId}
@@ -869,7 +911,7 @@ export function AgentChat({
             agent={agent?.agent}
             isShell={isShell}
             gone={gone}
-            readOnly={readOnly}
+            readOnly={readOnly || connecting}
             dialogPresent={dialogPresent}
             text={text}
             terminalDraft={terminalDraft}
@@ -879,7 +921,7 @@ export function AgentChat({
             stepFontSize={stepFontSize}
             setRawTerminal={setRawTerminal}
             setTapToFocus={setTapToFocus}
-            onSent={onSent}
+            onSent={() => { onSent(); conversation.refresh(); }}
           />
         </div>
       </div>

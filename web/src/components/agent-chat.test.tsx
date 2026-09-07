@@ -543,6 +543,8 @@ describe("AgentChat — top-of-mirror history affordance", () => {
     // A Claude pane: alt-screen, so readableLines is just its viewport — there IS no scrollback.
     const agent = { ...fixtureAgents[0]!, hasSession: true, readableLines: 51 };
     renderChat({ agent, agents: [agent], requestedLines: 600 });
+    expect(screen.getByRole("region", { name: "Live conversation" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Live terminal" }));
     expect(showHistory()).toBeInTheDocument();
     expect(loadOlder()).not.toBeInTheDocument();
   });
@@ -578,6 +580,7 @@ describe("AgentChat — top-of-mirror history affordance", () => {
   it("a transcript wins even when the pane also reports scrollback", () => {
     const agent = { ...fixtureAgents[0]!, hasSession: true, readableLines: 6946 };
     renderChat({ agent, agents: [agent], requestedLines: 600 });
+    fireEvent.click(screen.getByRole("button", { name: "Live terminal" }));
     expect(showHistory()).toBeInTheDocument();
     expect(loadOlder()).not.toBeInTheDocument();
   });
