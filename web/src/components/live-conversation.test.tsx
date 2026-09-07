@@ -28,8 +28,25 @@ describe("LiveConversation", () => {
     expect(screen.getByRole("button", { name: "Load older messages" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Open full history/ })).not.toBeInTheDocument();
     expect(screen.queryByText("abc1234 fix")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /1 tool call · Bash/ }));
     fireEvent.click(screen.getByRole("button", { name: /Bash.*git log/ }));
     expect(screen.getByText("abc1234 fix")).toBeInTheDocument();
+  });
+
+  it("preserves the reading window and draft when work is expanded during live updates", () => {
+    const initial: PaneHistoryResponse = { paneId: "w1:p1", available: true, entries: fixtureTranscript, hasMore: false, total: 2, fileTruncated: false };
+    const view = (history: PaneHistoryResponse) => <><LiveConversation paneId="w1:p1" history={history} loading={false} error={false} /><textarea aria-label="Draft" defaultValue="Still writing" /></>;
+    const { rerender } = render(view(initial));
+    const draft = screen.getByRole("textbox", { name: "Draft" });
+    fireEvent.click(screen.getByRole("button", { name: /1 tool call · Bash/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Bash.*git log/ }));
+    rerender(view({ ...initial, entries: [{ uuid: "new", ts: "", role: "assistant", parts: [{ kind: "text", text: "New latest turn" }] }] }));
+    expect(screen.getByText("abc1234 fix")).toBeInTheDocument();
+    expect(screen.queryByText("New latest turn")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Draft" })).toBe(draft);
+    expect(draft).toHaveValue("Still writing");
+    fireEvent.click(screen.getByRole("button", { name: "Scroll to latest" }));
+    expect(screen.getByText("New latest turn")).toBeInTheDocument();
   });
 
   it("keeps a last good transcript visible during a refresh failure and retries explicitly", () => {

@@ -1,10 +1,13 @@
-import { useState } from "react";
-import { ChevronRight, Info, TriangleAlert, User, Wrench } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronRight, Info, User } from "lucide-react";
 
 import { AgentIcon } from "@/components/agent-icon";
 import { MarkdownText } from "@/components/markdown-text";
-import { splitHighlight } from "@/lib/transcript-search";
-import type { TranscriptEntry, TranscriptPart } from "@/lib/types";
+import { searchableText } from "@/lib/transcript-search";
+import { WorkLogTools } from "@/components/work-log-tools";
+import { WorkActivityLabel } from "@/components/work-activity-label";
+import { buildWorkTimeline, formatWorkDuration, type WorkTurn } from "@/lib/work-timeline";
+import type { AgentStatus, TranscriptEntry, TranscriptPart } from "@/lib/types";
 
 // Renders an agent transcript — the conversation history a Claude pane's terminal structurally
 // cannot hold (it runs on the alternate screen, which keeps no scrollback ring; see
@@ -32,76 +35,24 @@ function dayKey(iso: string): string {
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString(undefined, { dateStyle: "medium" });
 }
 
-/** Plain text with find hits marked — for strings that are NOT Markdown (shell commands, output). */
-function Highlight({ text, query }: { text: string; query: string }) {
-  if (query.trim() === "") return <>{text}</>;
-  const pieces = splitHighlight(text, query);
-  if (pieces.length === 1 && !pieces[0]!.hit) return <>{text}</>;
-  return (
-    <>
-      {pieces.map((piece, i) =>
-        piece.hit ? (
-          <mark key={i} className="rounded-sm bg-amber-300/70 text-inherit dark:bg-amber-500/40">
-            {piece.text}
-          </mark>
-        ) : (
-          <span key={i}>{piece.text}</span>
-        ),
-      )}
-    </>
-  );
+function ThinkingPart({ part, query, focused = false }: { part: Extract<TranscriptPart, { kind: "thinking" }>; query: string; focused?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const hit = query.trim() !== "" && part.text.toLowerCase().includes(query.trim().toLowerCase());
+  const open = expanded || focused || hit;
+  return <div>
+    <button type="button" data-work-toggle aria-expanded={open} onClick={() => setExpanded((value) => !value)}
+      className="flex min-h-11 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground md:min-h-7">
+      <ChevronRight aria-hidden="true" className={`size-3.5 ${open ? "rotate-90" : ""}`} />Thinking{part.truncated ? " · truncated" : ""}
+    </button>
+    {open && <div className="pb-2 pl-5 text-xs text-muted-foreground"><MarkdownText text={part.text} query={query} />
+      {part.truncated && <p>… truncated</p>}</div>}
+  </div>;
 }
 
-/**
- * A tool call: its one-line summary always, its output behind a tap. Collapsed by default because a
- * thread is mostly tool traffic (705 of 914 turns in a real session) and expanding it all would bury
- * the prose you opened the history to read.
- */
-function ToolPart({ part, query }: { part: Extract<TranscriptPart, { kind: "tool" }>; query: string }) {
-  const [open, setOpen] = useState(false);
-  const result = part.result;
-  const isError = result?.isError === true;
-
-  return (
-    <div className="rounded-md border bg-muted/40">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        disabled={!result}
-        aria-expanded={result ? open : undefined}
-        className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left disabled:opacity-100"
-      >
-        {isError ? (
-          <TriangleAlert className="size-3.5 shrink-0 text-destructive" />
-        ) : (
-          <Wrench className="size-3.5 shrink-0 text-muted-foreground" />
-        )}
-        <span className="shrink-0 font-mono text-xs font-semibold">{part.name}</span>
-        {part.summary && (
-          <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
-            {/* A shell command, NOT prose — markdown-parsing it would eat globs and backticks. */}
-            <Highlight text={part.summary} query={query} />
-          </span>
-        )}
-        {result && (
-          <ChevronRight
-            className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
-          />
-        )}
-      </button>
-      {open && result && (
-        <pre className="overflow-x-auto border-t px-2 py-1.5 font-mono text-[11px] leading-snug whitespace-pre-wrap">
-          {result.text}
-          {result.truncated && <span className="text-muted-foreground">{"\n… output truncated"}</span>}
-        </pre>
-      )}
-    </div>
-  );
-}
-
-function Part({ part, query }: { part: TranscriptPart; query: string }) {
+function Part({ part, query, focused = false, active = false }: { part: TranscriptPart; query: string; focused?: boolean; active?: boolean }) {
   // Tool output is COMMAND output, not prose — it stays verbatim in a monospace block (see ToolPart).
-  if (part.kind === "tool") return <ToolPart part={part} query={query} />;
+  if (part.kind === "tool") return <WorkLogTools calls={[{ id: "single", part }]} query={query} active={active} />;
+  if (part.kind === "thinking") return <ThinkingPart part={part} query={query} focused={focused} />;
   // Prose is Markdown, so it renders formatted. MarkdownText emits React elements only — never
   // markup — so this keeps the same XSS boundary the raw text node had.
   return (
@@ -109,7 +60,6 @@ function Part({ part, query }: { part: TranscriptPart; query: string }) {
       <MarkdownText
         text={part.text}
         query={query}
-        className={part.kind === "thinking" ? "italic text-muted-foreground" : undefined}
       />
       {part.truncated && <div className="text-xs text-muted-foreground">… truncated</div>}
     </div>
@@ -121,12 +71,14 @@ function Turn({
   agent,
   showHeader,
   query,
+  focused = false,
 }: {
   entry: TranscriptEntry;
   agent?: string;
   /** False for a turn continuing the same speaker's run — see the grouping note in TranscriptView. */
   showHeader: boolean;
   query: string;
+  focused?: boolean;
 }) {
   const time = clockTime(entry.ts);
 
@@ -141,7 +93,7 @@ function Turn({
           {time && ` · ${time}`}
         </div>
         {entry.parts.map((part, i) => (
-          <Part key={i} part={part} query={query} />
+          <Part key={i} part={part} query={query} focused={focused} />
         ))}
       </div>
     );
@@ -165,62 +117,92 @@ function Turn({
       )}
       <div className="space-y-1.5">
         {entry.parts.map((part, i) => (
-          <Part key={i} part={part} query={query} />
+          <Part key={i} part={part} query={query} focused={focused} />
         ))}
       </div>
     </div>
   );
 }
 
-export function TranscriptView({
-  entries,
-  agent,
-  query = "",
-  focusedUuid,
-}: {
+function ActivityLog({ entries, query, focusedUuid, active }: { entries: TranscriptEntry[]; query: string; focusedUuid?: string; active: boolean }) {
+  const blocks: Array<{ kind: "tools"; entries: TranscriptEntry[] } | { kind: "entry"; entry: TranscriptEntry }> = [];
+  for (const entry of entries) {
+    if (entry.parts.every((part) => part.kind === "tool")) {
+      const last = blocks.at(-1);
+      if (last?.kind === "tools") last.entries.push(entry);
+      else blocks.push({ kind: "tools", entries: [entry] });
+    } else blocks.push({ kind: "entry", entry });
+  }
+  return <div className="space-y-1 pl-5 text-xs text-muted-foreground">
+    {blocks.map((block) => block.kind === "tools"
+      ? <WorkLogTools key={block.entries[0]!.uuid} calls={block.entries.flatMap((entry) => entry.parts.flatMap((part, index) => part.kind === "tool" ? [{ id: `${entry.uuid}:${index}`, entryId: index === 0 ? entry.uuid : undefined, part }] : []))} query={query} focusedEntryId={focusedUuid} active={active} />
+      : <div key={block.entry.uuid} data-turn={block.entry.uuid} className={focusedUuid === block.entry.uuid ? "rounded ring-2 ring-primary/60" : undefined}>
+          {block.entry.parts.map((part, index) => <Part key={index} part={part} query={query} focused={focusedUuid === block.entry.uuid} active={active} />)}
+        </div>)}
+  </div>;
+}
+
+function WorkTurnView({ turn, agent, query, focusedUuid }: { turn: WorkTurn; agent?: string; query: string; focusedUuid?: string }) {
+  const [expanded, setExpanded] = useState<boolean | null>(null);
+  const needle = query.trim().toLowerCase();
+  const searching = turn.activity.some((entry) => entry.uuid === focusedUuid || (needle !== "" && searchableText(entry).toLowerCase().includes(needle)));
+  const open = searching || (expanded ?? !turn.settled);
+  const tools = turn.activity.flatMap((entry) => entry.parts.filter((part) => part.kind === "tool"));
+  const failures = tools.filter((part) => part.result?.isError).length;
+  const truncated = turn.activity.some((entry) => entry.parts.some((part) => part.kind === "tool" ? part.result?.truncated : part.truncated));
+  const hasDetails = turn.activity.length > 0;
+  const label = turn.interrupted ? "Stopped" : turn.settled ? "Worked" : "Work log";
+  const duration = turn.durationMs !== undefined ? ` for ${formatWorkDuration(turn.durationMs)}` : "";
+  const lastPart = turn.activity.at(-1)?.parts.at(-1);
+  return <div className="space-y-2" data-work-turn={turn.id}>
+    <button type="button" data-work-toggle aria-expanded={open} disabled={!hasDetails}
+      onClick={() => setExpanded(!open)} className="flex min-h-11 max-w-full flex-wrap items-center gap-x-1.5 gap-y-0 text-left text-xs text-muted-foreground hover:text-foreground disabled:opacity-100 md:min-h-7">
+      <ChevronRight aria-hidden="true" className={`size-3.5 shrink-0 ${open ? "rotate-90" : ""}`} />
+      {turn.active ? <WorkActivityLabel startedAt={turn.startedAt} thinking={lastPart?.kind === "thinking"} /> : <span>{label}{turn.settled ? duration : ""}</span>}
+      {tools.length > 0 && <span className="whitespace-nowrap">· {tools.length} tool {tools.length === 1 ? "call" : "calls"}</span>}
+      {failures > 0 && <span className="whitespace-nowrap text-destructive">· {failures} {failures === 1 ? "error" : "errors"}</span>}
+      {truncated && <span className="whitespace-nowrap">· truncated</span>}
+    </button>
+    {open && <ActivityLog entries={turn.activity} query={query} focusedUuid={focusedUuid} active={turn.active} />}
+    {turn.answer && <div data-turn={turn.activity.some((entry) => entry.uuid === turn.answer!.uuid) ? undefined : turn.answer.uuid}
+      className={turn.answer.uuid === focusedUuid ? "rounded ring-2 ring-primary/60" : undefined}>
+      <Turn entry={turn.answer} agent={agent} showHeader query={query} focused={turn.answer.uuid === focusedUuid} />
+    </div>}
+  </div>;
+}
+
+export function TranscriptView({ entries, agent, query = "", focusedUuid, activityStatus, onWorkToggle }: {
   entries: TranscriptEntry[];
-  /** The pane's agent name, for the per-turn brand icon. */
   agent?: string;
-  /** Active find query — highlighted throughout. */
   query?: string;
-  /** The turn a find/jump landed on; ringed so you can see where you were sent. */
   focusedUuid?: string;
+  activityStatus?: AgentStatus;
+  onWorkToggle?: (anchor: HTMLElement) => void;
 }) {
-  // Consecutive turns from the same speaker are GROUPED — only the first of a run carries the
-  // role/time header. A real thread is overwhelmingly long runs of assistant turns (892 of 914 in a
-  // measured session), so repeating "CLAUDE 06:43 PM" above every tool call would roughly double the
-  // scroll length with nothing new in it. A day divider always restarts a run.
+  const rows = useMemo(() => buildWorkTimeline(entries, activityStatus), [entries, activityStatus]);
   let lastDay = "";
   let lastRole = "";
-  return (
-    <div className="space-y-3">
-      {entries.map((entry) => {
-        const day = dayKey(entry.ts);
-        const newDay = day !== "" && day !== lastDay;
-        if (newDay) lastDay = day;
-        const showHeader = newDay || entry.role !== lastRole;
-        lastRole = entry.role;
-        return (
-          <div
-            key={entry.uuid}
-            data-turn={entry.uuid}
-            className={`${showHeader ? "space-y-3 pt-1" : "space-y-3"} ${
-              entry.uuid === focusedUuid
-                ? "rounded-lg ring-2 ring-primary/60 ring-offset-2 ring-offset-background"
-                : ""
-            }`}
-          >
-            {newDay && (
-              <div className="flex items-center gap-2 pt-1">
-                <div className="h-px flex-1 bg-border" />
-                <span className="text-[11px] font-medium text-muted-foreground">{day}</span>
-                <div className="h-px flex-1 bg-border" />
-              </div>
-            )}
-            <Turn entry={entry} agent={agent} showHeader={showHeader} query={query} />
-          </div>
-        );
-      })}
-    </div>
-  );
+  const last = entries.at(-1);
+  const pending = activityStatus === "working" && !rows.some((row) => row.kind === "work" && row.active) &&
+    (!last || last.role === "user" || (last.role === "assistant" && last.phase !== "final_answer" && last.turn?.status !== "completed" && last.turn?.status !== "aborted"));
+  return <div className="space-y-3" onClickCapture={(event) => {
+    const anchor = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-work-toggle]") : null;
+    if (anchor) onWorkToggle?.(anchor);
+  }}>
+    {rows.map((row) => {
+      const entry = row.kind === "message" ? row.entry : row.entries[0]!;
+      const day = dayKey(entry.ts);
+      const newDay = day !== "" && day !== lastDay;
+      if (newDay) lastDay = day;
+      const showHeader = newDay || entry.role !== lastRole;
+      lastRole = entry.role;
+      return <div key={row.kind === "message" ? `message:${entry.uuid}` : `work:${row.id}`} data-turn={row.kind === "message" ? entry.uuid : undefined}
+        className={`${showHeader ? "space-y-3 pt-1" : "space-y-3"} ${row.kind === "message" && entry.uuid === focusedUuid ? "rounded-lg ring-2 ring-primary/60 ring-offset-2 ring-offset-background" : ""}`}>
+        {newDay && <div className="flex items-center gap-2 pt-1"><div className="h-px flex-1 bg-border" /><span className="text-[11px] font-medium text-muted-foreground">{day}</span><div className="h-px flex-1 bg-border" /></div>}
+        {row.kind === "message" ? <Turn entry={entry} agent={agent} showHeader={showHeader} query={query} focused={entry.uuid === focusedUuid} />
+          : <WorkTurnView turn={row} agent={agent} query={query} focusedUuid={focusedUuid} />}
+      </div>;
+    })}
+    {pending && <div className="px-1 py-2" role="status"><WorkActivityLabel startedAt={last?.role === "user" ? last.ts : undefined} /></div>}
+  </div>;
 }

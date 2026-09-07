@@ -1,15 +1,17 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Loader2, MessageSquare } from "lucide-react";
 
+import { WorkActivityLabel } from "@/components/work-activity-label";
 import { TranscriptView } from "@/components/transcript-view";
 import { fetchHistory } from "@/lib/api";
-import type { PaneHistoryResponse } from "@/lib/types";
+import type { AgentStatus, PaneHistoryResponse } from "@/lib/types";
 import { matchingEntries } from "@/lib/transcript-search";
 
 interface LiveConversationProps {
   paneId: string;
   session?: string;
   agent?: string;
+  activityStatus?: AgentStatus;
   history: PaneHistoryResponse | null;
   loading: boolean;
   error: boolean;
@@ -37,7 +39,7 @@ export const LiveConversation = memo(function LiveConversation(props: LiveConver
 });
 
 /** Journal prose and tool calls; older pages stay inside this live, writable pane route. */
-function ScopedConversation({ paneId, session, agent, history, loading, error, onRetry, followKey, historyRequest = 0, searching = false, query = "", currentMatch = 0, onMatchCount }: LiveConversationProps) {
+function ScopedConversation({ paneId, session, agent, activityStatus, history, loading, error, onRetry, followKey, historyRequest = 0, searching = false, query = "", currentMatch = 0, onMatchCount }: LiveConversationProps) {
   const [frozen, setFrozen] = useState<PaneHistoryResponse | null>(null);
   const [paused, setPaused] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -52,8 +54,12 @@ function ScopedConversation({ paneId, session, agent, history, loading, error, o
   const anchor = useRef<{ height: number; top: number } | null>(null);
   const shown = frozen ?? history;
   const entries = shown?.available ? shown.entries : [];
-  const hasNew = frozen !== null && history?.available &&
-    history.entries.at(-1)?.uuid !== entries.at(-1)?.uuid;
+  const latest = history?.available ? history.entries.at(-1) : undefined;
+  const lastShown = entries.at(-1);
+  const hasNew = frozen !== null && history?.available && (
+    latest?.uuid !== lastShown?.uuid || latest?.turn?.status !== lastShown?.turn?.status ||
+    latest?.turn?.durationMs !== lastShown?.turn?.durationMs
+  );
   const matches = useMemo(() => matchingEntries(entries, query), [entries, query]);
   useEffect(() => { onMatchCount?.(matches.length); }, [matches.length, onMatchCount]);
   useEffect(() => {
@@ -136,6 +142,22 @@ function ScopedConversation({ paneId, session, agent, history, loading, error, o
     observer.observe(content);
     return () => observer.disconnect();
   }, []);
+
+  const onWorkToggle = useCallback((target: HTMLElement) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const before = target.getBoundingClientRect().top;
+    following.current = false;
+    setPaused(true);
+    setFrozen((current) => current ?? history);
+    restoring.current = true;
+    if (restoreFrame.current !== null) cancelAnimationFrame(restoreFrame.current);
+    restoreFrame.current = requestAnimationFrame(() => {
+      if (target.isConnected) el.scrollTop += target.getBoundingClientRect().top - before;
+      restoring.current = false;
+      restoreFrame.current = null;
+    });
+  }, [history]);
 
   function onScroll() {
     const el = scrollRef.current;
@@ -227,10 +249,13 @@ function ScopedConversation({ paneId, session, agent, history, loading, error, o
                 {olderError && <p role="status">Couldn't load older messages. Your conversation is still live.</p>}
                 {historyBoundary && <p role="status">You've reached the oldest messages available from this session log.</p>}
               </div>}
-              <TranscriptView entries={entries} agent={agent} query={query} />
+              <TranscriptView entries={entries} agent={agent} query={query}
+                focusedUuid={searching ? entries[matches[currentMatch] ?? -1]?.uuid : undefined}
+                activityStatus={!error && !frozen ? activityStatus : undefined} onWorkToggle={onWorkToggle} />
             </> : <div className="flex flex-col items-center gap-3 px-4 py-16 text-center text-sm text-muted-foreground">
               {loading ? <Loader2 className="size-5 animate-spin motion-reduce:animate-none" /> : <MessageSquare className="size-5" />}
               <p>{emptyCopy}</p>
+              {!error && activityStatus === "working" && <WorkActivityLabel />}
             </div>}
           </div>
         </div>

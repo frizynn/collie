@@ -792,7 +792,7 @@ export function AgentChat({
             (a tab holding a single pane), which is the common one. */}
         {showConversation ? (
           <div className="min-h-0 min-w-0 flex-1 border-t border-border/40">
-            <LiveConversation paneId={paneId} session={session} agent={agent?.agent}
+            <LiveConversation paneId={paneId} session={session} agent={agent?.agent} activityStatus={connecting ? undefined : agent?.status}
               history={conversation.history} loading={conversation.loading} error={conversation.error}
               onRetry={conversation.refresh} followKey={followKey} historyRequest={historyRequest} searching={findOpen}
               query={findOpen ? findQuery : ""} currentMatch={currentMatch}

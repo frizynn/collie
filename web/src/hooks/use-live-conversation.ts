@@ -36,8 +36,9 @@ export function useLiveConversation({
   stateRef.current = state;
   const busyRef = useRef(busy);
   busyRef.current = busy;
-  const refreshRef = useRef<() => void>(() => {});
+  const refreshRef = useRef<(queueIfPending?: boolean) => void>(() => {});
   const locked = useLocked();
+  const previousActivity = useRef({ scope, enabled, locked, busy });
 
   useEffect(() => {
     if (!enabled || !paneId || locked) return;
@@ -45,6 +46,7 @@ export function useLiveConversation({
     const publish = (next: ConversationState) => { stateRef.current = next; setState(next); };
     let timer: ReturnType<typeof setTimeout> | undefined;
     let request: AbortController | undefined;
+    let refreshQueued = false;
 
     const schedule = () => {
       clearTimeout(timer);
@@ -53,8 +55,12 @@ export function useLiveConversation({
       }
     };
 
-    async function poll() {
-      if (disposed || document.hidden || isLocked() || request) return;
+    async function poll(queueIfPending = false) {
+      if (disposed || document.hidden || isLocked()) return;
+      if (request) {
+        if (queueIfPending) refreshQueued = true;
+        return;
+      }
       clearTimeout(timer);
       const controller = new AbortController();
       request = controller;
@@ -75,8 +81,14 @@ export function useLiveConversation({
           publish({ ...stateRef.current, history: authError ? null : stateRef.current.history, loading: false, error: true });
         }
       } finally {
-        if (request === controller) request = undefined;
-        if (!disposed) schedule();
+        // A visibility reset can already own a newer request. Its completion owns scheduling.
+        if (request === controller) {
+          request = undefined;
+          if (!disposed) {
+            if (refreshQueued) { refreshQueued = false; void poll(); }
+            else schedule();
+          }
+        }
       }
     }
 
@@ -86,11 +98,12 @@ export function useLiveConversation({
         clearTimeout(timer);
         request?.abort();
         request = undefined;
+        refreshQueued = false;
       } else {
         wake();
       }
     };
-    refreshRef.current = wake;
+    refreshRef.current = (queueIfPending) => void poll(queueIfPending);
     window.addEventListener("focus", wake);
     window.addEventListener("online", wake);
     document.addEventListener("visibilitychange", visibility);
@@ -105,6 +118,16 @@ export function useLiveConversation({
       document.removeEventListener("visibilitychange", visibility);
     };
   }, [paneId, session, scope, enabled, locked]);
+
+  useEffect(() => {
+    const before = previousActivity.current;
+    previousActivity.current = { scope, enabled, locked, busy };
+    // A new scope/resume already starts its own read. Only activity edges need an extra catch-up;
+    // queue one if a read is pending so completion metadata with the same UUID is not missed.
+    if (before.scope === scope && before.enabled === enabled && before.locked === locked && before.busy !== busy) {
+      refreshRef.current(true);
+    }
+  }, [scope, enabled, locked, busy]);
 
   const refresh = useCallback(() => refreshRef.current(), []);
   const current = state.scope === scope && enabled;

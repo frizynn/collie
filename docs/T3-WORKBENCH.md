@@ -229,3 +229,39 @@ Final validation: 4,134 frontend tests passed (30 existing TODOs), 749 backend t
 shell lifecycle checks passed; the bounded metadata reader was rechecked after its final cap.
 Both TypeScript targets passed. The QA config SHA-256 remained byte-identical after model/effort
 confirmation. Physical mobile Safari remains untested.
+
+## Work timeline (2026-09-08)
+
+The conversation now follows T3's work/final-answer separation: live work shows a small
+Working/Thinking label and elapsed text; settled activity folds behind `Worked for …` while the
+final answer remains visible. Consecutive tools share a sentence (`2 tool calls · exec`); individual
+inputs/results expand as plain text, without tool cards. Explicit manual expansion survives
+completion. Search and focused-entry navigation open the relevant work/tool/thinking details.
+
+Codex native turn IDs, phases and task lifecycle metadata and Claude parent/message IDs plus
+end-turn/duration events drive grouping. Claude background continuations get separate groups:
+a real 1,052-entry journal retained all 85 final responses and 89 reported durations without
+combining distinct final responses. Explicit final responses are also protected by the UI grouping.
+Elapsed time uses reported duration first, then valid start/end timestamps where available;
+missing or invalid times remain unavailable. Native-running work is never labeled completed just
+because an earlier status update arrived. No hidden/encrypted reasoning is synthesized.
+
+Real QA found and fixed dropped Codex `custom_tool_call` / `custom_tool_call_output` records,
+including their native text-block output arrays. Outputs retain existing size limits and literal
+text rendering. A completion-only journal append changes the ETag even if entry UUIDs do not
+change. Activity transitions refresh history immediately, coalescing one follow-up when a read
+is already pending. The existing 4-second active / 12-second idle cadence remains unchanged.
+The elapsed label changes only its text node each second and pauses while hidden/locked.
+Folded details are unmounted. There are no new dependencies or background services.
+
+Opening work preserves the reading window and scroll anchor; new turns cannot evict the tool
+being inspected. The composer stays mounted and editable. Same-UUID completion metadata also
+surfaces the new-update indicator while paused. Latest/send resumes following the live journal.
+
+Validation: 4,194 frontend tests passed (30 existing TODOs), then the final native-status race
+regression and its affected suites passed (80 tests). All 762 backend tests and lifecycle shell
+checks passed. TypeScript and production/PWA builds passed. In the isolated QA session, actual
+Codex execution produced two expandable tools/results with its final answer outside the fold.
+A second execution showed Working 5s through 15s and then folded to the reported Worked 14s.
+At 390×844 there was no horizontal overflow and typing remained possible with tool results open.
+Desktop and mobile browser emulation were checked; physical mobile Safari remains untested.

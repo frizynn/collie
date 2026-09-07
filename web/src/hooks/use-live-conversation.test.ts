@@ -140,4 +140,91 @@ describe("useLiveConversation", () => {
     unmount();
   });
 
+  it("refreshes immediately on idle to busy and then keeps the four-second cadence", async () => {
+    const { rerender, unmount } = renderHook(({ busy }) => useLiveConversation({ paneId: "one", enabled: true, busy }), { initialProps: { busy: false } });
+    await act(async () => {});
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    await act(async () => rerender({ busy: true }));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await act(async () => rerender({ busy: true }));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await act(async () => { await vi.advanceTimersByTimeAsync(3999); });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    unmount();
+  });
+
+  it("refreshes completion metadata immediately even when the latest entry UUID is unchanged", async () => {
+    const running: PaneHistoryResponse = { ...history("one"), available: true, entries: [{ uuid: "same-entry", role: "assistant", ts: "", turnId: "turn-one", parts: [{ kind: "thinking", text: "Working" }], turn: { status: "running" } }], hasMore: false, total: 1, fileTruncated: false };
+    const completed: PaneHistoryResponse = { ...running, entries: running.entries.map((entry) => ({ ...entry, turn: { status: "completed", durationMs: 4200 } })) };
+    fetchMock.mockResolvedValueOnce(running).mockResolvedValue(completed);
+    const { result, rerender, unmount } = renderHook(({ busy }) => useLiveConversation({ paneId: "one", enabled: true, busy }), { initialProps: { busy: true } });
+    await act(async () => {});
+    expect(result.current.history).toBe(running);
+    await act(async () => rerender({ busy: false }));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.current.history).toBe(completed);
+    await act(async () => { await vi.advanceTimersByTimeAsync(11_999); });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    unmount();
+  });
+
+  it("coalesces activity transitions during a read into exactly one immediate follow-up", async () => {
+    let resolve!: (value: PaneHistoryResponse) => void;
+    fetchMock.mockReturnValueOnce(new Promise((done) => { resolve = done; }));
+    const { rerender, unmount } = renderHook(({ busy }) => useLiveConversation({ paneId: "one", enabled: true, busy }), { initialProps: { busy: false } });
+    await act(async () => rerender({ busy: true }));
+    await act(async () => rerender({ busy: false }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await act(async () => resolve(history("one")));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await act(async () => { await vi.advanceTimersByTimeAsync(11_999); });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    unmount();
+  });
+
+  it.each(["hidden", "disabled", "locked"])("does not fetch activity edges while %s and resumes with a single read", async (mode) => {
+    const { rerender, unmount } = renderHook(({ busy, enabled }) => useLiveConversation({ paneId: "one", enabled, busy }), { initialProps: { busy: false, enabled: true } });
+    await act(async () => {});
+    await act(async () => {
+      if (mode === "hidden") {
+        Object.defineProperty(document, "hidden", { configurable: true, value: true });
+        document.dispatchEvent(new Event("visibilitychange"));
+      } else if (mode === "locked") setLocked(true);
+      else rerender({ busy: false, enabled: false });
+    });
+    await act(async () => rerender({ busy: true, enabled: mode !== "disabled" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      if (mode === "hidden") {
+        Object.defineProperty(document, "hidden", { configurable: true, value: false });
+        document.dispatchEvent(new Event("visibilitychange"));
+      } else if (mode === "locked") setLocked(false);
+      else rerender({ busy: true, enabled: true });
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    unmount();
+  });
+
+  it("discards an old scope's queued transition instead of refreshing the new scope twice", async () => {
+    let resolve!: (value: PaneHistoryResponse) => void;
+    fetchMock.mockReturnValueOnce(new Promise((done) => { resolve = done; }));
+    const { rerender, result, unmount } = renderHook(({ busy, session }) => useLiveConversation({ paneId: "one", session, enabled: true, busy }), { initialProps: { busy: false, session: "old" } });
+    await act(async () => rerender({ busy: true, session: "old" }));
+    const oldSignal = fetchMock.mock.calls[0]![3]!;
+    const current = history("new-session");
+    fetchMock.mockResolvedValue(current);
+    await act(async () => rerender({ busy: false, session: "new" }));
+    expect(oldSignal.aborted).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await act(async () => resolve(history("old-session")));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.current.history).toBe(current);
+    unmount();
+  });
+
 });
