@@ -92,6 +92,16 @@ const CODEX: readonly AgentCommand[] = [
   { command: "/model", description: "Switch the active model and reasoning effort", takesArg: true, argHint: "<model>", common: true, dangerous: false },
   { command: "/new", description: "Start a fresh conversation without leaving the CLI", takesArg: false, argHint: "", common: true, dangerous: true },
   { command: "/status", description: "Show model, approval policy, writable roots, token usage", takesArg: false, argHint: "", common: true, dangerous: false },
+  // Verified against the public CLI command reference, 2026-09-08:
+  // https://developers.openai.com/codex/cli/slash-commands (configuration and integration pickers).
+  { command: "/apps", description: "Browse connected apps and insert an app mention", takesArg: false, argHint: "", common: false, dangerous: false },
+  { command: "/plugins", description: "Browse installed and discoverable plugins", takesArg: false, argHint: "", common: false, dangerous: false },
+  { command: "/memories", description: "Configure whether Codex uses or generates memories", takesArg: false, argHint: "", common: false, dangerous: false },
+  { command: "/keymap", description: "Configure and save terminal keyboard shortcuts", takesArg: false, argHint: "", common: false, dangerous: false },
+  { command: "/debug-config", description: "Show configuration layers and policy diagnostics", takesArg: false, argHint: "", common: false, dangerous: false },
+  { command: "/statusline", description: "Configure the agent's terminal status-line fields", takesArg: false, argHint: "", common: false, dangerous: false },
+  { command: "/title", description: "Configure the agent's terminal window or tab title", takesArg: false, argHint: "", common: false, dangerous: false },
+  { command: "/experimental", description: "Inspect and configure experimental agent features", takesArg: false, argHint: "", common: false, dangerous: false },
   { command: "/review", description: "Request a code review of the current working tree", takesArg: false, argHint: "", common: true, dangerous: false },
   { command: "/mention", description: "Attach specific files or folders to the context", takesArg: true, argHint: "<file>", common: true, dangerous: false },
   { command: "/permissions", description: "Adjust which actions Codex can take without asking", takesArg: false, argHint: "", common: true, dangerous: false },

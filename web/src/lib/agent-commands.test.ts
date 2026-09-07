@@ -1,6 +1,16 @@
 import { commandsFor } from "./agent-commands";
 
 describe("commandsFor", () => {
+  it("includes verified Codex configuration pickers without leaking them to Claude", () => {
+    const commands = ["/apps", "/plugins", "/memories", "/keymap", "/debug-config", "/statusline", "/title", "/experimental"];
+    for (const command of commands) {
+      expect(commandsFor("codex").find((row) => row.command === command)).toMatchObject({ takesArg: false, dangerous: false });
+    }
+    expect(commandsFor("claude").some((row) => row.command === "/debug-config")).toBe(false);
+    expect(commandsFor("claude").some((row) => row.command === "/plugins")).toBe(false); // Claude's built-in is singular /plugin.
+    const override = [{ command: "/local", description: "Operator selection", takesArg: false, argHint: "", agent: "codex", confirm: true }];
+    expect(commandsFor("codex", override).map((row) => row.command)).toEqual(["/local"]);
+  });
   it("returns the Claude catalog for 'claude'", () => {
     const cmds = commandsFor("claude");
     expect(cmds.length).toBeGreaterThan(0);

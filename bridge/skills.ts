@@ -13,19 +13,41 @@ const MAX_HEADER_BYTES = 16 * 1024;
 const NAME = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const object = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+const invocable = (data: Record<string, unknown>): boolean =>
+  data["user-invocable"] !== false && data["user-invocable"] !== 0 &&
+  !(typeof data["user-invocable"] === "string" && /^(false|no|off|0)$/i.test(data["user-invocable"].trim()));
 
-export function skillMetadata(text: string, fallback: string, directoryName = false, namespace?: string): { name: string; description: string; invocable: boolean } | null {
+export function skillMetadata(text: string, fallback: string, directoryName = false, namespace?: string, optionalFrontmatter = false): { name: string; description: string; invocable: boolean } | null {
   const header = /^\uFEFF?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
-  if (!header) return null;
+  if (!header) {
+    if (!optionalFrontmatter || !NAME.test(fallback)) return null;
+    const metadata = commandMetadata(text);
+    return metadata ? { name: fallback, ...metadata } : null;
+  }
   try {
     const data = object(Bun.YAML.parse(header[1]!));
     let name = !directoryName && typeof data.name === "string" ? data.name.trim() : fallback;
     if (namespace && name.startsWith(`${namespace}:`)) name = name.slice(namespace.length + 1);
     if (!NAME.test(name)) return null;
-    const description = typeof data.description === "string" ? data.description.replace(/\s+/g, " ").trim().slice(0, 600) : "";
+    const description = typeof data.description === "string" ? data.description.replace(/\s+/g, " ").trim().slice(0, 600) : optionalFrontmatter ? commandMetadata(text)?.description ?? "" : "";
     // disable-model-invocation prevents automatic use, not an explicit human invocation.
-    return { name, description, invocable: data["user-invocable"] !== false && data["user-invocable"] !== "false" };
+    return { name, description, invocable: invocable(data) };
   } catch { return null; }
+}
+
+/** Legacy Claude command files use the path-derived command name; frontmatter is optional and
+ * never executes here. The first paragraph supplies a description when one was not declared.
+ */
+export function commandMetadata(text: string): { description: string; invocable: boolean } | null {
+  let body = text, data: Record<string, unknown> = {};
+  if (/^\uFEFF?---\r?\n/.test(text)) {
+    const header = /^\uFEFF?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
+    if (!header) return null;
+    try { data = object(Bun.YAML.parse(header[1]!)); } catch { return null; }
+    body = text.slice(header[0].length);
+  }
+  const description = typeof data.description === "string" ? data.description : body.trim().split(/\r?\n\s*\r?\n/, 1)[0] ?? "";
+  return { description: description.replace(/\s+/g, " ").trim().slice(0, 600), invocable: invocable(data) };
 }
 
 interface Root { path: string; source: PaneSkill["source"]; namespace?: string }
@@ -148,7 +170,8 @@ export async function discoverPaneSkills(pane: Pick<AgentView, "paneId" | "agent
     : [{ path: join(agentHome, "skills"), source: "user" }];
   const roots = agent === "claude" ? [...userRoots, ...projectRoots] : [...projectRoots, ...userRoots];
   const settings = agent === "claude" ? await claudeSettings(agentHome, project) : {};
-  roots.push(...await pluginRoots(agent, agentHome, project, settings));
+  const plugins = await pluginRoots(agent, agentHome, project, settings);
+  roots.push(...plugins);
   const disabled = agent === "codex" ? await disabledCodexSkills(agentHome, home, project) : new Set<string>();
   const skills = new Map<string, PaneSkill>();
   const visited = new Set<string>();
@@ -163,10 +186,10 @@ export async function discoverPaneSkills(pane: Pick<AgentView, "paneId" | "agent
     traversed++;
     const text = await metadataFile(join(canonical, "SKILL.md"), canonical, MAX_HEADER_BYTES);
     if (text !== null) {
-      const metadata = skillMetadata(text, basename(root.path), agent === "claude" && !root.namespace, root.namespace);
+      const metadata = skillMetadata(text, basename(root.path), agent === "claude" && !root.namespace, root.namespace, agent === "claude");
       if (metadata) {
         const name = root.namespace ? `${root.namespace}:${metadata.name}` : metadata.name;
-        const hidden = agent === "claude" && !root.namespace && settings.skillOverrides?.[name] === "off";
+        const hidden = agent === "claude" && settings.skillOverrides?.[name] === "off";
         if (!claimed.has(name) && !hidden && (agent !== "claude" || metadata.invocable)) {
           skills.set(name, { name, description: metadata.description, invocation: `${trigger}${name}`, source: root.source });
         }
@@ -183,6 +206,53 @@ export async function discoverPaneSkills(pane: Pick<AgentView, "paneId" | "agent
     }
   }
   for (const root of roots) await scan(root);
+  // Skills claim names first, including hidden skills, so a legacy command cannot silently replace
+  // a disabled/overriding skill. Within commands, personal precedes project; plugin names are scoped.
+  async function scanCommands(root: Root, parts: string[] = [], anchor?: string): Promise<void> {
+    if (parts.length > 4 || traversed >= MAX_DIRECTORIES || skills.size >= MAX_SKILLS) { truncated = true; return; }
+    const canonical = await containedRealpath(root.path, anchor ?? root.path);
+    const key = `commands\0${root.namespace ?? ""}\0${canonical}`;
+    if (!canonical || visited.has(key)) return;
+    visited.add(key);
+    traversed++;
+    const directory = await opendir(canonical).catch(() => null);
+    if (!directory) return;
+    const names: string[] = [];
+    let examined = 0;
+    for await (const entry of directory) {
+      if (examined++ >= MAX_DIRECTORIES - traversed) { truncated = true; break; }
+      names.push(entry.name);
+    }
+    for (const filename of names.sort()) {
+      if (traversed >= MAX_DIRECTORIES || skills.size >= MAX_SKILLS) { truncated = true; break; }
+      traversed++;
+      if (filename.startsWith(".")) continue;
+      const path = join(canonical, filename), info = await stat(path).catch(() => null);
+      if (info?.isDirectory() && NAME.test(filename)) {
+        await scanCommands({ ...root, path }, [...parts, filename], anchor ?? canonical);
+      } else if (info?.isFile() && filename.endsWith(".md")) {
+        const segments = /^skill\.md$/i.test(filename) ? parts : [...parts, filename.slice(0, -3)];
+        if (!segments.length || !segments.every((segment) => NAME.test(segment))) continue;
+        const name = [...(root.namespace ? [root.namespace] : []), ...segments].join(":");
+        if (claimed.has(name)) continue;
+        const text = await metadataFile(path, anchor ?? canonical, MAX_HEADER_BYTES);
+        const metadata = text === null ? null : commandMetadata(text);
+        if (!metadata) continue;
+        claimed.add(name);
+        if (metadata.invocable && settings.skillOverrides?.[name] !== "off") {
+          skills.set(name, { name, description: metadata.description, invocation: `/${name}`, source: root.source });
+        }
+      }
+    }
+  }
+  if (agent === "claude") {
+    const commands: Root[] = [
+      { path: join(agentHome, "commands"), source: "user" },
+      ...project.map((path): Root => ({ path: join(path, ".claude", "commands"), source: "project" })),
+      ...plugins.map((root) => ({ ...root, path: join(dirname(root.path), "commands") })),
+    ];
+    for (const root of commands) await scanCommands(root);
+  }
   const catalog = [...skills.values()].sort((a, b) => a.name.localeCompare(b.name));
   return { paneId, available: true, trigger, skills: catalog, total: catalog.length, truncated };
 }
