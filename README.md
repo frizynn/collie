@@ -1,11 +1,9 @@
-<p align="center">
-  <img src="assets/brand/nenu-readme.png" alt="Nenu: a winking black terrier with a terminal prompt and three sheep" width="220">
-</p>
-
-<h1 align="center">Nenu</h1>
+<h1 align="center">
+  <img src="assets/brand/nenu-banner.png" alt="Nenu — Herdr agent workbench for mobile and web" width="900">
+</h1>
 
 <p align="center">
-  A fast, self-hosted web interface for supervising your Herdr coding agents from desktop or phone.
+  A fast, self-hosted interface for supervising your Herdr coding agents from mobile and web.
 </p>
 
 <p align="center">

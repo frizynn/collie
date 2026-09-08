@@ -144,7 +144,7 @@ export default defineConfig({
       manifest: {
         name: "Nenu",
         short_name: "Nenu",
-        description: "Monitor and reply to your Herdr agent herd from your phone",
+        description: "Herdr agent workbench for mobile and web",
         id: "/",
         start_url: "/",
         scope: "/",
