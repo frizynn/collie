@@ -245,6 +245,59 @@ describe("parseCodexTranscript", () => {
     expect(entries[0]!.parts[0]).toMatchObject({ text: "help me fix the typescript errors" });
   });
 
+  test("injected AGENTS instructions stored with a user role are hidden like Codex hides them", () => {
+    const injected = [
+      "# AGENTS.md instructions for /Users/fran/Developer/soflex",
+      "",
+      "<INSTRUCTIONS>",
+      "# Workspace Soflex",
+      "Never print secrets.",
+      "</INSTRUCTIONS>",
+    ].join("\n");
+    const entries = parseCodexTranscript([
+      message("user", injected),
+      message("user", "review PR 152"),
+    ].join("\n"));
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.parts[0]).toMatchObject({ text: "review PR 152" });
+  });
+
+  test("removes Codex memory metadata from a final answer but preserves its visible text", () => {
+    const final = item({
+      type: "message",
+      role: "assistant",
+      phase: "final_answer",
+      content: [{ type: "output_text", text: [
+        "The PR is ready.",
+        "",
+        "<oai-mem-citation>",
+        "<citation_entries>",
+        "MEMORY.md:1-2|note=[context]",
+        "</citation_entries>",
+        "<rollout_ids>",
+        "01a067f0-290a-7282-af86-cb10a95c001c",
+        "</rollout_ids>",
+        "</oai-mem-citation>",
+      ].join("\n") }],
+    });
+    const entries = parseCodexTranscript(final);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.parts).toEqual([{ kind: "text", text: "The PR is ready." }]);
+  });
+
+  test("keeps ordinary text that mentions instruction or memory tags", () => {
+    const entries = parseCodexTranscript([
+      message("user", "Why does <INSTRUCTIONS> appear?"),
+      item({ type: "message", role: "assistant", phase: "final_answer", content: [
+        { type: "output_text", text: "The literal <oai-mem-citation> tag is documented here." },
+      ] }),
+    ].join("\n"));
+    expect(entries.map((entry) => (entry.parts[0] as { text: string }).text)).toEqual([
+      "Why does <INSTRUCTIONS> appear?",
+      "The literal <oai-mem-citation> tag is documented here.",
+    ]);
+  });
+
   test("a clipped or partial line is skipped, not thrown on", () => {
     const entries = parseCodexTranscript(
       ['{"timestamp":"2026","type":"response_i', message("user", "hi")].join("\n"),
