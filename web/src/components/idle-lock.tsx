@@ -47,7 +47,7 @@ export function IdleLock({ onUnlock, catchingUp = false }: IdleLockProps) {
               // everywhere: Collie is fetching.
               <DogGallop running size="4rem" label="Catching up" />
             ) : (
-              <img src="/favicon.svg" alt="" className="size-16" />
+              <img src="/favicon.svg" alt="" className="nenu-mark size-16" />
             )}
           </span>
           <span className="text-lg font-semibold tracking-tight">Collie</span>

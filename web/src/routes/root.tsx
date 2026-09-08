@@ -110,7 +110,7 @@ export function BootSplash() {
       {/* Rest = the static app icon, muted (grayscale + dimmed) to read asleep — NOT a gallop
           rest-frame, whose full-stretch mid-stride pose looks frozen mid-run. The "Not connected"
           copy below carries the accessible meaning, so the icon is decorative. */}
-      <img src="/favicon.svg" alt="" className="size-16 opacity-40 grayscale" />
+      <img src="/favicon.svg" alt="" className="nenu-mark size-16 opacity-40 grayscale" />
       <p className="font-medium text-foreground">Not connected</p>
       <p className="max-w-xs text-sm text-muted-foreground">
         Can&rsquo;t reach Collie — check your connection to the host, then try again.
