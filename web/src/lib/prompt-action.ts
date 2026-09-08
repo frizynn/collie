@@ -38,7 +38,7 @@ export { promptsEqual, promptsSameIdentity, sameKeys } from "./harness/prompt-mo
 export type PromptActionResult = ActionResult;
 
 /**
- * Longest feedback Collie will type into a plan dialog.
+ * Longest feedback Nenu will type into a plan dialog.
  *
  * Not a comfort limit — a grammar one. The row does not window long text: Claude re-flows the whole
  * value across as many display lines as it needs, which pushes the dialog's footer away from its

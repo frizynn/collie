@@ -6,7 +6,7 @@ import { ROOT_ROUTE_ID, type HomeData } from "@/lib/loaders";
 import type { UpdateInfo } from "@/lib/types";
 import { UpdateBanner, updateNotice } from "./update-banner";
 
-// A real, existing Collie release (kept `current` below it so the "available" scenario is honest).
+// A real, existing Nenu release (kept `current` below it so the "available" scenario is honest).
 const RELEASE_URL = "https://github.com/AltanS/collie/releases/tag/v0.10.3";
 const someUpdate = (over: Partial<UpdateInfo>): UpdateInfo => ({
   current: "0.9.0",

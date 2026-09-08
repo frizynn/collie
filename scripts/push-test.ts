@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { loadConfig } from "../bridge/config.ts";
 import { Push } from "../bridge/push.ts";
 
-const [title = "Collie test 🐕", body = "Push works — tap to open Collie", paneId = "test"] =
+const [title = "Nenu test 🐕", body = "Push works — tap to open Nenu", paneId = "test"] =
   process.argv.slice(2);
 
 const cfg = loadConfig();
@@ -38,7 +38,7 @@ try {
 if (count === 0) {
   console.error(
     `✗ no subscribed devices in ${subsFile}\n` +
-      "  Open the Collie PWA on your phone and enable notifications (Settings → push), then retry.",
+      "  Open the Nenu PWA on your phone and enable notifications (Settings → push), then retry.",
   );
   process.exit(1);
 }

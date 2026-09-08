@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "description": "Collie — mobile PWA frontend (Vite + React + shadcn)",
+  "description": "Nenu — mobile PWA frontend (Vite + React + shadcn)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

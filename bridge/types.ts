@@ -74,7 +74,7 @@ export interface AgentView {
    */
   lastActiveAt?: number;
   /**
-   * Epoch ms you last opened or drove this pane through Collie. `lastActiveAt > lastSeenAt` on a
+   * Epoch ms you last opened or drove this pane through Nenu. `lastActiveAt > lastSeenAt` on a
    * `done` agent IS the "finished while you weren't looking" state — there is no stored seen flag.
    */
   lastSeenAt?: number;
@@ -103,7 +103,7 @@ export type PaneWire = Omit<AgentView, "agentSession"> & {
  * Strip a pane down to its wire shape. The one place the session ref leaves the bridge's hands.
  *
  * `hasJournal` is asked rather than assumed: a harness can name a session while having no adapter to
- * read it (Herdr detects more agents than Collie has journals for). Keying the flag on the ref alone
+ * read it (Herdr detects more agents than Nenu has journals for). Keying the flag on the ref alone
  * would advertise a History affordance that always comes back empty, so the registry gets a vote.
  */
 export function toPaneWire(pane: AgentView, hasJournal: (agent: string) => boolean): PaneWire {

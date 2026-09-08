@@ -1,6 +1,6 @@
 # Antigravity (agy) TUI Choreography & Keystroke Notes
 
-Empirical findings from driving live Antigravity CLI (`agy`) sessions in sandbox and active panes (`wA:p1`, `wA:pC`) through Herdr / Collie bridge, captured via `scripts/capture-fixture.sh <paneId> <name>`. Ground truth behind `web/src/lib/harness/agy/` and fixture set `web/src/fixtures/panes/agy--*.txt`.
+Empirical findings from driving live Antigravity CLI (`agy`) sessions in sandbox and active panes (`wA:p1`, `wA:pC`) through Herdr / Nenu bridge, captured via `scripts/capture-fixture.sh <paneId> <name>`. Ground truth behind `web/src/lib/harness/agy/` and fixture set `web/src/fixtures/panes/agy--*.txt`.
 
 ## Screen anatomy
 

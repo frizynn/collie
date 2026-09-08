@@ -8,7 +8,7 @@ class PreviewBoundary extends Component<{ children: ReactNode; onClose: () => vo
   static getDerivedStateFromError() { return { failed: true }; }
   render() {
     if (this.state.failed) return <div role="alert" className="fixed bottom-4 right-4 z-50 max-w-[calc(100vw-32px)] rounded-lg border bg-background p-4 text-sm">
-      <p>The document viewer could not load. Reopen Collie and try again.</p>
+      <p>The document viewer could not load. Reopen Nenu and try again.</p>
       <button type="button" className="mt-2 min-h-11 px-3" onClick={this.props.onClose}>Close</button>
     </div>;
     return this.props.children;

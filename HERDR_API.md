@@ -20,9 +20,9 @@ the socket assumptions behind the design in [`ARCHITECTURE.md`](./ARCHITECTURE.m
 - **Exception:** `events.subscribe` keeps the connection open and streams events.
 - **A request line is capped at 1 MiB.** Live-probed 2026-08-17 against herdr 0.7.5: a request of
   1 048 575 bytes (newline included) still gets a normal reply; 1 048 576 gets no reply at all —
-  the server drops the connection or simply never answers. Nothing Collie sends is near that, but
+  the server drops the connection or simply never answers. Nothing Nenu sends is near that, but
   it is the ceiling to design against, and a hang at that size is the server, not the client. (The
-  client-side hazard at large sizes was Collie's own: Bun's `socket.write()` accepts only what the
+  client-side hazard at large sizes was Nenu's own: Bun's `socket.write()` accepts only what the
   socket has room for, and the unwritten tail must be resumed on `drain` — see
   [`bridge/write-drain.ts`](./bridge/write-drain.ts).)
 
@@ -112,13 +112,13 @@ the socket assumptions behind the design in [`ARCHITECTURE.md`](./ARCHITECTURE.m
 > Two things follow, and both matter to anything that renders pane output:
 > - **A harness that asks what background it is on gets no answer and falls back to dark.** Codex
 >   emits both queries at startup; with no reply its output is dark-authored (`#f6e2b7`, `#abdfa7` —
->   L=0.774 and 0.642, light values that only make sense on a dark ground). Collie cannot answer
+>   L=0.774 and 0.642, light values that only make sense on a dark ground). Nenu cannot answer
 >   either: it reads a rendered buffer downstream of the PTY, so the negotiation happens between the
->   harness and herdr on a channel Collie does not own.
+>   harness and herdr on a channel Nenu does not own.
 > - **Herdr does not rewrite escape codes into its own theme.** `format:"ansi"` returns what the
 >   program wrote — `\x1b[38;5;1m` stays a palette index, never a resolved RGB. So herdr's
 >   `[theme]` setting governs how *herdr's own UI* paints a pane, not what a client receives, and the
->   same palette-index colour can legitimately differ between the desktop TUI and Collie (which
+>   same palette-index colour can legitimately differ between the desktop TUI and Nenu (which
 >   applies its own 16-slot table). See [`.adr/0002`](./.adr/0002-invert-the-light-terminal-mirror.md).
 
 ## `session.snapshot` — one RPC, the whole herd (new in 0.7.2)
@@ -142,7 +142,7 @@ Docs-blessed pattern: **bootstrap with `session.snapshot` → `events.subscribe`
 on reconnect or staleness.** CLI mirror: `herdr api snapshot` prints the raw reply — handy for
 diffing shapes without writing a client.
 
-Collie's bridge polls this method (one RPC per tick instead of the `workspace.list` + `pane.list`
+Nenu's bridge polls this method (one RPC per tick instead of the `workspace.list` + `pane.list`
 + `tab.list` trio) and falls back to the trio on older servers that don't know the method. Old-server
 detection: the error reply is
 ``{"id":"","error":{"code":"invalid_request","message":"invalid request: unknown variant `session.snapshot`, expected one of ..."}}``
@@ -158,7 +158,7 @@ against a real pane). Empirically enumerated against Herdr 0.7.0 — it is **NOT
 - **Special keys (bare, case-insensitive):** `Up` `Down` `Left` `Right` `Tab` `Enter` `Escape`
   `Space` `Backspace` (alias `BS`), and function keys `F1`…`F12`.
 - **Literal single characters:** a one-character string is typed as that character — digits (`"1"`,
-  `"2"`, …), letters, punctuation (live-verified 2026-07-04). This is what Collie's prompt-select
+  `"2"`, …), letters, punctuation (live-verified 2026-07-04). This is what Nenu's prompt-select
   taps send: `{keys:["1"]}` answers a permission dialog; `{keys:["2","Enter"]}` picks option 2 of an
   AskUserQuestion select.
 - **Modifier chords (join with `+`):** `ctrl+c`, `ctrl+u`, `ctrl+d`, `ctrl+l`, `ctrl+r`,
@@ -198,7 +198,7 @@ Three sibling RPCs set a display label on a workspace, tab, or pane. Live-verifi
   `tab.rename` 2026-07-19: `label:""` is stored **literally** (the tab's label becomes empty — it does
   **not** reset to the default number), and `label:null` is rejected with
   ``{code:"invalid_request", message:"invalid request: invalid type: null, expected a string"}`` —
-  confirming tabs/workspaces have **no "clear"** (only `pane.rename` clears, via `null`). Collie makes
+  confirming tabs/workspaces have **no "clear"** (only `pane.rename` clears, via `null`). Nenu makes
   its own opposite choices per object: a blank pane "Save" clears (blank → `null`), while a blank tab
   "Save" is refused client- and bridge-side, since a literal-empty tab chip is useless. See
   `bridge/server.ts` (`normalizeTabLabel`).
@@ -206,7 +206,7 @@ Three sibling RPCs set a display label on a workspace, tab, or pane. Live-verifi
   `pane.get`, `pane.current`, and `session.snapshot` panes (omitted when unset — so it's absent from
   the base pane shape below). Workspaces already expose `label`; tabs likewise.
 - **`agent.rename` `{target, name}`** also exists in the schema, but it is a DIFFERENT operation
-  (renames an agent session, not a pane/tab/workspace) — **unverified and unwired by Collie**. Listed
+  (renames an agent session, not a pane/tab/workspace) — **unverified and unwired by Nenu**. Listed
   only so it isn't mistaken for the label renames above.
 
 ## Close methods — kill a pane or a whole tab (verified)
@@ -224,7 +224,7 @@ Two sibling structural ops remove panes. `tab.close` live-verified 2026-07-19 on
   closing those panes one-by-one (which `pane.close` already allows) — same remote-shell threat model.
 - **Success is a bare `{"result":{"type":"ok"}}`** (same shape as `pane.close`), not a record reply
   like the renames — there's nothing left to describe. The closure surfaces on the next snapshot poll;
-  `tab.close` also emits a `tab_closed` event (which Collie doesn't consume).
+  `tab.close` also emits a `tab_closed` event (which Nenu doesn't consume).
 - **Errors:** unknown id → `{code:"tab_not_found", message:"tab <id> not found"}`; a missing `tab_id`
   → ``{code:"invalid_request", message:"invalid request: missing field `tab_id` …"}``.
 
@@ -289,12 +289,12 @@ Two sibling structural ops reorder objects. Both live-verified 2026-07-20 on the
 > **Pane records now carry `scroll`** (new in 0.7.2, live-verified 2026-07-07): `pane.list`,
 > `pane.get`, `pane.current`, and `session.snapshot` panes all include
 > `scroll: {offset_from_bottom, max_offset_from_bottom, viewport_rows} | null` (all `uint64`;
-> `offset_from_bottom == 0` means the pane is scrolled to the bottom). Collie doesn't consume it yet.
+> `offset_from_bottom == 0` means the pane is scrolled to the bottom). Nenu doesn't consume it yet.
 
 > **`revision` is a stub on Herdr 0.7.x** (live-verified 2026-07-05 on 0.7.0; reconfirmed unchanged
 > on 0.7.2, live-verified 2026-07-07): `pane.read`, `pane.list`, and `session.snapshot` all return
 > `revision: 0` for every pane, including actively-changing ones. Treat it as advisory /
-> future-proofing only — never as a load-bearing change detector (Collie's prompt-select race
+> future-proofing only — never as a load-bearing change detector (Nenu's prompt-select race
 > guard re-derives the menu from content for exactly this reason).
 
 ## Event stream (now wired: event-poked polling)
@@ -338,7 +338,7 @@ out here too since they're easy to miss in the block above.
   carries `{pane_id, workspace_id, agent?}` and can fire in herd-wide bursts on re-detection —
   consumers should debounce it.
 
-Collie now polls `session.snapshot` (above) as the source of truth, and additionally holds a
+Nenu now polls `session.snapshot` (above) as the source of truth, and additionally holds a
 long-lived `events.subscribe` stream — global lifecycle events plus a per-agent-pane
 `pane.agent_status_changed` subscription, resubscribed whenever the agent-pane set changes —
 purely to **poke** the poller: an event triggers an immediate debounced re-poll, it never updates
@@ -347,5 +347,5 @@ state by itself. While the stream is healthy, interval polling relaxes to `COLLI
 fast `COLLIE_POLL_MS` cadence. Events accelerate; the snapshot stays authoritative — a missed
 event costs one interval, never correctness.
 
-Also visible in the 0.7.2 schema but unused by Collie: `events.wait`, `pane.send_input`,
+Also visible in the 0.7.2 schema but unused by Nenu: `events.wait`, `pane.send_input`,
 `agent.list`, `pane.wait_for_output` — run `herdr api schema` for the full ~80-method catalog.

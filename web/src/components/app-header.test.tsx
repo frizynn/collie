@@ -23,7 +23,7 @@ describe("AppHeader — the one shared header shell", () => {
 
   it("is calm in the PANE variant while live — breadcrumb + status badge, no pill, no wordmark", () => {
     // Connection copy lives in the top ConnectionBanner now; the header carries none. A healthy pane
-    // header shows its own bits and a resting (static) Collie mark.
+    // header shows its own bits and a resting (static) Nenu mark.
     const { container } = renderHeader(
       <AppHeader
         bridge="connected"
@@ -38,22 +38,22 @@ describe("AppHeader — the one shared header shell", () => {
     expect(container.querySelector(".dog-gallop")).toBeNull(); // mark at rest (static icon)
     expect(screen.getByText("webapp › main")).toBeInTheDocument(); // the breadcrumb slot
     expect(screen.getByText("working")).toBeInTheDocument(); // the agent status badge
-    expect(screen.queryByText("Collie")).toBeNull(); // no wordmark in a pane
+    expect(screen.queryByText("Nenu")).toBeNull(); // no wordmark in a pane
   });
 
   it("is calm in the DASHBOARD variant while live — wordmark + settings gear, resting mark", () => {
     const { container } = renderHeader(
       <AppHeader bridge="connected" error={false} wordmark rightTrail={<SettingsGear />} />,
     );
-    expect(screen.getByText("Collie")).toBeInTheDocument(); // wordmark
+    expect(screen.getByText("Nenu")).toBeInTheDocument(); // wordmark
     expect(container.querySelector(".dog-gallop")).toBeNull(); // mark at rest while live
     expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
   });
 
-  it("returns to the dashboard via onHome when the Collie mark is tapped", async () => {
+  it("returns to the dashboard via onHome when the Nenu mark is tapped", async () => {
     const onHome = vi.fn();
     renderHeader(<AppHeader bridge="connected" error={false} onHome={onHome} wordmark />);
-    await userEvent.click(screen.getByRole("button", { name: "Collie home" }));
+    await userEvent.click(screen.getByRole("button", { name: "Nenu home" }));
     expect(onHome).toHaveBeenCalledOnce();
   });
 
@@ -88,7 +88,7 @@ describe("AppHeader — the one shared header shell", () => {
     // The override owns the row while searching — the normal content is replaced, not stacked.
     expect(screen.getByText("FINDBAR")).toBeInTheDocument();
     expect(screen.queryByText("webapp › main")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Collie home" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Nenu home" })).toBeNull();
   });
 });
 
@@ -106,7 +106,7 @@ describe("AppHeader — the dog keys on trouble/lost, not the first not-live fra
     const { container } = renderHeader(<AppHeader bridge="connected" error onHome={() => {}} />);
     // A single not-live frame is NOT trouble yet: the mark stays the static, full-color icon.
     expect(container.querySelector(".dog-gallop")).toBeNull();
-    expect(container.querySelector("img")).toHaveAttribute("src", "/favicon.svg");
+    expect(container.querySelector("img")).toHaveAttribute("src", "/nenu-mark.png");
     expect(container.querySelector("img")?.className ?? "").not.toMatch(/grayscale/);
 
     // Sustained trouble (4s) → the dog gallops (agreeing with the amber bar).

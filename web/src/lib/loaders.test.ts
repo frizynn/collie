@@ -555,7 +555,7 @@ describe("historyLoader", () => {
 
 // ── Surviving a cold boot with no network (lib/last-seen.ts) ──────────────────
 //
-// The case: a phone leaves Collie for the Tailscale app, the browser DISCARDS the hidden page, and
+// The case: a phone leaves Nenu for the Tailscale app, the browser DISCARDS the hidden page, and
 // the operator comes back before the tunnel is up. The module caches above are gone with the process,
 // so everything here re-imports the loaders (a fresh page) and asserts against what a fresh page can
 // still read: the write-through cache in sessionStorage.
@@ -641,7 +641,7 @@ describe("cold boot with no network", () => {
     boom.mockRestore();
   });
 
-  // ADR 0017: recognising a password prompt changes what Collie says — and this, the one other thing
+  // ADR 0017: recognising a password prompt changes what Nenu says — and this, the one other thing
   // it changes. The pane the operator is answering `sudo` in is not left in the browser's store.
   describe("a pane at a password prompt (ADR 0017)", () => {
     const sudoPane = () =>

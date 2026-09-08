@@ -23,7 +23,7 @@ export { isBlank, lineText };
  * whitespace is deliberately NOT dropped: Grok indents the box by two columns, and that indent is
  * not load-bearing beyond "optional spaces before the corner".
  *
- * The pad is spaces on the ANSI grid Collie actually parses. Herdr's *text* snapshot sometimes
+ * The pad is spaces on the ANSI grid Nenu actually parses. Herdr's *text* snapshot sometimes
  * draws a `█` scrollbar instead; that glyph never reaches this layer.
  */
 export function rstrip(text: string): string {

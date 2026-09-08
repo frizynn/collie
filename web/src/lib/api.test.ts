@@ -272,7 +272,7 @@ describe("api client — connection-health stamping", () => {
   });
 });
 
-// A proxy that REDIRECTS an unauthenticated request instead of refusing it strips Collie of the only
+// A proxy that REDIRECTS an unauthenticated request instead of refusing it strips Nenu of the only
 // signal `isAuthError` (lib/loaders.ts) can act on: `fetch` follows the cross-origin 302, the call
 // rejects as a TypeError with no status, and the refusal banner — with the Sign-in link that would
 // restore the session — never renders. The XHR marker handles proxies that honour it; manual redirect

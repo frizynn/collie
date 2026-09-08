@@ -4,12 +4,12 @@
  * The SW's NavigationRoute serves the precached app shell for every navigation it handles, without
  * touching the network. That is what makes deep links work offline — and it is also why an installed
  * PWA, which has no address bar to fall back on, cannot reach anything a fronting reverse proxy
- * serves at a path Collie doesn't own. A proxy that authenticates devices ahead of the bridge
+ * serves at a path Nenu doesn't own. A proxy that authenticates devices ahead of the bridge
  * (DEPLOYMENT.md, Variant C/E) has a sign-in or enrolment page, and before this list existed there was no
  * legitimate place to put it: the `/api/` denylist was the only crack in the precache, so operators
  * squatted a page inside the namespace the API owns.
  *
- * `/auth/` is therefore RESERVED. Collie routes nothing there, precaches nothing there, and will
+ * `/auth/` is therefore RESERVED. Nenu routes nothing there, precaches nothing there, and will
  * never claim it for a UI route — it exists so the operator's front door has an address. The bridge
  * answers it with a placeholder explaining that nothing is configured, so an operator without a
  * proxy finds out immediately instead of silently getting the app shell.
@@ -37,13 +37,13 @@ export const NAVIGATION_NETWORK_ONLY = [
   /^\/api\//,
   /^\/auth(?:[/?]|$)/,
   // Authentik forward-auth exposes a fixed same-origin outpost namespace for its start/callback
-  // flow. Operators can point Collie's `/auth/` escape hatch there; after the operator taps Sign in,
+  // flow. Operators can point Nenu's `/auth/` escape hatch there; after the operator taps Sign in,
   // the installed PWA must pass that navigation through instead of replacing it with the cached app
   // shell. The path is non-relocatable in Authentik's standard integration.
   /^\/outpost\.goauthentik\.io(?:[/?]|$)/,
   // Cloudflare Access serves its login and callback under `/cdn-cgi/access/` and the path is NOT
   // relocatable, so pointing the operator at `/auth/` cannot help them — the flow would break on a
-  // callback the precache swallowed. `/cdn-cgi/` is Cloudflare-reserved; Collie will never route it.
+  // callback the precache swallowed. `/cdn-cgi/` is Cloudflare-reserved; Nenu will never route it.
   // Proxies whose prefix IS movable (oauth2-proxy's `--proxy-prefix`, Authelia) are documented in
   // the README instead of listed here — this list stays for paths nobody can move.
   /^\/cdn-cgi\//,

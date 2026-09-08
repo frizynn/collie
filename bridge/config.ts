@@ -46,7 +46,7 @@ function envList(name: string): string[] {
 /**
  * A journal root setting: a list of directories, or `fallback` when unset.
  *
- * Comma-separated, like every other list Collie reads ({@link envList}) — deliberately NOT `PATH`'s
+ * Comma-separated, like every other list Nenu reads ({@link envList}) — deliberately NOT `PATH`'s
  * separator, which is `:` on Unix and `;` on Windows and would make the same setting mean different
  * things on the two platforms this bridge supports. One path stays one path, so an existing value
  * parses to exactly what it always meant.
@@ -200,7 +200,7 @@ export interface Config {
    * discovered {@link tailscaleHosts}. Host validation is fail-closed by default: any request whose
    * `Host` header isn't a loopback form, one of these, a discovered Tailscale host, or a host
    * parsed from {@link allowedOrigins} is rejected before the Origin check. Required under
-   * `COLLIE_SKIP_SERVE=1` (where Collie discovers no Tailscale hosts) to name your public domain.
+   * `COLLIE_SKIP_SERVE=1` (where Nenu discovers no Tailscale hosts) to name your public domain.
    */
   publicHosts: string[];
   /**
@@ -282,7 +282,7 @@ export function loadConfig(): Config {
   const allowNonLoopbackBind = envBool("COLLIE_ALLOW_NON_LOOPBACK_BIND", false);
   if (!isLoopbackBindHost(host) && !allowNonLoopbackBind) {
     throw new Error(
-      `COLLIE_HOST=${host} is not a loopback address. Collie binds loopback only: the ` +
+      `COLLIE_HOST=${host} is not a loopback address. Nenu binds loopback only: the ` +
         `Tailscale-User-Login header, COLLIE_DEVICE_HEADER and the same-origin gate are all ` +
         `client-settable and mean nothing on a wide bind, so binding here would hand write access ` +
         `to anything that can reach the port. Use 127.0.0.1 (the default) and put your ingress in ` +
@@ -316,7 +316,7 @@ export function loadConfig(): Config {
       // projects tree, and a herd routinely mixes them (issue #92); one value is still one root.
       claude: envRoots("COLLIE_TRANSCRIPT_ROOT", join(homedir(), ".claude", "projects")),
       // Each harness's own home var is honoured first, so relocating the agent relocates its journal
-      // without a second Collie setting to keep in sync. The Collie override takes a list too — the
+      // without a second Nenu setting to keep in sync. The Nenu override takes a list too — the
       // multi-home case isn't Claude's alone, and one setting shouldn't behave differently per agent.
       codex: envRoots(
         "COLLIE_CODEX_ROOT",

@@ -90,7 +90,7 @@ description test keeps row 4 from becoming a button.
 
 ## The caret resets to position 0 on re-entry
 
-The finding that decides when Collie may type at all. Leave the row and come back to it and the caret
+The finding that decides when Nenu may type at all. Leave the row and come back to it and the caret
 is at the **start** of the existing value, not the end:
 
 | From | Key | Result |

@@ -274,13 +274,13 @@ function ConnectionStateBanner({
 }
 
 // Copy + tint + icon per tone. Green/amber are fixed; red names the cause — the bridge answering means
-// Herdr is the outage, otherwise onLine decides between a true offline drop and an unreachable Collie.
+// Herdr is the outage, otherwise onLine decides between a true offline drop and an unreachable Nenu.
 //
 // Red also DATES what's on screen when it can ("… — last seen 14:32"). That matters most in the case
 // this whole path exists for: a PWA the browser discarded, reopened with the tunnel still down, has a
 // full herd on screen rendered from cache. Without the stamp it looks live. The cause wording is kept
 // rather than replaced by a flat "Disconnected", because "Herdr is down on the host" is a different
-// (and more actionable) fact than "we can't reach Collie", and both can be undated or dated.
+// (and more actionable) fact than "we can't reach Nenu", and both can be undated or dated.
 function resolveView(tone: Tone, online: boolean, probe: Probe, lastSeenAt?: number) {
   if (tone === "green") {
     return { copy: "Connected", Icon: CheckCircle2, row: TINT.done.row, icon: TINT.done.icon } as const;
@@ -294,8 +294,8 @@ function resolveView(tone: Tone, online: boolean, probe: Probe, lastSeenAt?: num
     probe === "reachable"
       ? { copy: "Herdr is down on the host", Icon: TriangleAlert }
       : probe === "unreachable" && !online
-        ? { copy: "Offline — can't reach Collie", Icon: WifiOff }
-        : { copy: "Can't reach Collie", Icon: TriangleAlert };
+        ? { copy: "Offline — can't reach Nenu", Icon: WifiOff }
+        : { copy: "Can't reach Nenu", Icon: TriangleAlert };
   const copy =
     lastSeenAt === undefined ? cause.copy : `${cause.copy} — last seen ${clockTime(lastSeenAt)}`;
   return { copy, Icon: cause.Icon, row: TINT.blocked.row, icon: TINT.blocked.icon } as const;

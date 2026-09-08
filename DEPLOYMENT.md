@@ -18,18 +18,18 @@ are not relaxed by any of them.
 ## Variant B — identity-aware proxy + per-device authorisation
 
 Use this when some devices should **drive** agents and others should be **read-only** — e.g. your
-phone can reply, but a shared/less-trusted device can only watch. Collie reads an opaque device id
+phone can reply, but a shared/less-trusted device can only watch. Nenu reads an opaque device id
 from a request header (`COLLIE_DEVICE_HEADER`) and checks it against `COLLIE_DEVICE_ALLOWLIST`:
 allow-listed → full access, any other id → read-only, header absent → read-only as well.
 
-Collie side (`.env`):
+Nenu side (`.env`):
 
 ```bash
 COLLIE_HOST=127.0.0.1                       # keep loopback (default)
 COLLIE_DEVICE_HEADER=X-Device-Id            # the header your proxy injects
 COLLIE_DEVICE_ALLOWLIST=my-phone,my-laptop  # ids allowed to drive agents; others → read-only
 # COLLIE_ALLOWED_ORIGINS=https://collie.example.com   # only if the proxy does NOT forward the public Host
-# COLLIE_PUBLIC_HOSTS=collie.example.com    # REQUIRED unless the proxy forwards a Host Collie already knows
+# COLLIE_PUBLIC_HOSTS=collie.example.com    # REQUIRED unless the proxy forwards a Host Nenu already knows
 # COLLIE_ALLOW_ANY_HOST=1                   # opt out of Host validation entirely (re-opens DNS rebinding)
 # COLLIE_TRUSTED_USER still composes on top if your ingress also injects Tailscale-User-Login
 # COLLIE_TRUSTED_USER_OPTIONAL=1            # accept a request carrying no Tailscale-User-Login at all
@@ -39,12 +39,12 @@ Your fronting proxy **must**:
 
 1. **Authenticate the device** by some means it controls — mTLS client certs, an SSO/forward-auth
    layer (oauth2-proxy, Pomerium, Cloudflare Access), Tailscale node identity, etc. How you derive a
-   stable per-device id is up to you; Collie treats it as opaque.
+   stable per-device id is up to you; Nenu treats it as opaque.
 2. **Set (override) the device header** on *every* upstream request — never merely add it, so any
    client-supplied copy is discarded. This override is what makes the header trustworthy.
 3. **Proxy to the bridge on loopback** (`127.0.0.1:$COLLIE_PORT`). The loopback bind is the trust
    anchor — nothing but the proxy can reach the bridge to set the header.
-4. **Satisfy the same-origin gate.** Collie accepts a request when the browser's `Origin` host
+4. **Satisfy the same-origin gate.** Nenu accepts a request when the browser's `Origin` host
    equals the `Host` the bridge receives. So either **forward the public `Host` unchanged**, or — if
    your proxy rewrites Host — list the exact public origin in `COLLIE_ALLOWED_ORIGINS`. Otherwise
    every API call 403s `cross-origin rejected` (the page loads but stays empty).
@@ -62,7 +62,7 @@ location / {
 }
 ```
 
-**Is it actually working?** Run both from a device that reaches Collie *through the proxy*:
+**Is it actually working?** Run both from a device that reaches Nenu *through the proxy*:
 
 ```console
 $ curl -s https://collie.example.com/api/snapshot | jq -c .device
@@ -116,7 +116,7 @@ trust story changes — see [Variant D](#variant-d--off-host-identity-proxy-over
 
 A reverse proxy (Caddy, Nginx, …) is the **sole ingress** — no Tailscale in the path. Choose this
 when the host isn't on a tailnet, or when you already run a TLS-terminating proxy with its own access
-control (SSO, mTLS, a VPN gateway) and want Collie behind it like any other upstream.
+control (SSO, mTLS, a VPN gateway) and want Nenu behind it like any other upstream.
 
 Set `COLLIE_SKIP_SERVE=1` so `collie-ctl.sh start` builds, starts and supervises the bridge but
 **never touches `tailscale serve`** — the proxy owns ingress. The bridge still binds loopback only;
@@ -167,7 +167,7 @@ COLLIE_DEVICE_ALLOWLIST=my-phone,my-laptop          # …and the ids allowed to 
 > installed app can receive an update. Refuse `/sw.js` to a lapsed client and `registration.update()`
 > throws, so that device stays on the build it had forever.
 
-**Serve your sign-in page under `/auth/`.** Collie reserves that path for you and routes nothing
+**Serve your sign-in page under `/auth/`.** Nenu reserves that path for you and routes nothing
 there.
 
 ```caddyfile
@@ -184,16 +184,16 @@ collie.example.com {
 ```
 
 Why that path and not `/`: an installed app's service worker answers navigations from its own cache
-without touching the network, so a sign-in page anywhere Collie owns is invisible to it — `/auth/`
+without touching the network, so a sign-in page anywhere Nenu owns is invisible to it — `/auth/`
 and everything beneath it is the one prefix always passed through. (`/cdn-cgi/access/` is reserved
-too, so Cloudflare Access works untouched.) Collie's refusal banner links to `/auth/` on a 401/403,
+too, so Cloudflare Access works untouched.) Nenu's refusal banner links to `/auth/` on a 401/403,
 so a signed-out phone has a tappable way back in; a `?rd=`/`?next=` return-to parameter is fine, and
 if your flow lives somewhere you can't move, redirect `/auth/` to it. When the bridge answers there
 itself, nothing claimed the path — that placeholder is your signal that the proxy rule is missing.
 
-**Forward-auth proxies that turn refusals into redirects are supported, but Collie does not follow
+**Forward-auth proxies that turn refusals into redirects are supported, but Nenu does not follow
 the login flow for you.** API requests are made with redirects disabled; if the front door still
-answers a lapsed session with a 3xx, Collie treats that response as a 401 so the existing **Sign in**
+answers a lapsed session with a 3xx, Nenu treats that response as a 401 so the existing **Sign in**
 link appears instead of a misleading connection error. `/auth/` must therefore remain a real,
 operator-owned sign-in entry. For Authentik, redirect that entry into its standard
 `/outpost.goauthentik.io/start` flow (with the appropriate `rd` return URL); the fixed
@@ -221,7 +221,7 @@ failure mode that leaves installed phones frozen on an old build.
 ## Variant D — off-host identity proxy over the tailnet
 
 Choose this when you already run a **central ingress node** for your tailnet — one forward-auth/SSO
-layer, one wildcard cert, a row of services behind it — and you want Collie to be another entry in
+layer, one wildcard cert, a row of services behind it — and you want Nenu to be another entry in
 that table rather than a second auth stack configured on the agent host.
 
 The proxy is on a *different machine*, so it can't reach the bridge on loopback. The agent host
@@ -240,7 +240,7 @@ tailnet URL:
 ```
 
 Plain HTTP on the middle hop is fine *because it rides the tailnet* — TLS terminates at the proxy.
-That is not the same thing as serving Collie over plain HTTP publicly, which is what the
+That is not the same thing as serving Nenu over plain HTTP publicly, which is what the
 `COLLIE_SERVE_MODE=http` warnings elsewhere are about.
 
 The **four proxy requirements from
@@ -351,13 +351,13 @@ A header-less request must be read-only. **If it says `"authorized":true`, your 
 
 ## Variant E — any other mesh or tunnel (NetBird, ZeroTier, Cloudflare Tunnel)
 
-Tailscale is the **default**, not a requirement. Collie's own Tailscale coupling is one header read
+Tailscale is the **default**, not a requirement. Nenu's own Tailscale coupling is one header read
 and a convenience in `collie-ctl.sh`; the bridge itself is a loopback HTTP server that gates on
 `Host`, `Origin`, and two optional headers. Anything that can reach `127.0.0.1:$COLLIE_PORT` can
 front it.
 
-Collie deliberately **manages** only one front door — the one this project runs and tests. For every
-other tunnel you own the ingress and Collie stays out of the way:
+Nenu deliberately **manages** only one front door — the one this project runs and tests. For every
+other tunnel you own the ingress and Nenu stays out of the way:
 
 ```bash
 COLLIE_SKIP_SERVE=1                                 # never run tailscale serve
@@ -372,7 +372,7 @@ this way. `collie-ctl.sh start` will build, launch and supervise the bridge and 
 `unserve` and `uninstall` likewise leave your tunnel alone, exactly as under
 [Variant C](#variant-c--reverse-proxy-as-the-only-front-door-no-tailscale).
 
-Three things to get right, none of them Collie-specific:
+Three things to get right, none of them Nenu-specific:
 
 1. **The [Variant B](#variant-b--identity-aware-proxy--per-device-authorisation) proxy requirements
    apply verbatim.** Loopback upstream, the public `Host` forwarded unchanged (or listed in
@@ -383,7 +383,7 @@ Three things to get right, none of them Collie-specific:
    `Tailscale-User-Login`, so the check passes every request rather than blocking it, and the bridge
    warns about that at startup. If your tunnel authenticates and injects a device identity, use
    `COLLIE_DEVICE_HEADER` + `COLLIE_DEVICE_ALLOWLIST` instead; if it authenticates but injects
-   nothing, its own auth *is* the whole gate and anyone who passes it gets full Collie access.
+   nothing, its own auth *is* the whole gate and anyone who passes it gets full Nenu access.
 3. **Pin a stable hostname before you install the PWA.** A service-worker cache is per-origin, and
    several tunnels hand out a fresh generated name per session. A name that changes gives you a new
    install each time and makes `COLLIE_PUBLIC_HOSTS` unpinnable.
@@ -394,7 +394,7 @@ Three things to get right, none of them Collie-specific:
 
 ## Several Collies on one host
 
-One shared machine, one Unix user per developer, each running their own Herdr and their own Collie.
+One shared machine, one Unix user per developer, each running their own Herdr and their own Nenu.
 The machine has a single tailnet name, so the thing that has to differ per user is the **port at both
 ends**: the loopback port the bridge binds, and the tailnet port `tailscale serve` publishes.
 
@@ -403,7 +403,7 @@ Per user, in that user's `.env`:
 ```bash
 COLLIE_PORT=8801                    # loopback port — unique per user
 COLLIE_SERVE_PORT=8443              # tailnet https listener — unique per user
-COLLIE_TRUSTED_USER=dev-a@example.com   # ONLY this tailnet person may reach this Collie
+COLLIE_TRUSTED_USER=dev-a@example.com   # ONLY this tailnet person may reach this Nenu
 ```
 
 The next developer takes `8802` / `8444`, and so on. Each gets their own URL —
@@ -413,7 +413,7 @@ Two things to get right:
 
 - **`COLLIE_TRUSTED_USER` is what keeps the herds apart.** Every developer is on the same tailnet, so
   without it any of them can open any of the others' Collies and drive their agents. `tailscale serve`
-  injects the caller's tailnet login and Collie rejects every other identity.
+  injects the caller's tailnet login and Nenu rejects every other identity.
 - **Publishing needs root or the Tailscale operator.** `tailscale serve` may be run only by root or by
   the one user named in `tailscale set --operator=`, and there is exactly one such user per machine.
   So either the admin runs the serve step for each developer, or grants them sudo for that one

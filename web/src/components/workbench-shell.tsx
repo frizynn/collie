@@ -14,7 +14,7 @@ function threadLabel(pane: AgentView): string {
 }
 
 // Layout adapted from T3 Code AppSidebarLayout / SidebarChrome at 191a4ef.
-// Routing, session selection and pane lifecycle remain owned by Collie.
+// Routing, session selection and pane lifecycle remain owned by Nenu.
 export function WorkbenchShell({ data, children }: { data: HomeData; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -40,8 +40,8 @@ export function WorkbenchShell({ data, children }: { data: HomeData; children: R
       <aside id={sidebarId} className="workbench-sidebar" aria-label="Workspace sidebar">
         <div className="workbench-brand-row">
           <Link to={homePath(data.session)} className="workbench-brand">
-            <img src="/favicon.svg" alt="" width="22" height="22" className="nenu-mark" />
-            <span>Collie <span className="font-normal text-muted-foreground">Code</span></span>
+            <img src="/nenu-mark.png" alt="" width="22" height="22" className="nenu-mark" />
+            <span>Nenu <span className="font-normal text-muted-foreground">Code</span></span>
           </Link>
           <button ref={collapseButton} type="button" className="workbench-icon-button" aria-label="Collapse sidebar" aria-expanded={!collapsed} aria-controls={sidebarId} onClick={() => setCollapsed(true)}>
             <PanelLeft aria-hidden="true" size={17} />
@@ -60,8 +60,8 @@ export function WorkbenchShell({ data, children }: { data: HomeData; children: R
             <PanelLeft aria-hidden="true" size={18} />
           </button>
           <Link to={homePath(data.session)} className="workbench-brand">
-            <img src="/favicon.svg" alt="" width="22" height="22" className="nenu-mark" />
-            <span>Collie <span className="font-normal text-muted-foreground">Code</span></span>
+            <img src="/nenu-mark.png" alt="" width="22" height="22" className="nenu-mark" />
+            <span>Nenu <span className="font-normal text-muted-foreground">Code</span></span>
           </Link>
           <SessionSwitcher sessions={data.sessions ?? []} current={data.session} />
         </div>

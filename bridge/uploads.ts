@@ -41,7 +41,7 @@ function matchesAt(head: Uint8Array, at: number, bytes: number[]): boolean {
 
 /**
  * The file extension implied by a file's leading bytes, or null if they are not one of the four
- * image formats Collie accepts. Pure — the whole decision, unit-tested.
+ * image formats Nenu accepts. Pure — the whole decision, unit-tested.
  */
 export function imageExtFromBytes(head: Uint8Array): string | null {
   for (const ext of ["png", "jpg", "gif", "webp"]) {

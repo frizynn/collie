@@ -43,7 +43,7 @@ export interface PromptOption {
  *   - `plan-change` — Claude's "Tell Claude what to change": the digit focuses the field, typing
  *     fills it, Enter denies the plan and hands the agent the text (PLAN_FEEDBACK_NOTES.md).
  *   - `free-text` — another harness's custom-answer row (Grok's `z`). Parsed so a focused row can
- *     lock the option buttons; Collie does not type into it. The Claude plan-feedback send path
+ *     lock the option buttons; Nenu does not type into it. The Claude plan-feedback send path
  *     is the wrong recipe (different key, different Enter, unmeasured caret/wrap).
  */
 export type PromptFeedbackPurpose = "plan-change" | "free-text";
@@ -56,7 +56,7 @@ export type PromptFeedbackPurpose = "plan-change" | "free-text";
  *
  *   - `focused` — while `❯` sits on the row the field owns the keyboard, and the dialog routes every
  *     digit into it AS TEXT instead of answering. No button on this dialog can fire.
- *   - `text` — what the box holds. Empty (the row shows its placeholder) is the only state Collie
+ *   - `text` — what the box holds. Empty (the row shows its placeholder) is the only state Nenu
  *     will type into on a `plan-change` row: re-entering a non-empty field puts the caret at
  *     position 0, so our text would be PREPENDED to a sentence someone else is mid-way through writing.
  *

@@ -6,7 +6,7 @@
 // hint. A card missing any of those, or painting an `a`–`f` option row, is a different widget
 // — refuse rather than emit digits. Esc-park keeps the same card; its footer differs and must
 // still match. `z` is modelled as `purpose: "free-text"` so a focused row can lock the option
-// buttons; Collie does not type into it. Pure; no pane access.
+// buttons; Nenu does not type into it. Pure; no pane access.
 
 import type { StyledLine } from "../../blocks";
 import type { PromptFeedback, PromptModel, PromptOption } from "../prompt-model";

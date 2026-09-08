@@ -11,7 +11,7 @@
 //   {"timestamp":"…","type":"event_msg","payload":{"type":"user_message"|"agent_message"|
 //                                                  "agent_reasoning"|"token_count", …}}
 //   {"timestamp":"…","type":"compacted","payload":{"message":"…","replacement_history":[…], …}}
-// Compaction's envelope was verified on the isolated Collie QA session, 2026-09-07. Its message
+// Compaction's envelope was verified on the isolated Nenu QA session, 2026-09-07. Its message
 // can be empty; the native event is still completion evidence. Never render replacement_history,
 // which contains rewritten model input and would duplicate conversation and injected instructions.
 // `{timestamp,type,payload}` are the ONLY top-level keys.

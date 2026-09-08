@@ -122,7 +122,7 @@ describe("agyAdapter unit & footer safety", () => {
 
   // AGY echoes every submitted message as a `> ` transcript row, and paints an answered
   // ask_user_question selection the same way. Without the enclosing box those rows are
-  // indistinguishable from a live composer, so an unanchored `>` must never claim one: Collie would
+  // indistinguishable from a live composer, so an unanchored `>` must never claim one: Nenu would
   // report a writable pane over a busy agent and hand the echo back as the operator's draft.
   it("refuses an unanchored tail `>` row — a transcript echo is not a composer", () => {
     const raw = ["some transcript output", "----------------", "> this is a quoted line"].join("\n");

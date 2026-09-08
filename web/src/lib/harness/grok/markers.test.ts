@@ -83,7 +83,7 @@ describe("rstrip", () => {
     expect(rstrip("  ╭────╮   ")).toBe("  ╭────╮");
   });
 
-  // Herdr's text snapshot may draw a scrollbar as █. Collie never parses that snapshot — only
+  // Herdr's text snapshot may draw a scrollbar as █. Nenu never parses that snapshot — only
   // format:ansi, whose pad is spaces. Special-casing █ would paper over a formatter we do not use.
   it("does not invent a text-source scrollbar strip", () => {
     expect(rstrip("  ╭────╮█")).toBe("  ╭────╮█");

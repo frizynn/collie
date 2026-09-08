@@ -166,7 +166,7 @@ if (import.meta.main) {
   if (already && !force && !subjectOnly) {
     console.error(
       `✗ push keys are already configured in ${envPath}\n` +
-        "  Replacing them invalidates EVERY existing subscription: each device must open Collie and\n" +
+        "  Replacing them invalidates EVERY existing subscription: each device must open Nenu and\n" +
         "  re-enable notifications, and until it does it will silently receive nothing.\n" +
         "  If that's what you want: `bash scripts/collie-ctl.sh push-keys --force`.\n" +
         "  (To change only the contact subject, pass it — that never touches the keys.)",
@@ -236,6 +236,6 @@ if (import.meta.main) {
 
   console.log("\nNext:");
   console.log("  1. herdr plugin action invoke restart --plugin herdr.collie");
-  console.log("  2. On your phone: open Collie → Settings → enable notifications");
+  console.log("  2. On your phone: open Nenu → Settings → enable notifications");
   console.log("  3. bash scripts/collie-ctl.sh push-test");
 }

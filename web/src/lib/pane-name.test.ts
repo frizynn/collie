@@ -85,7 +85,7 @@ describe("paneParts — the second line", () => {
     // The herd this change exists for: same project, same cwd, no hand-set names. Before the title
     // was read, all three rows rendered identically.
     const rendered = [
-      "Custom UI for Collie",
+      "Custom UI for Nenu",
       "Read Notes From Underground",
       "Reconcile book lists",
     ].map((terminalTitle) => {
@@ -122,7 +122,7 @@ describe("paneParts — the cwd fallback only when it says something", () => {
   });
 
   it("is case-insensitive about that match", () => {
-    expect(paneParts(pane({ workspaceLabel: "Collie", cwd: "/home/kon/dev/ai/collie" })).secondary)
+    expect(paneParts(pane({ workspaceLabel: "COLLIE", cwd: "/home/kon/dev/ai/collie" })).secondary)
       .toBeNull();
   });
 

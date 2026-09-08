@@ -1,5 +1,5 @@
 // Chrome stripping for Grok Build. Trims Grok's own TUI composer off the TAIL of a parsed buffer so
-// Collie's composer/statusline supersede it, and re-surfaces the two things the strip would otherwise
+// Nenu's composer/statusline supersede it, and re-surfaces the two things the strip would otherwise
 // destroy (the status painted into the bottom border, and a stranded draft).
 //
 // Grok vs omp vs Claude (do not reuse their scanners):

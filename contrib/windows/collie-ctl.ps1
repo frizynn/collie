@@ -241,7 +241,7 @@ function Register-CollieTask {
     -RestartInterval (New-TimeSpan -Minutes 1) `
     -StartWhenAvailable
 
-  Register-ScheduledTask -TaskName $script:TaskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description "Collie mobile bridge for Herdr" -Force | Out-Null
+  Register-ScheduledTask -TaskName $script:TaskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description "Nenu mobile bridge for Herdr" -Force | Out-Null
   Enable-ScheduledTask -TaskName $script:TaskName | Out-Null
 }
 
@@ -339,11 +339,11 @@ function Show-CollieStatus {
   $service = if ($task) { "Task Scheduler ($($script:TaskName)) - $($task.State)" } else { "not supervised" }
   Write-Output ""
   if (Test-HerdrReady) {
-    Write-Output "  OK Collie is running - v$(Get-CollieVersion)"
+    Write-Output "  OK Nenu is running - v$(Get-CollieVersion)"
   } elseif (Test-BridgeReady 1) {
-    Write-Output "  WARN Collie is running but cannot reach Herdr - check logs"
+    Write-Output "  WARN Nenu is running but cannot reach Herdr - check logs"
   } else {
-    Write-Output "  WARN Collie is not answering on :$($script:Port) - check logs"
+    Write-Output "  WARN Nenu is not answering on :$($script:Port) - check logs"
   }
   Write-Output "    service   $service"
   Write-Output "    local     http://127.0.0.1:$($script:Port)"
@@ -352,13 +352,13 @@ function Show-CollieStatus {
   Show-CollieServeStatus
 }
 
-function Start-Collie {
+function Start-Nenu {
   Ensure-CollieBuild
   Register-CollieTask | Out-Null
   Start-ScheduledTask -TaskName $script:TaskName
   Write-Output "bridge started (Task Scheduler: $($script:TaskName))"
   if (-not (Test-HerdrReady 30)) {
-    Write-Warning "Collie cannot reach Herdr yet. Herdr may be temporarily unavailable or running as Administrator. The bridge remains supervised and will reconnect."
+    Write-Warning "Nenu cannot reach Herdr yet. Herdr may be temporarily unavailable or running as Administrator. The bridge remains supervised and will reconnect."
   }
   Show-CollieStatus
 }
@@ -367,7 +367,7 @@ function Stop-RecordedCollieProcesses {
   if (-not (Test-Path -LiteralPath $script:PidFile)) { return }
   $record = (Get-Content -LiteralPath $script:PidFile -Raw).Trim()
   $match = [regex]::Match($record, '^(\d+)\|(\d+)$')
-  if (-not $match.Success) { throw "invalid Collie process ownership state: $record" }
+  if (-not $match.Success) { throw "invalid Nenu process ownership state: $record" }
 
   $launcherId = [int]$match.Groups[1].Value
   $bridgeId = [int]$match.Groups[2].Value
@@ -391,7 +391,7 @@ function Stop-RecordedCollieProcesses {
   Remove-Item -LiteralPath $script:PidFile -ErrorAction SilentlyContinue
 }
 
-function Stop-Collie {
+function Stop-Nenu {
   $task = Get-ScheduledTask -TaskName $script:TaskName -ErrorAction SilentlyContinue
   if ($task) {
     Disable-ScheduledTask -TaskName $script:TaskName | Out-Null
@@ -401,8 +401,8 @@ function Stop-Collie {
   Write-Output "bridge stopped"
 }
 
-function Uninstall-Collie {
-  Stop-Collie
+function Uninstall-Nenu {
+  Stop-Nenu
   if (Get-ScheduledTask -TaskName $script:TaskName -ErrorAction SilentlyContinue) {
     Unregister-ScheduledTask -TaskName $script:TaskName -Confirm:$false
   }
@@ -432,13 +432,13 @@ function Update-CollieCheckout {
   }
 
   if (-not (Test-CollieManagedCheckout)) {
-    Write-Output "updating Collie (git pull --ff-only)..."
+    Write-Output "updating Nenu (git pull --ff-only)..."
     & git -C $script:PluginRoot pull --ff-only
     Assert-LastExit "git pull"
     return
   }
 
-  Write-Output "updating Collie (Herdr-managed checkout: fetch + detach onto origin HEAD)..."
+  Write-Output "updating Nenu (Herdr-managed checkout: fetch + detach onto origin HEAD)..."
   $shallow = (& git -C $script:PluginRoot rev-parse --is-shallow-repository | Out-String).Trim()
   Assert-LastExit "git shallow check"
   $depth = if ($shallow -eq "true") { @("--depth", "1") } else { @() }
@@ -467,13 +467,13 @@ function Refresh-CollieRegistry {
 
 function Apply-CollieUpdate {
   Invoke-CollieBuild
-  Stop-Collie
-  Start-Collie
+  Stop-Nenu
+  Start-Nenu
   Refresh-CollieRegistry
   Write-Output "OK update complete"
 }
 
-function Update-Collie {
+function Update-Nenu {
   Update-CollieCheckout
   $powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
   & $powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "collie-ctl.ps1") _apply-update
@@ -525,11 +525,11 @@ if ($MyInvocation.InvocationName -eq ".") { return }
 
 switch ($Command) {
   "build" { Invoke-CollieBuild }
-  "start" { Start-Collie }
-  "stop" { Stop-Collie }
-  "restart" { Stop-Collie; Start-Collie }
-  "uninstall" { Uninstall-Collie }
-  "update" { Update-Collie }
+  "start" { Start-Nenu }
+  "stop" { Stop-Nenu }
+  "restart" { Stop-Nenu; Start-Nenu }
+  "uninstall" { Uninstall-Nenu }
+  "update" { Update-Nenu }
   "_apply-update" { Apply-CollieUpdate }
   "status" { Show-CollieStatus }
   "url" { Get-CollieUrl }

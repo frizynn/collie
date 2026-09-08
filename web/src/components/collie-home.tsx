@@ -13,18 +13,18 @@ interface CollieHomeProps {
    *  when we've in fact given up; the muted icon says "not connected" at a glance, matching the boot
    *  splash. (Never a gallop rest-frame — that full-stretch pose looks frozen mid-run.) */
   lost?: boolean;
-  /** Show the "Collie" wordmark beside the mark (dashboard header). Omit inside a pane to save space. */
+  /** Show the "Nenu" wordmark beside the mark (dashboard header). Omit inside a pane to save space. */
   wordmark?: boolean;
   className?: string;
 }
 
-// The single, shared Collie mark: brand + home button + connection loader in one, so the top-left of
+// The single, shared Nenu mark: brand + home button + connection loader in one, so the top-left of
 // every screen means the same thing. At rest it's the familiar static app icon (favicon.svg); once the
 // connection has been not-live for a sustained beat (`trouble`) it springs into the galloping sprite —
 // until the outage escalates (`lost`), when it drops the gallop and rests on the SAME static icon,
 // muted, then settles back to the full-color icon once live. The rest state is always the static icon,
 // never a paused sprite: a gallop strip's rest frame is a full-stretch mid-stride pose that reads as
-// frozen mid-run. Tapping it returns to the dashboard. The dashboard shows the "Collie" wordmark too;
+// frozen mid-run. Tapping it returns to the dashboard. The dashboard shows the "Nenu" wordmark too;
 // inside a pane the mark stands alone (the breadcrumb carries the context). Both headers render THIS
 // component — the consistency is structural, not a convention two files have to keep agreeing on.
 export function CollieHome({ onHome, trouble, lost = false, wordmark = false, className }: CollieHomeProps) {
@@ -35,7 +35,7 @@ export function CollieHome({ onHome, trouble, lost = false, wordmark = false, cl
       onClick={onHome}
       // The gallop conveys connection state visually; fold it into the button's accessible name too,
       // so screen-reader and reduced-motion users get it (inside a pane there's no other cue).
-      aria-label={!trouble ? "Collie home" : lost ? "Collie home — not connected" : "Collie home — reconnecting"}
+      aria-label={!trouble ? "Nenu home" : lost ? "Nenu home — not connected" : "Nenu home — reconnecting"}
       className={cn(
         "-mx-1 flex items-center gap-2 rounded px-1 transition-opacity active:opacity-70",
         className,
@@ -52,14 +52,14 @@ export function CollieHome({ onHome, trouble, lost = false, wordmark = false, cl
           // muted (grayscale + dimmed) to read asleep/inactive, in the same box (no gallop). NOT a
           // paused sprite: a gallop rest-frame is a full-stretch mid-stride pose that looks frozen
           // mid-run — the "stuck mid-run" bug. Mirrors the boot splash's not-connected state.
-          <img src="/favicon.svg" alt="" className="nenu-mark size-8 opacity-40 grayscale" />
+          <img src="/nenu-mark.png" alt="" className="nenu-mark size-8 opacity-40 grayscale" />
         ) : (
           // Live rest state = the crisp Nenu mark, in the same box as the sprite so it doesn't resize
           // when the connection settles. Larger than the agent logo.
-          <img src="/favicon.svg" alt="" className="nenu-mark size-8" />
+          <img src="/nenu-mark.png" alt="" className="nenu-mark size-8" />
         )}
       </span>
-      {wordmark && <span className="text-lg font-semibold tracking-tight">Collie</span>}
+      {wordmark && <span className="text-lg font-semibold tracking-tight">Nenu</span>}
     </button>
   );
 }

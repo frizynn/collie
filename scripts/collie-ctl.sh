@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Control script for Collie (the Herdr web bridge service). Invoked by the plugin's actions and usable directly.
+# Control script for Nenu (the Herdr web bridge service). Invoked by the plugin's actions and usable directly.
 # The bridge runs as a supervised user service — `systemd --user` on Linux, a launchd LaunchAgent on
 # macOS (NOT a Herdr plugin pane — see ARCHITECTURE.md §3), so it survives Herdr restarts, starts at
 # login and restarts on failure. Hosts with neither fall back to an unsupervised nohup + pidfile.
@@ -132,10 +132,10 @@ SERVE_MODE="${COLLIE_SERVE_MODE:-https}"
 # being told, so it stays the default; a non-default one exists for several Collies on one tailnet
 # node (one Unix user each), which cannot all own :443. It is an https-mode setting only — in http
 # mode the tailnet listener is COLLIE_PORT by construction, so cmd_serve refuses the combination
-# rather than pick a winner. `tailscale serve` accepts any port here; only `funnel`, which Collie
+# rather than pick a winner. `tailscale serve` accepts any port here; only `funnel`, which Nenu
 # never publishes, is restricted to 443/8443/10000.
 SERVE_PORT="${COLLIE_SERVE_PORT:-443}"
-# Records the ONE `tailscale serve` root mount Collie published, so teardown can prove the mapping
+# Records the ONE `tailscale serve` root mount Nenu published, so teardown can prove the mapping
 # it is about to remove is still the one it created. Format: `<mode>:<port>|<HostPort>|<proxy>`.
 TAILSCALE_HANDLER_FILE="${CONFIG_DIR}/tailscale-managed-handler"
 # Find Bun on PATH, then in the usual install locations.
@@ -306,8 +306,8 @@ discover_tailscale_hosts() {
 }
 
 bridge_url() {
-  # An explicit COLLIE_PUBLIC_URL is the operator naming a front door Collie didn't publish —
-  # a reverse proxy, or a tunnel Collie knows nothing about. Nothing here can infer it.
+  # An explicit COLLIE_PUBLIC_URL is the operator naming a front door Nenu didn't publish —
+  # a reverse proxy, or a tunnel Nenu knows nothing about. Nothing here can infer it.
   if [ -n "${COLLIE_PUBLIC_URL:-}" ]; then echo "${COLLIE_PUBLIC_URL%/}"; return; fi
   local name; name="$(self_dnsname)"
   if [ -z "$name" ]; then echo "http://127.0.0.1:${PORT} (Tailscale name unavailable)"; return; fi
@@ -317,7 +317,7 @@ bridge_url() {
   if [ "$SERVE_PORT" = "443" ]; then echo "https://${name}"; else echo "https://${name}:${SERVE_PORT}"; fi
 }
 
-# The version Collie is actually serving — read from the built bundle's stamp
+# The version Nenu is actually serving — read from the built bundle's stamp
 # (web/dist/build-info.json, the same id the PWA footer and /api/config report), e.g. "0.16.0+3441656".
 # Falls back to the manifest version (tagged "web not built") when web/dist doesn't exist yet. This is
 # the authoritative "what's running", unlike Herdr's registry value which is cached at link time.
@@ -383,7 +383,7 @@ tailnet_inbound_blocked() {
     "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{const f=JSON.parse(d).PacketFilter;process.exit(Array.isArray(f)&&f.length===0?0:1)}catch{process.exit(1)}})"
 }
 
-# One scannable "is Collie up?" summary — readiness, how it's supervised, and both URLs. Shared by
+# One scannable "is Nenu up?" summary — readiness, how it's supervised, and both URLs. Shared by
 # `start` (post-launch confirmation) and `status` (on demand) so the two always agree.
 print_status_banner() {
   local svc
@@ -419,9 +419,9 @@ print_status_banner() {
   local ready=0; bridge_ready || ready=1
   echo
   if [ "$ready" = 0 ]; then
-    echo "  ✓ Collie is running  ·  v${ver}"
+    echo "  ✓ Nenu is running  ·  v${ver}"
   else
-    echo "  ⚠ Collie isn't answering on :${PORT} yet (v${ver}) — check 'collie-ctl.sh logs'"
+    echo "  ⚠ Nenu isn't answering on :${PORT} yet (v${ver}) — check 'collie-ctl.sh logs'"
   fi
   echo "    service   ${svc}"
   echo "    local     http://127.0.0.1:${PORT}"
@@ -466,7 +466,7 @@ write_unit() {
   mkdir -p "$(dirname "$UNIT_FILE")" "$CONFIG_DIR"
   cat > "$UNIT_FILE" <<EOF
 [Unit]
-Description=Collie
+Description=Nenu
 After=default.target
 # Never give up restarting — a phone-only operator can't run 'systemctl reset-failed'.
 StartLimitIntervalSec=0
@@ -658,7 +658,7 @@ cmd_stop() {
 cmd_restart() { cmd_stop; cmd_start; }
 
 # Tear the service down completely (the inverse of `start`): stop + disable it, remove the service
-# definition, remove Collie's tailscale serve mapping, and drop the pidfile. Deliberately leaves your
+# definition, remove Nenu's tailscale serve mapping, and drop the pidfile. Deliberately leaves your
 # config (${CONFIG_DIR}/.env) and the on-disk checkout in place — `uninstall` removes only what
 # `start` created. To remove the plugin registration too, run `herdr plugin uninstall herdr.collie`
 # (or, for a linked clone, just delete the checkout).
@@ -677,7 +677,7 @@ cmd_uninstall() {
     launchctl enable "$(launchd_target)" 2>/dev/null || true
   fi
   rm -f "${CONFIG_DIR}/collie.pid"
-  echo "✓ uninstalled: service stopped & disabled, service definition removed, Collie's tailscale serve mapping removed"
+  echo "✓ uninstalled: service stopped & disabled, service definition removed, Nenu's tailscale serve mapping removed"
   echo "  kept: ${CONFIG_DIR}/.env and the checkout — delete those to remove every trace"
 }
 
@@ -789,7 +789,7 @@ tag_commit()  { printf '%s' "${1-}" | awk '{ print $5 }'; }
 # Say a higher major is out, and name the one command that takes it. Never acts.
 announce_major() {
   [ -n "${1-}" ] || return 0
-  echo "note: Collie $(tag_version "$1") is out — a NEW MAJOR, which a routine update never takes."
+  echo "note: Nenu $(tag_version "$1") is out — a NEW MAJOR, which a routine update never takes."
   echo "      Read its release notes, then consent to it with:  ${MAJOR_ACTION}"
 }
 
@@ -841,7 +841,7 @@ update_managed() {
       echo "error: no release tags on origin — cannot pin an unversioned checkout" >&2
       return 1
     fi
-    echo "updating Collie (Herdr-managed checkout: no readable version — pinning to newest release tag $(tag_name "$best"))…"
+    echo "updating Nenu (Herdr-managed checkout: no readable version — pinning to newest release tag $(tag_name "$best"))…"
     detach_onto "refs/tags/$(tag_name "$best")"
     return
   fi
@@ -852,7 +852,7 @@ update_managed() {
       echo "no release above major ${major} exists yet — nothing to cross to."
       return 0
     fi
-    echo "crossing to Collie $(tag_version "$higher") (--major given: consented)…"
+    echo "crossing to Nenu $(tag_version "$higher") (--major given: consented)…"
     detach_onto "refs/tags/$(tag_name "$higher")"
     return
   fi
@@ -870,7 +870,7 @@ update_managed() {
     announce_major "$higher"
     return 0
   fi
-  echo "updating Collie (Herdr-managed checkout: fetch + detach onto $(tag_name "$best"))…"
+  echo "updating Nenu (Herdr-managed checkout: fetch + detach onto $(tag_name "$best"))…"
   detach_onto "refs/tags/$(tag_name "$best")"
   announce_major "$higher"
 }
@@ -906,7 +906,7 @@ update_linked() {
       return 0
     fi
   fi
-  echo "updating Collie (git pull --ff-only)…"
+  echo "updating Nenu (git pull --ff-only)…"
   git -C "$PLUGIN_ROOT" pull --ff-only
 }
 
@@ -933,7 +933,7 @@ update_checkout() {
   fi
 }
 
-# Update to the newest release of the major this install is on. Collie is a link-mode Herdr plugin,
+# Update to the newest release of the major this install is on. Nenu is a link-mode Herdr plugin,
 # so the checkout on disk IS the plugin (Herdr has no `plugin update`) — this is the turnkey refresh:
 # advance the checkout, rebuild the UI, restart the backend. That can rewrite THIS script, and bash
 # reads scripts by byte offset, so we re-exec the fresh copy (via the internal `_apply-update` step)
@@ -992,7 +992,7 @@ remove_tailscale_handler() {
     *"handler does not exist"*) return 0 ;;
   esac
   [ -z "$output" ] || printf '%s\n' "$output" >&2
-  echo "error: failed to remove Collie's ${description} mapping" >&2
+  echo "error: failed to remove Nenu's ${description} mapping" >&2
   return 1
 }
 
@@ -1031,7 +1031,7 @@ tailscale_root_fingerprint() {
   printf '%s\n' "$result"
 }
 
-# Remove ONLY the mapping Collie recorded as its own — never a blanket `tailscale serve reset`, and
+# Remove ONLY the mapping Nenu recorded as its own — never a blanket `tailscale serve reset`, and
 # never a blind `--https=443 off` that could take down a mapping someone else put there. With no
 # ownership record there is nothing to remove. If the recorded root has since been replaced, refuse
 # and keep the record: a wrong removal here silently unpublishes somebody else's service.
@@ -1078,7 +1078,7 @@ stop_tailscale_serve() {
         ;;
     esac
   else
-    echo "tailscale serve: no Collie-managed mapping recorded"
+    echo "tailscale serve: no Nenu-managed mapping recorded"
     return 0
   fi
   if ! command -v tailscale >/dev/null; then
@@ -1116,15 +1116,15 @@ stop_tailscale_serve() {
     echo "error: Tailscale root was removed but ownership state could not be removed" >&2
     return 1
   fi
-  echo "tailscale serve: removed Collie's managed ${managed_handler} mapping"
+  echo "tailscale serve: removed Nenu's managed ${managed_handler} mapping"
 }
 
 # Refuse to publish over a root mount we don't own. `tailscale serve --bg … /` silently REPLACES an
-# existing root handler, so without this check a Collie start could unpublish an unrelated service
+# existing root handler, so without this check a Nenu start could unpublish an unrelated service
 # that got there first.
 #
 # "Don't own" is decided by where the mount points, not by our ownership file. Every install that
-# predates ownership tracking has Collie's own root mount and NO record of it, so a pure file check
+# predates ownership tracking has Nenu's own root mount and NO record of it, so a pure file check
 # would refuse to republish on exactly the deployments that already work — bricking start/restart/
 # update on upgrade. A root already proxying to our own `http://127.0.0.1:$PORT` is therefore
 # adopted: republishing over it is a no-op, and we then record it. A foreground serve session is
@@ -1200,7 +1200,7 @@ ensure_tailscale_root_available() {
     return 1
   fi
   if [ "$result" = "adoptable" ]; then
-    echo "tailscale serve: adopting the existing Collie root mount on :${port}"
+    echo "tailscale serve: adopting the existing Nenu root mount on :${port}"
   fi
 }
 
@@ -1272,7 +1272,7 @@ cmd_serve() {
   fi
 }
 
-# The inverse of cmd_serve: remove Collie's own mapping and nothing else.
+# The inverse of cmd_serve: remove Nenu's own mapping and nothing else.
 cmd_unserve() { stop_tailscale_serve; }
 
 cmd_status() {
@@ -1285,7 +1285,7 @@ cmd_status() {
 }
 
 # Scan your way onto the bridge. Opt-in as its own subcommand rather than part of `start`: a
-# scannable QR is ~16 rows even in the compact renderer, and Collie is a PWA — once it's on your home
+# scannable QR is ~16 rows even in the compact renderer, and Nenu is a PWA — once it's on your home
 # screen you never need the URL again, so this is a first-run convenience that shouldn't tax every
 # start. Delegates the drawing to scripts/qr.ts; what lives HERE is which URL is worth a QR at all.
 cmd_qr() {
