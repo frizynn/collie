@@ -19,6 +19,7 @@ import {
   resolveStaticPath,
   sendReplySteps,
   startupWarnings,
+  staticContentType,
   withBuildHeader,
   type ReplySender,
 } from "./server.ts";
@@ -947,6 +948,14 @@ describe("withBuildHeader", () => {
 // Cache-Control selection for served dist files. Hashed assets cache hard; every other (mutable)
 // dist file — crucially sw.js, which shipped with NO Cache-Control before — must be no-cache so a
 // browser or reverse proxy always revalidates it and can't wedge the update pipeline on a stale copy.
+describe("staticContentType", () => {
+  test("serves PDF module workers with an executable module MIME under nosniff", () => {
+    expect(staticContentType("/web/dist/assets/pdf.worker.min-abc.mjs")).toBe("text/javascript; charset=utf-8");
+    expect(staticContentType("/web/dist/assets/index-abc.js")).toBe("text/javascript; charset=utf-8");
+    expect(staticContentType("/web/dist/assets/unknown.bin")).toBe("application/octet-stream");
+  });
+});
+
 describe("cacheControlFor", () => {
   test("hashed assets under assets/ are immutable", () => {
     expect(cacheControlFor("assets/index-B7cWgJ3M.js")).toBe(
@@ -1006,6 +1015,11 @@ describe("marksPaneSeen — CSRF guard on marking a pane seen", () => {
   test("history is a read — it needs the header too", () => {
     expect(marksPaneSeen(withHeader(), "history")).toBe(false);
     expect(marksPaneSeen(withHeader({ [SEEN_HEADER]: "1" }), "history")).toBe(true);
+  });
+
+  test("file previews cannot mark the pane seen through a cross-site image request", () => {
+    expect(marksPaneSeen(withHeader(), "file")).toBe(false);
+    expect(marksPaneSeen(withHeader({ [SEEN_HEADER]: "1" }), "file")).toBe(true);
   });
 
   test("write actions count without it — they already cleared the Origin-requiring write gate", () => {

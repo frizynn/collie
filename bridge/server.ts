@@ -1,6 +1,7 @@
 import { historyResponse } from "./history-response.ts";
 import { discoverPaneSkills } from "./skills.ts";
 import { discoverPaneModels } from "./models.ts";
+import { paneFileResponse } from "./pane-files.ts";
 import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { extname, join, normalize, sep } from "node:path";
@@ -64,6 +65,7 @@ const WEB_DIR = join(import.meta.dir, "..", "web", "dist");
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".webmanifest": "application/manifest+json; charset=utf-8",
@@ -77,7 +79,7 @@ const CONTENT_TYPES: Record<string, string> = {
 // React as text nodes, never markup, so terminal output can't inject. 'unsafe-inline' is allowed
 // for styles only (the toast library injects a <style> tag) — it can't execute code.
 const CSP =
-  "default-src 'self'; connect-src 'self'; img-src 'self' data:; " +
+  "default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; " +
   "style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self'; " +
   "manifest-src 'self'; base-uri 'none'; frame-ancestors 'none'";
 
@@ -108,7 +110,7 @@ export function isLoopbackPeer(address: string | null | undefined): boolean {
   return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(v4);
 }
 
-const PANE_ROUTE = /^\/api\/pane\/([^/]+)(?:\/(reply|keys|upload|close|rename|history|skills|models))?$/;
+const PANE_ROUTE = /^\/api\/pane\/([^/]+)(?:\/(reply|keys|upload|close|rename|history|skills|models|file))?$/;
 // Turns per history page. "Show entire history" means the WHOLE conversation, so the client asks for
 // everything and this ceiling is a safety net against a pathological log, not the normal path — a
 // 1400-turn session is ~1.4 MB raw / ~400 KB gzipped, which a tailnet link serves fine. The default
@@ -147,7 +149,7 @@ export const SEEN_HEADER = "x-collie-seen";
  */
 export function marksPaneSeen(req: Request, action: string | undefined): boolean {
   if (req.headers.get(SEEN_HEADER) !== null) return true;
-  return action !== undefined && action !== "history" && action !== "skills" && action !== "models";
+  return action !== undefined && action !== "history" && action !== "skills" && action !== "models" && action !== "file";
 }
 
 export function startServer(opts: {
@@ -280,7 +282,7 @@ export function startServer(opts: {
         // Reading a pane is allowed for any access-gated client; every action (reply/keys/upload/
         // close) types into or restructures a terminal, so it additionally needs an authorised device.
         // History and skill discovery are READ actions; neither drives a terminal.
-        const isRead = !action || action === "history" || action === "skills" || action === "models";
+        const isRead = !action || action === "history" || action === "skills" || action === "models" || action === "file";
         const denied = guard(req, cfg, isRead ? "read" : "write");
         if (denied) return denied;
         const rt = registry.get(sessionName);
@@ -302,6 +304,11 @@ export function startServer(opts: {
         const device = isRead ? null : deviceAuth(req, cfg).device;
 
         if (!action && req.method === "GET") return readPane(herdr, cfg, paneId, url, req);
+        if (action === "file" && req.method === "GET") {
+          const current = rt.engine.current();
+          const pane = [...current.agents, ...current.shellPanes].find((entry) => entry.paneId === paneId);
+          return secure(await paneFileResponse(pane?.cwd, url.searchParams.get("path")));
+        }
         if (action === "models" && req.method === "GET") {
           const snapshot = rt.engine.current();
           const pane = snapshot.agents.find((candidate) => candidate.paneId === paneId);
@@ -1502,13 +1509,18 @@ async function serveStatic(pathname: string): Promise<Response> {
 
   const ext = extname(full);
   const headers: Record<string, string> = {
-    "content-type": CONTENT_TYPES[ext] ?? "application/octet-stream",
+    "content-type": staticContentType(full),
     [BUILD_HEADER]: await buildId(), // which bundle the server is serving (vs the client's stamp)
     "cache-control": cacheControlFor(rel),
   };
   if (ext === ".html") headers["content-security-policy"] = CSP;
   if (rel === "sw.js") headers["service-worker-allowed"] = "/";
   return secure(new Response(file, { headers }));
+}
+
+/** Module workers need a JavaScript MIME under nosniff, including Vite's emitted .mjs assets. */
+export function staticContentType(path: string): string {
+  return CONTENT_TYPES[extname(path)] ?? "application/octet-stream";
 }
 
 /**

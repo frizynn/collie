@@ -107,6 +107,19 @@ function withSession(path: string, session?: string): string {
   return `${path}${sep}session=${encodeURIComponent(s)}`;
 }
 
+export function paneFileUrl(paneId: string, path: string, session?: string): string {
+  return withSession(`/api/pane/${encodeURIComponent(paneId)}/file?path=${encodeURIComponent(path)}`, session);
+}
+
+export async function fetchPaneFile(paneId: string, path: string, session: string | undefined, signal: AbortSignal): Promise<Response> {
+  const res = await apiFetch(paneFileUrl(paneId, path, session), {
+    signal: withTimeout(signal, UPLOAD_TIMEOUT_MS), cache: "no-store",
+    headers: { [XHR_HEADER]: XHR_HEADER_VALUE },
+  });
+  if (!res.ok) throw new ApiError(`Could not open file (${res.status}): ${await errorDetail(res)}`, res.status);
+  return res;
+}
+
 // Best-effort human-readable failure detail: the response body if present, else the status text.
 async function errorDetail(res: Response): Promise<string> {
   try {

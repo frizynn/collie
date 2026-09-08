@@ -22,7 +22,7 @@ export function UpdateAvailableBanner() {
     <button
       type="button"
       onClick={() => void checkForUpdate()}
-      className="flex w-full shrink-0 items-center gap-2 border-b border-status-working/40 bg-status-working/15 px-4 py-1.5 text-left text-xs font-medium text-foreground [padding-top:calc(env(safe-area-inset-top)_+_0.375rem)]"
+      className="flex w-full shrink-0 items-center gap-2 border-b border-status-working/40 bg-status-working/15 px-4 py-1.5 text-left text-xs font-medium text-foreground"
     >
       <ArrowUpCircle className="size-3.5 shrink-0 text-status-working" />
       <span className="min-w-0 flex-1 truncate">New version — tap to update</span>

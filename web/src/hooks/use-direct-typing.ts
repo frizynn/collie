@@ -129,7 +129,7 @@ export function useDirectTyping({
     // activation; a deferred focus selects the field but mobile browsers may refuse to open their
     // software keyboard once that activation has expired. The existing callback still runs after
     // React swaps the controlled value so selection lands at the end.
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
     focusInput();
   }
 

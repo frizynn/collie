@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 // The bridge (Bun server) serves the built app from `web/dist` and proxies nothing — the
@@ -114,6 +114,19 @@ export default defineConfig({
     react(),
     tailwindcss(),
     buildInfoPlugin,
+    {
+      name: "pdf-preview-resources",
+      generateBundle() {
+        for (const directory of ["cmaps", "standard_fonts", "wasm"]) {
+          const root = resolve(import.meta.dirname, "node_modules/pdfjs-dist", directory);
+          for (const file of readdirSync(root)) {
+            // PDF scripting is never enabled by the viewer; no QuickJS evaluator is shipped.
+            if (file.startsWith("quickjs")) continue;
+            this.emitFile({ type: "asset", fileName: `pdfjs/${directory}/${file}`, source: readFileSync(resolve(root, file)) });
+          }
+        }
+      },
+    },
     VitePWA({
       // Build the manifest + service worker. We use `injectManifest` (not the default generateSW)
       // because we hand-write the SW in `src/sw.ts` to add `push` + `notificationclick` handlers a
@@ -156,6 +169,9 @@ export default defineConfig({
         // `unicode-range` already makes them lazy (index.css), so precaching them would charge
         // every install for glyphs most herds never paint. src/sw.ts caches them on first use.
         globPatterns: ["**/*.{js,css,html,svg,png,ico,webmanifest}"],
+        // PDF rendering stays on-demand, including in installed PWAs. No multi-megabyte worker
+        // download merely for opening a conversation.
+        globIgnores: ["**/pdf-preview-*.js", "**/pdf.worker*.mjs", "pdfjs/**"],
       },
       // Over plain HTTP (insecure context) the SW can't register; in dev we don't want it anyway.
       devOptions: { enabled: false },

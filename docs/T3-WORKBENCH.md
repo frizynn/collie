@@ -297,3 +297,38 @@ skills. Desktop sidebar collapse/reopen preserved the exact textarea element and
 reopen button passed hit testing. At 390×844, mobile home and sidebar close/reopen had no horizontal
 overflow. The real primary home showed its three projects and eight threads in the new layout.
 Physical mobile Safari remains untested; the latency measurement is a local sample, not a guarantee.
+
+## Mobile documents and model selection — 2026-09-08
+
+Local Markdown links and inline code paths now open a document inspector without navigating away
+from the conversation. Markdown renders through the existing React text-node AST; source files and
+HTML/SVG remain literal text. Raster images and PDFs have an explicit download action. Relative
+links inside Markdown resolve against that document's directory.
+
+`GET /api/pane/:id/file?path=…&session=…` uses the same authenticated read gate as history. Paths
+must stay inside the live pane cwd after symlink resolution, and sensitive paths are refused.
+Text is limited to 2 MiB, PDF/images to 20 MiB. Files in another workspace or external temporary
+directories must first be placed in the current project. No content is saved in browser caches.
+
+PDF.js and its worker load only when opening a PDF, outside the PWA precache. One page is rendered
+at a time, with a four-million-pixel canvas cap, cancelled renders and worker teardown on close.
+Bundled CMaps, standard fonts and image decoders are fetched on demand. Scripting is never enabled;
+JS image decoder fallbacks preserve the strict CSP. Document byte size and canvas limits do not
+promise a fixed total memory bound for every compressed PDF.
+
+The Astra failure came from treating Codex's `(default)` annotation as part of its model slug when
+another model was current. Only that presentation suffix is normalized; reasoning and Claude
+labels retain their own grammar. The model cache version changes to discard previously contaminated
+rows. Evidence: [Codex's model-picker snapshot](https://github.com/openai/codex/blob/main/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap).
+
+Mobile safe-area has one owner, above route headers and banners. The app follows Safari's visual
+viewport through CSS variables and a coalesced animation frame; pinch zoom is preserved. Inputs
+are at least 16px on narrow/touch screens, programmatic focus preserves scroll, and a sheet's nested
+scroll region no longer starts drag-to-dismiss. Panel entrances and press feedback honor reduced
+motion. No animation library or recurring document poller was added.
+
+Validation: full frontend suite passed (4,246 tests, 30 existing TODOs), backend/lifecycle suite
+passed, and production build/typechecks passed. Additional targeted tests cover document links,
+safe rendering, retry/abort/blob cleanup, file containment/MIME and Astra default selection.
+Browser QA at 390×844 confirmed sidebar/picker/focus interactions leave document scroll at zero
+and preserve the draft. Physical iPhone Safari keyboard/notch behavior still needs device feedback.

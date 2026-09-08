@@ -56,7 +56,7 @@ export function useSkillComposer({ paneId, session, agent, input, updateInput, i
     setCursor(next.cursor);
     setDismissed(tokenKey);
     // The native input keeps ownership of the keyboard on both touch and desktop selection.
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
     requestAnimationFrame(() => inputRef.current?.setSelectionRange(next.cursor, next.cursor));
   }
 
