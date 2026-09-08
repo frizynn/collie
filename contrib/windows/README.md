@@ -66,7 +66,7 @@ nothing is relaxed here.
 ## Support
 
 **Community-maintained by [Pimpmuckl](https://github.com/Pimpmuckl) (Jonathan Liebig)**, extracted
-from [#71](https://github.com/frizynn/nenu/pull/71). Verified against **0.27.x** at extraction
+from [upstream #71](https://github.com/AltanS/collie/pull/71). Verified against **0.27.x** at extraction
 time. It is **not covered by CI, not exercised by the release process, and not part of the
 supported tree** — the maintainer does not run Windows. Fixes arrive as pull requests, not as bug
 reports; if it breaks against a newer Nenu, send the patch.

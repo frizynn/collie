@@ -922,7 +922,7 @@ update_checkout() {
   if wants_major "$@"; then cross=1; fi
   if ! git -C "$PLUGIN_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
     echo "error: ${PLUGIN_ROOT} is not a git checkout — refresh it with:" >&2
-    echo "       herdr plugin install AltanS/collie --yes" >&2
+    echo "       herdr plugin install frizynn/nenu --yes" >&2
     return 1
   fi
   local installed; installed="$(installed_version)"

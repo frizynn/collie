@@ -4,6 +4,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 # A new push to a PR supersedes the old run — don't burn a runner on the stale one.
 concurrency:
@@ -14,6 +18,7 @@ jobs:
   check:
     name: typecheck + tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -35,3 +40,6 @@ jobs:
         run: cd web && bun run typecheck
       - name: Test (web)
         run: cd web && bun run test
+
+      - name: Production build
+        run: bun run build

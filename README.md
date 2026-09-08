@@ -128,7 +128,7 @@ Nenu follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) while it
 
 1. matching versions in the Herdr manifest and both package manifests;
 2. a curated entry in [CHANGELOG.md](CHANGELOG.md);
-3. a signed-off commit reachable from `main`;
+3. a validated commit reachable from `main`;
 4. a single annotated `vX.Y.Z` tag; and
 5. a GitHub Release created only after version checks, tests, and the production build pass.
 
