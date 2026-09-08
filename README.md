@@ -139,9 +139,23 @@ Nenu is a single-operator, self-hosted public preview. Interfaces and configurat
 before 1.0, with breaking operator changes reserved for a major release. The compatibility surface
 includes the Herdr plugin actions, environment variables, stored state, and bridge HTTP API.
 
-This project is a fork of [AltanS/collie](https://github.com/AltanS/collie). The Nenu interface also
-contains MIT-licensed adaptations from [T3 Code](https://github.com/pingdotgg/t3code). Attribution and
-vendored dependency notices are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+## Acknowledgements
+
+Nenu stands on the work of two open-source projects:
+
+- [Collie](https://github.com/AltanS/collie), created by
+  [Altan Sarisin](https://github.com/AltanS), is the project Nenu originated from. Its Herdr bridge,
+  self-hosted PWA, Tailscale access, notifications, and guarded terminal controls form Nenu's
+  foundation.
+- [T3 Code](https://github.com/pingdotgg/t3code), by
+  [T3 Tools](https://github.com/pingdotgg), inspired Nenu's conversation-first presentation. Nenu
+  includes MIT-licensed adaptations of its visual hierarchy, model controls, command completion,
+  work grouping, context display, and compact notifications.
+
+Nenu remains an independent community project and is not affiliated with or endorsed by either
+upstream project. Original copyright, license text, adapted-file details, and vendored dependency
+notices are preserved in [LICENSE](LICENSE) and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Contributing and support
 
