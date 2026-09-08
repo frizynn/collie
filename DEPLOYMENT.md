@@ -10,7 +10,7 @@ four shapes here are for everything else. Pick one.
 - [Variant D — off-host identity proxy over the tailnet](#variant-d--off-host-identity-proxy-over-the-tailnet)
 - [Variant E — any other mesh or tunnel](#variant-e--any-other-mesh-or-tunnel-netbird-zerotier-cloudflare-tunnel)
 
-Not a variant, but it crosses all of them: [Several Collies on one host](#several-collies-on-one-host).
+Not a variant, but it crosses all of them: [Several Nenu instances on one host](#several-collies-on-one-host).
 
 The security rules in [README → Security](./README.md#%EF%B8%8F-security--read-before-you-run-it)
 are not relaxed by any of them.
@@ -28,8 +28,8 @@ Nenu side (`.env`):
 COLLIE_HOST=127.0.0.1                       # keep loopback (default)
 COLLIE_DEVICE_HEADER=X-Device-Id            # the header your proxy injects
 COLLIE_DEVICE_ALLOWLIST=my-phone,my-laptop  # ids allowed to drive agents; others → read-only
-# COLLIE_ALLOWED_ORIGINS=https://collie.example.com   # only if the proxy does NOT forward the public Host
-# COLLIE_PUBLIC_HOSTS=collie.example.com    # REQUIRED unless the proxy forwards a Host Nenu already knows
+# COLLIE_ALLOWED_ORIGINS=https://nenu.example.com   # only if the proxy does NOT forward the public Host
+# COLLIE_PUBLIC_HOSTS=nenu.example.com    # REQUIRED unless the proxy forwards a Host Nenu already knows
 # COLLIE_ALLOW_ANY_HOST=1                   # opt out of Host validation entirely (re-opens DNS rebinding)
 # COLLIE_TRUSTED_USER still composes on top if your ingress also injects Tailscale-User-Login
 # COLLIE_TRUSTED_USER_OPTIONAL=1            # accept a request carrying no Tailscale-User-Login at all
@@ -65,10 +65,10 @@ location / {
 **Is it actually working?** Run both from a device that reaches Nenu *through the proxy*:
 
 ```console
-$ curl -s https://collie.example.com/api/snapshot | jq -c .device
+$ curl -s https://nenu.example.com/api/snapshot | jq -c .device
 {"enforced":true,"device":"my-laptop","authorized":true}
 
-$ curl -s -H 'X-Device-Id: my-phone' https://collie.example.com/api/snapshot | jq -c .device
+$ curl -s -H 'X-Device-Id: my-phone' https://nenu.example.com/api/snapshot | jq -c .device
 {"enforced":true,"device":"my-laptop","authorized":true}
 ```
 
@@ -127,7 +127,7 @@ The **four proxy requirements from
 *is* the identity-aware front door here. A minimal Caddy front door:
 
 ```caddyfile
-collie.example.com {
+nenu.example.com {
     # TLS is automatic (Let's Encrypt). Put YOUR access control here
     # (forward_auth / mTLS / SSO) — it also yields the per-device id below.
     reverse_proxy 127.0.0.1:8787 {
@@ -141,13 +141,13 @@ Required env (`.env`):
 
 ```bash
 COLLIE_SKIP_SERVE=1                                 # proxy is ingress; never run tailscale serve
-COLLIE_PUBLIC_HOSTS=collie.example.com              # REQUIRED — Host validation fails closed, and
+COLLIE_PUBLIC_HOSTS=nenu.example.com              # REQUIRED — Host validation fails closed, and
                                                     # collie-ctl.sh discovers no tailnet name here
 # COLLIE_ALLOW_ANY_HOST=1                           # opt out of Host validation (re-opens DNS rebinding)
-COLLIE_ALLOWED_ORIGINS=https://collie.example.com   # exact public origin for the same-origin gate
+COLLIE_ALLOWED_ORIGINS=https://nenu.example.com   # exact public origin for the same-origin gate
 COLLIE_DEVICE_HEADER=X-Device-Id                    # the header your proxy injects…
 COLLIE_DEVICE_ALLOWLIST=my-phone,my-laptop          # …and the ids allowed to drive; others → read-only
-# COLLIE_PUBLIC_URL=https://collie.example.com      # optional — shown in the collie-ctl.sh status banner
+# COLLIE_PUBLIC_URL=https://nenu.example.com      # optional — shown in the collie-ctl.sh status banner
 ```
 
 > ⚠️ **`COLLIE_TRUSTED_USER` does nothing here.** It gates on `Tailscale-User-Login`, which only
@@ -171,7 +171,7 @@ COLLIE_DEVICE_ALLOWLIST=my-phone,my-laptop          # …and the ids allowed to 
 there.
 
 ```caddyfile
-collie.example.com {
+nenu.example.com {
     handle /auth/* {
         # your sign-in / device-enrolment flow, exempt from the auth check that guards the rest
         reverse_proxy 127.0.0.1:9091
@@ -207,10 +207,10 @@ service worker so an installed PWA cannot replace the auth flow with its cached 
 **Is it actually working?** Two checks against the public URL:
 
 ```console
-$ curl -s https://collie.example.com/api/snapshot | jq -c .device
+$ curl -s https://nenu.example.com/api/snapshot | jq -c .device
 {"enforced":true,"device":"my-phone","authorized":true}
 
-$ curl -sI https://collie.example.com/sw.js | grep -i '^cache-control'
+$ curl -sI https://nenu.example.com/sw.js | grep -i '^cache-control'
 cache-control: no-cache
 ```
 
@@ -304,7 +304,7 @@ COLLIE_PUBLIC_HOSTS=host:8787,host.your-tailnet.ts.net:8787   # REQUIRED — the
                                                       # COLLIE_TAILSCALE_HOSTS carries the bare tailnet
                                                       # name collie-ctl.sh found; a rewritten Host is
                                                       # yours to list. COLLIE_ALLOW_ANY_HOST=1 opts out.
-COLLIE_ALLOWED_ORIGINS=https://collie.example.com     # the public origin the browser actually uses
+COLLIE_ALLOWED_ORIGINS=https://nenu.example.com     # the public origin the browser actually uses
 ```
 
 > **`COLLIE_TRUSTED_USER` is not a person gate in this shape.** `tailscale serve --http` *does* still
@@ -321,7 +321,7 @@ from a machine that can actually observe it.
 agent host):
 
 ```console
-$ curl -s https://collie.example.com/api/snapshot | jq -c .device
+$ curl -s https://nenu.example.com/api/snapshot | jq -c .device
 {"enforced":true,"device":"my-phone","authorized":true}
 
 $ curl -s --max-time 10 -H 'X-Tailnet-Device: my-phone' http://host.your-tailnet.ts.net:8787/api/snapshot
@@ -361,9 +361,9 @@ other tunnel you own the ingress and Nenu stays out of the way:
 
 ```bash
 COLLIE_SKIP_SERVE=1                                 # never run tailscale serve
-COLLIE_PUBLIC_HOSTS=collie.example.com              # REQUIRED — exact public host; Host validation
+COLLIE_PUBLIC_HOSTS=nenu.example.com              # REQUIRED — exact public host; Host validation
                                                     # fails closed and finds no tailnet name here
-COLLIE_ALLOWED_ORIGINS=https://collie.example.com   # exact public origin for the same-origin gate
+COLLIE_ALLOWED_ORIGINS=https://nenu.example.com   # exact public origin for the same-origin gate
 ```
 
 Then point your tunnel at `127.0.0.1:$COLLIE_PORT` and start it however you start your other
@@ -392,7 +392,7 @@ Three things to get right, none of them Nenu-specific:
 > [README → Security](./README.md#%EF%B8%8F-security--read-before-you-run-it). Prefer a tunnel scoped
 > to your own devices over a public URL with a gate on it.
 
-## Several Collies on one host
+## Several Nenu instances on one host
 
 One shared machine, one Unix user per developer, each running their own Herdr and their own Nenu.
 The machine has a single tailnet name, so the thing that has to differ per user is the **port at both
@@ -412,7 +412,7 @@ The next developer takes `8802` / `8444`, and so on. Each gets their own URL —
 Two things to get right:
 
 - **`COLLIE_TRUSTED_USER` is what keeps the herds apart.** Every developer is on the same tailnet, so
-  without it any of them can open any of the others' Collies and drive their agents. `tailscale serve`
+  without it any of them can open any of the others' Nenu instances and drive their agents. `tailscale serve`
   injects the caller's tailnet login and Nenu rejects every other identity.
 - **Publishing needs root or the Tailscale operator.** `tailscale serve` may be run only by root or by
   the one user named in `tailscale set --operator=`, and there is exactly one such user per machine.

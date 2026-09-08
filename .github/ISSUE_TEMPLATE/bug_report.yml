@@ -1,0 +1,51 @@
+name: Bug report
+description: Report reproducible incorrect behavior in Nenu
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Remove secrets, private pane output, usernames, hostnames, and source code from everything you submit. Security vulnerabilities belong in a private advisory.
+  - type: checkboxes
+    attributes:
+      label: Safety check
+      options:
+        - label: This is not a security vulnerability or sensitive disclosure.
+          required: true
+        - label: I searched existing issues and discussions.
+          required: true
+  - type: input
+    attributes:
+      label: Nenu version
+      description: Run `herdr plugin action invoke version --plugin herdr.collie`.
+      placeholder: 0.37.0+abcdef0
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Environment
+      description: Host OS, browser/device, Herdr version, install method, and deployment variant.
+      placeholder: macOS 15, iPhone Safari 18, Herdr 0.7.0, linked clone, Tailscale Serve
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: Give the smallest repeatable sequence.
+      placeholder: |
+        1. Open …
+        2. Tap …
+        3. Observe …
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Sanitized diagnostics
+      description: Optional logs, screenshots, or build headers with private data removed.
+      render: shell

@@ -22,7 +22,7 @@ If your whole herd can live in WSL, the standard Linux setup applies and none of
 Prerequisites: **Bun**, **git**, Herdr's Windows build, and Tailscale (or your own ingress).
 
 ```powershell
-git clone https://github.com/AltanS/collie.git
+git clone https://github.com/frizynn/nenu.git
 cd collie
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File contrib\windows\collie-ctl.ps1 build
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File contrib\windows\collie-ctl.ps1 start
@@ -66,7 +66,7 @@ nothing is relaxed here.
 ## Support
 
 **Community-maintained by [Pimpmuckl](https://github.com/Pimpmuckl) (Jonathan Liebig)**, extracted
-from [#71](https://github.com/AltanS/collie/pull/71). Verified against **0.27.x** at extraction
+from [#71](https://github.com/frizynn/nenu/pull/71). Verified against **0.27.x** at extraction
 time. It is **not covered by CI, not exercised by the release process, and not part of the
 supported tree** — the maintainer does not run Windows. Fixes arrive as pull requests, not as bug
 reports; if it breaks against a newer Nenu, send the patch.

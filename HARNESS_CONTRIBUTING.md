@@ -2,8 +2,9 @@
 
 Nenu up-levels an agent's terminal dialogs (permission prompts, AskUserQuestion menus, plan
 approvals, …) into native phone buttons. The per-agent knowledge that makes this safe lives in a
-**harness adapter**. Claude Code is the one verified adapter today; this is how you add another
-(codex, pi, opencode, …).
+**harness adapter**. The registry currently contains Claude Code, Codex CLI, Grok Build, omp, AGY,
+and Antigravity adapters at different capability tiers. Unknown agents retain the raw terminal
+fallback. This guide explains how to add or extend an adapter safely.
 
 Read first: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (the interaction loop + security model),
 [`HERDR_API.md`](./HERDR_API.md) (the verified socket + `pane.send_keys` key grammar), and

@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose a focused improvement to Nenu
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and discussions.
+          required: true
+        - label: This request preserves or explicitly addresses Nenu's single-operator security model.
+          required: true
+  - type: textarea
+    attributes:
+      label: Problem
+      description: What operator workflow is difficult today?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed behavior
+      description: Describe the outcome and interaction, including mobile behavior when relevant.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Alternatives and compatibility
+      description: Note other approaches and any impact on `herdr.collie`, `COLLIE_*`, stored state, or existing installs.
