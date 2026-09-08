@@ -1,5 +1,4 @@
 import { mkdir, rename, writeFile } from "node:fs/promises";
-import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { Config } from "./config.ts";
 import type { UpdateStatus } from "./types.ts";
@@ -7,11 +6,10 @@ import type { UpdateStatus } from "./types.ts";
 // Update-availability signal, surfaced on the (access-gated) /api/snapshot as `update`. Two
 // independent questions the running plugin can answer about itself:
 //
-//   • releaseAvailable — is a newer Collie RELEASE published upstream? We read the repo's git tags
-//     over anonymous HTTPS (the repo is public) and compare the newest `vX.Y.Z` to the running
-//     version. No `git` subprocess (the SSH origin has no agent under systemd --user, and a
-//     non-git install has no origin at all), no auth (the 60/hr anonymous limit is irrelevant at a
-//     few-hours cadence), and the fetch is trivially injectable for `bun test`.
+//   • releaseAvailable — is a newer RELEASE published in the explicitly configured repository?
+//     This fork defaults to local builds, so no network request or release notice runs unless
+//     COLLIE_UPDATE_REPO names a GitHub repo. Opted-in checks use anonymous HTTPS and strict
+//     `vX.Y.Z` tags, with no git subprocess or credentials.
 //   • bridgeStale — is the running bridge PROCESS behind the on-disk bridge source? The frontend
 //     build id can't answer this (it's read fresh from disk, so a stale bridge reports the NEW
 //     bundle). We stamp the bridge sources at process start and compare; a rebuilt-but-not-restarted
@@ -118,41 +116,17 @@ export function shouldNotify(a: {
   return a.latest !== a.lastNotified;
 }
 
-/** A stable, comparable stamp of source files by (path, mtime, size). Order-independent. Equality is
- *  all we need — any content edit changes size or mtime, and a pull/rebuild touches the changed files. */
-export function stampOf(entries: { path: string; mtimeMs: number; size: number }[]): string {
-  return [...entries]
-    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
-    .map((e) => `${e.path}:${e.mtimeMs}:${e.size}`)
-    .join("\n");
+/** This fork is locally managed unless an operator explicitly chooses a GitHub release source.
+ * Invalid input also stays local; never silently fall back to the original project's releases. */
+export function resolveUpdateRepo(value: string | undefined): string | null {
+  const repo = value?.trim();
+  if (!repo || repo.toLowerCase() === "off") return null;
+  return /^[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?\/[a-z\d_][a-z\d_.-]{0,99}$/i.test(repo)
+    ? repo
+    : null;
 }
 
 // ── Impure seams (injected into the monitor; not unit-tested) ─────────────────
-
-/** Stamp the running bridge's source: every `bridge/*.ts` (EXCLUDING `*.test.ts` — a test-only edit
- *  needs no restart), plus the root `package.json` + `bun.lock` (a dep bump needs a restart and is
- *  otherwise invisible from `bridge/`). Re-`readdir`s each call so an added/deleted source counts. */
-export function bridgeStampSync(bridgeDir: string, rootDir: string): string {
-  const entries: { path: string; mtimeMs: number; size: number }[] = [];
-  const add = (path: string) => {
-    try {
-      const s = statSync(path);
-      entries.push({ path, mtimeMs: s.mtimeMs, size: s.size });
-    } catch {
-      /* a missing file is itself a change vs the startup stamp — just omit it */
-    }
-  };
-  let names: string[] = [];
-  try {
-    names = readdirSync(bridgeDir).filter((n) => n.endsWith(".ts") && !n.endsWith(".test.ts"));
-  } catch {
-    /* unreadable bridge dir → an empty stamp; startup captured the same, so not "stale" */
-  }
-  for (const n of names) add(join(bridgeDir, n));
-  add(join(rootDir, "package.json"));
-  add(join(rootDir, "bun.lock"));
-  return stampOf(entries);
-}
 
 /** The GitHub release page for a version, e.g. `…/releases/tag/v0.12.0`. Collie tags are `vX.Y.Z`
  *  (the versioning convention), so the `v` prefix is reconstructed from the bare version. GitHub
@@ -224,12 +198,12 @@ export interface UpdateStore {
 }
 
 export interface UpdateMonitorDeps {
-  /** The `owner/name` repo the release check + release links point at (default `AltanS/collie`). */
-  repo: string;
+  /** Explicit `owner/name` release source, or null for locally managed builds. */
+  repo: string | null;
   /** The running plugin version (captured at process start — never re-read from disk, or a post-pull
    *  package.json would mask the very update we're detecting). */
   current: string;
-  /** The bridge source stamp captured at process start (see {@link bridgeStampSync}). */
+  /** The bridge content stamp captured at process start. */
   startupStamp: string;
   /** Fetch the upstream release tag names (throws on failure — the monitor is fail-soft). */
   fetchTags: () => Promise<string[]>;
@@ -259,6 +233,7 @@ export class UpdateMonitor {
    * hammer the API. Always fail-soft — see {@link runCheck}.
    */
   checkRelease(): Promise<void> {
+    if (!this.deps.repo) return Promise.resolve();
     if (this.inFlight) return this.inFlight;
     this.inFlight = this.runCheck().finally(() => {
       this.inFlight = null;
@@ -310,17 +285,19 @@ export class UpdateMonitor {
 
   /** The snapshot-facing status. Cheap: `latest` is cached from the last check, `bridgeStale` throttled. */
   status(): UpdateStatus {
-    const { current } = this.deps;
+    const { current, repo } = this.deps;
     return {
       current,
+      releaseChannel: repo ? "github" : "local",
+      ...(repo ? { releaseRepo: repo } : {}),
       latest: this.latest,
-      latestUrl: this.latest ? githubReleaseUrl(this.deps.repo, this.latest) : null,
+      latestUrl: repo && this.latest ? githubReleaseUrl(repo, this.latest) : null,
       releaseAvailable: this.latest !== null && compareSemver(this.latest, current) > 0,
       majorAvailable: this.majorAvailable,
       majorUrl:
-        this.majorAvailable === null
+        this.majorAvailable === null || !repo
           ? null
-          : githubReleaseUrl(this.deps.repo, this.majorAvailable),
+          : githubReleaseUrl(repo, this.majorAvailable),
       bridgeStale: this.bridgeStale(),
       checkedAt: this.checkedAt,
     };
