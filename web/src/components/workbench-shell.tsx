@@ -40,7 +40,7 @@ export function WorkbenchShell({ data, children }: { data: HomeData; children: R
       <aside id={sidebarId} className="workbench-sidebar" aria-label="Workspace sidebar">
         <div className="workbench-brand-row">
           <Link to={homePath(data.session)} className="workbench-brand">
-            <img src="/favicon.svg" alt="" width="22" height="22" />
+            <img src="/favicon.svg" alt="" width="22" height="22" className="nenu-mark" />
             <span>Collie <span className="font-normal text-muted-foreground">Code</span></span>
           </Link>
           <button ref={collapseButton} type="button" className="workbench-icon-button" aria-label="Collapse sidebar" aria-expanded={!collapsed} aria-controls={sidebarId} onClick={() => setCollapsed(true)}>
@@ -59,7 +59,10 @@ export function WorkbenchShell({ data, children }: { data: HomeData; children: R
           <button type="button" className="workbench-icon-button" aria-label="Open workspaces" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}>
             <PanelLeft aria-hidden="true" size={18} />
           </button>
-          <Link to={homePath(data.session)} className="workbench-brand">Collie <span className="font-normal text-muted-foreground">Code</span></Link>
+          <Link to={homePath(data.session)} className="workbench-brand">
+            <img src="/favicon.svg" alt="" width="22" height="22" className="nenu-mark" />
+            <span>Collie <span className="font-normal text-muted-foreground">Code</span></span>
+          </Link>
           <SessionSwitcher sessions={data.sessions ?? []} current={data.session} />
         </div>
         {children}

@@ -15,6 +15,20 @@
   }
 }
 
+/* favicon.svg already follows the OS when the app follows System. Correct only the two explicit
+   overrides, where the app theme and the SVG's media query disagree. */
+@media (prefers-color-scheme: light) {
+  .dark .nenu-mark {
+    filter: invert(1);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .light .nenu-mark {
+    filter: invert(1);
+  }
+}
+
 /* ── Theme tokens ───────────────────────────────────────────────────────────────────────────────
    Every themed value is a single `light-dark(<light>, <dark>)` declaration, resolved by the
    element's computed `color-scheme`. That is why there is ONE token block here and not two: the
