@@ -2,7 +2,7 @@
 // Herdr snapshot `agent` string to its HarnessAdapter; anything absent from the map has no adapter,
 // so it keeps the universal raw mirror (the T1 fallback). Both gates route through here — the render
 // pipeline (harness/index buildBlocks) and agent-chat's status strip — so the policy can't drift, and
-// adding a further verified agent is a one-line change to ADAPTERS. The list holds three today:
+// adding a further verified agent is a one-line change to ADAPTERS. The registry currently holds:
 // claude, which lifts every block kind; codex, which is Tier 1 chrome plus Tier-2 probed trust /
 // approval / question lifts; grok, which is Tier 1 chrome plus Tier-2 probed permission / ask /
 // plan lifts; and omp, which is Tier 1 and lifts none — it contributes chrome

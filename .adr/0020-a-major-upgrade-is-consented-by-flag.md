@@ -42,10 +42,6 @@ flagged act.**
    instruction in this repo is `herdr plugin action invoke update --plugin herdr.collie`, and the
    phone banner has no terminal at all. A confirm that only a shell can answer would make the major
    upgrade unreachable from the surface that announces it. A flag is answerable from both.
-   *Deliberate contrast with `pack update`, which has an interactive-only confirm and no `--yes`
-   ([ADR 0016](./0016-updates-ride-the-operators-ssh.md)): that verb rebuilds **another** machine, so
-   a human at a terminal is the whole point. This one upgrades the operator's **own** install, from a
-   banner, over a non-TTY action. Same word, opposite constraint.*
 3. **The target is the highest release tag within the installed major, not origin HEAD.** A `0.x`
    install resolves the newest `v0.*`; a `1.x` install the newest `v1.*`; `--major` resolves the
    newest tag of the next major. This kills the class rather than one instance of it: `main` may

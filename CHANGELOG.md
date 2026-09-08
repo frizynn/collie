@@ -1,10 +1,41 @@
 # Changelog
 
-All notable changes to Collie are recorded here. The format follows
+All notable changes to Nenu are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/). The newest `## [x.y.z]` heading **must** match the
 `version` in `herdr-plugin.toml`, `package.json`, and `web/package.json` (enforced by
 `scripts/check-version.sh`). See [`CLAUDE.md`](./CLAUDE.md) → *Versioning* for the bump policy.
+
+## [Unreleased]
+
+## [0.37.0] - 2026-09-08
+
+### Added
+
+- **Conversation-first workbench** with native messages, separate final answers, and compact,
+  expandable thinking and tool activity instead of a wall of terminal cards (15737ab, 246c644).
+- **Provider-aware model, reasoning, skill, and command controls** for Codex CLI and Claude Code,
+  backed by local preloaded catalogs for instant opening (b0375ad, e9b9301, 4ab281e).
+- **Contained Markdown, image, and PDF previews**, including lazy PDF.js loading and project-root
+  path enforcement (5066305).
+- **Nenu identity** across the interface, manifest, PWA icons, and notifications, with an ImageGen
+  mark based on the maintainer's black terrier (d29d422, 4020f97).
+
+### Changed
+
+- Model menus, notifications, navigation, and the empty workspace now follow the quieter T3-style
+  interaction and visual hierarchy while retaining Herdr as the runtime (1f38fff, 547c5ac).
+- Update notices preserve active drafts, can be dismissed, and use a fork-selected release source
+  instead of inheriting Collie releases (b8a3536, 6ffb4ad).
+- Public installation, support, security, contribution, and release documentation now target the
+  canonical Nenu repository; legacy `herdr.collie` and `COLLIE_*` identifiers remain compatible.
+
+### Fixed
+
+- Mobile headers respect iPhone safe areas, drawers no longer shift the global page, and the hidden
+  sidebar always has a recovery control (7d24946, 5066305).
+- Canonical model matching exposes Astra correctly and avoids leaving terminal pickers open behind
+  the native composer (64193b7, 4aa750c).
 
 ## [0.36.0] - 2026-08-28
 
@@ -839,3 +870,6 @@ herd over Tailscale.
   a same-origin gate, an optional `COLLIE_TRUSTED_USER` identity check, optional per-device
   authorisation via a trusted upstream header, a strict CSP, and terminal output rendered as React
   text nodes (the XSS boundary).
+
+[Unreleased]: https://github.com/frizynn/nenu/compare/v0.37.0...HEAD
+[0.37.0]: https://github.com/frizynn/nenu/releases/tag/v0.37.0

@@ -1085,7 +1085,7 @@ test_update_reports_a_non_git_checkout() {
   local out; out="$(run_update_checkout "$root")"; local rc=$?
   set -e
   [ "$rc" -ne 0 ] || fail "update_checkout on a non-git tree reported success"
-  assert_contains "$out" "herdr plugin install AltanS/collie"
+  assert_contains "$out" "herdr plugin install frizynn/nenu"
 }
 
 # ── The major gate (ADR 0020) ────────────────────────────────────────────────────────────────────

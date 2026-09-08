@@ -1,6 +1,6 @@
 {
   "name": "collie",
-  "version": "0.36.0",
+  "version": "0.37.0",
   "private": true,
   "license": "MIT",
   "description": "Nenu — a mobile web UI to monitor and reply to your Herdr agent herd over Tailscale",
@@ -27,5 +27,17 @@
   },
   "optionalDependencies": {
     "web-push": "^3.6.7"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frizynn/nenu.git"
+  },
+  "homepage": "https://github.com/frizynn/nenu#readme",
+  "bugs": {
+    "url": "https://github.com/frizynn/nenu/issues"
+  },
+  "engines": {
+    "bun": ">=1.2.0"
+  },
+  "packageManager": "bun@1.4.0"
 }
