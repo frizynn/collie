@@ -16,7 +16,8 @@ import type { UpdateInfo } from "@/lib/types";
 // banner; here we only confirm an up-to-date result or surface a check failure.
 
 function describe(update: UpdateInfo | undefined): string {
-  if (!update) return "Check whether a new Collie version is available.";
+  if (!update) return "Check whether a new version is available.";
+  if (update.releaseChannel === "local") return "Updates are managed on your Mac. Your browser refreshes when the interface is ready and your work is safe.";
   const checked = update.checkedAt ? ` · checked ${timeAgo(update.checkedAt)}` : "";
   return `Running v${update.current}${checked}`;
 }
@@ -67,7 +68,7 @@ export function UpdateCheckControl() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 border-t border-border/60 p-3">
+      {update?.releaseChannel !== "local" && <div className="flex items-center gap-3 border-t border-border/60 p-3">
         <Button variant="outline" size="sm" disabled={busy} onClick={check}>
           {busy ? (
             <>
@@ -83,7 +84,7 @@ export function UpdateCheckControl() {
         {!busy && !error && upToDate && (
           <span className="text-xs text-muted-foreground">Up to date</span>
         )}
-      </div>
+      </div>}
     </Card>
   );
 }

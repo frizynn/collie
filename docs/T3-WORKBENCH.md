@@ -332,3 +332,21 @@ passed, and production build/typechecks passed. Additional targeted tests cover 
 safe rendering, retry/abort/blob cleanup, file containment/MIME and Astra default selection.
 Browser QA at 390×844 confirmed sidebar/picker/focus interactions leave document scroll at zero
 and preserve the draft. Physical iPhone Safari keyboard/notch behavior still needs device feedback.
+
+## Fork update lifecycle — 2026-09-08
+
+This fork defaults to local update management. It does not query or advertise releases of the
+original project, schedule GitHub release timers, or send their release notifications. Explicit
+`COLLIE_UPDATE_REPO=owner/repo` opts into release checks and links for that repository; unset, blank,
+`off`, or invalid values stay local. This setting does not change the checkout's Git origin or
+install another project. Settings explains local updates and omits the release-check action.
+
+Bridge restart detection compares cached content hashes, including nested runtime modules and
+root dependencies. A checkout or touch that changes timestamps without changing code is no longer
+reported as stale. Real changes still require a service restart; those diagnostics live in Settings.
+
+Browser updates are distinct: a small dismissible “Interface updated” notice offers Reload without
+shifting the conversation. The self-updater, service-worker lifecycle and the PWA plugin's internal
+reload path all respect the same draft/upload/panel guard. Open document previews now hold that
+guard as well. An explicit Reload remains the user's choice; automatic activation waits for safe
+idle. The first service-worker install does not reload an already-current first visit.

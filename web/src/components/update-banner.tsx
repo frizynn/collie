@@ -11,7 +11,7 @@ import type { UpdateInfo } from "@/lib/types";
 // names it with the one command that fixes it. Everything renders as plain React text nodes.
 
 export interface UpdateNotice {
-  /** The human line, e.g. "Bridge restart needed" / "Collie 0.12.0 available". */
+  /** The maintenance or explicitly configured release notice shown in Settings. */
   line: string;
   /** A copyable command that resolves it — a Herdr plugin action, so it runs from ANY directory
    *  (Herdr resolves the plugin's checkout). Only the RESTART case carries one: it has no page to link
@@ -32,21 +32,22 @@ export function updateNotice(update: UpdateInfo | undefined): UpdateNotice | nul
   if (update.bridgeStale) {
     // No release page for "restart needed" — show the Herdr restart action to copy.
     return {
-      line: "Bridge restart needed",
+      line: "Server changes pending — restart the service on your Mac",
       command: "herdr plugin action invoke restart --plugin herdr.collie",
     };
   }
+  if (update.releaseChannel === "local") return null;
   // Guard on `latest` too: without a version string there's nothing meaningful to name. The release
   // page (linked) carries the update commands, so the footer just links there.
   if (update.releaseAvailable && update.latest) {
-    return { line: `Collie ${update.latest} available`, href: update.latestUrl ?? undefined };
+    return { line: `Version ${update.latest} available`, href: update.latestUrl ?? undefined };
   }
   // A MAJOR is out. It ranks below a routine release because it is the one thing the plain update
   // action will NOT take (ADR 0020) — so this line names the consent command instead of leaving the
   // operator to tap update, see it succeed, and still see a banner.
   if (update.majorAvailable) {
     return {
-      line: `Collie ${update.majorAvailable} — a new major`,
+      line: `Version ${update.majorAvailable} — a new major`,
       href: update.majorUrl ?? undefined,
       command: "herdr plugin action invoke update-major --plugin herdr.collie",
     };

@@ -200,6 +200,10 @@ export interface SnapshotResponse {
  * PROCESS (`bridgeStale`) surface here; the client shows one banner, `bridgeStale` taking precedence.
  */
 export interface UpdateStatus {
+  /** Locally managed builds never check or advertise an upstream release. */
+  releaseChannel?: "local" | "github";
+  /** Explicit GitHub owner/repository, present only for the GitHub release channel. */
+  releaseRepo?: string;
   /** The running bridge/plugin version, captured at process start. */
   current: string;
   /** Newest upstream release (dotted `X.Y.Z`, no leading `v`), or null if unknown/none yet. */

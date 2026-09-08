@@ -20,11 +20,12 @@ import {
 import { Snooze } from "./snooze.ts";
 import { StateEngine } from "./state-engine.ts";
 import {
-  bridgeStampSync,
   githubTagsFetcher,
+  resolveUpdateRepo,
   UpdateMonitor,
   UpdateStateStore,
 } from "./update.ts";
+import { createBridgeStampReader } from "./bridge-stamp.ts";
 import { SWEEP_INTERVAL_MS, sweepUploads } from "./uploads.ts";
 
 // How often the registry rescans the filesystem for sessions that appeared/disappeared after boot.
@@ -84,15 +85,15 @@ const currentVersion = (
 const updateStore = new UpdateStateStore(cfg);
 await updateStore.load();
 
-// The repo the release check + release links point at. Defaults to Collie's own; overridable for a
-// fork (or a synthetic test target) via COLLIE_UPDATE_REPO.
-const updateRepo = process.env.COLLIE_UPDATE_REPO?.trim() || "AltanS/collie";
+// This fork ships local builds. GitHub release checks require an explicit operator opt-in.
+const updateRepo = resolveUpdateRepo(process.env.COLLIE_UPDATE_REPO);
+const bridgeStamp = createBridgeStampReader(bridgeDir, rootDir);
 const updateMonitor = new UpdateMonitor({
   repo: updateRepo,
   current: currentVersion,
-  startupStamp: bridgeStampSync(bridgeDir, rootDir),
-  fetchTags: githubTagsFetcher(updateRepo),
-  bridgeStamp: () => bridgeStampSync(bridgeDir, rootDir),
+  startupStamp: bridgeStamp(),
+  fetchTags: updateRepo ? githubTagsFetcher(updateRepo) : async () => [],
+  bridgeStamp,
   store: updateStore,
   now: Date.now,
   // The `updates` notify pref is the off-switch — update pushes bypass snooze, so this is their gate.
@@ -103,7 +104,7 @@ const updateMonitor = new UpdateMonitor({
       tag: "collie:update",
       // No command in the body — the tap opens Settings (target below), and the update banner / linked
       // release page carry the location-independent Herdr actions. Keeps this off the cwd-dependent path.
-      title: "Collie update available",
+      title: "App update available",
       body: `Version ${latest} is available`,
       target: "settings",
     }),
@@ -111,10 +112,14 @@ const updateMonitor = new UpdateMonitor({
 
 // First check delayed (don't probe mid-boot); then every few hours. unref() so neither timer holds
 // the process open; both cleared on shutdown.
-const updateFirstCheck = setTimeout(() => void updateMonitor.checkRelease(), UPDATE_FIRST_DELAY_MS);
-updateFirstCheck.unref();
-const updateTimer = setInterval(() => void updateMonitor.checkRelease(), UPDATE_INTERVAL_MS);
-updateTimer.unref();
+const updateFirstCheck = updateRepo
+  ? setTimeout(() => void updateMonitor.checkRelease(), UPDATE_FIRST_DELAY_MS)
+  : undefined;
+updateFirstCheck?.unref();
+const updateTimer = updateRepo
+  ? setInterval(() => void updateMonitor.checkRelease(), UPDATE_INTERVAL_MS)
+  : undefined;
+updateTimer?.unref();
 
 // ── Per-session runtime factory ──────────────────────────────────────────────
 // One HerdrClient + StateEngine + EventPoker + NotificationCoordinator per herdr session. The

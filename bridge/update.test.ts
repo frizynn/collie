@@ -9,7 +9,7 @@ import {
   majorOf,
   parseSemverTag,
   shouldNotify,
-  stampOf,
+  resolveUpdateRepo,
   UpdateMonitor,
   type UpdateMonitorDeps,
   type UpdateStore,
@@ -89,19 +89,13 @@ describe("shouldNotify", () => {
   });
 });
 
-describe("stampOf", () => {
-  it("is order-independent and changes on any mtime/size change", () => {
-    const a = [
-      { path: "b.ts", mtimeMs: 2, size: 20 },
-      { path: "a.ts", mtimeMs: 1, size: 10 },
-    ];
-    const b = [
-      { path: "a.ts", mtimeMs: 1, size: 10 },
-      { path: "b.ts", mtimeMs: 2, size: 20 },
-    ];
-    expect(stampOf(a)).toBe(stampOf(b)); // same set, different order → same stamp
-    expect(stampOf(a)).not.toBe(stampOf([{ path: "a.ts", mtimeMs: 9, size: 10 }, { path: "b.ts", mtimeMs: 2, size: 20 }]));
-    expect(stampOf(a)).not.toBe(stampOf([{ path: "a.ts", mtimeMs: 1, size: 99 }, { path: "b.ts", mtimeMs: 2, size: 20 }]));
+describe("resolveUpdateRepo", () => {
+  it("defaults to local and accepts only an explicit GitHub repository", () => {
+    for (const value of [undefined, "", " ", "off", " OFF ", "https://github.com/AltanS/collie", "../repo", "a/b/c", "a/b?token=x"]) {
+      expect(resolveUpdateRepo(value)).toBeNull();
+    }
+    expect(resolveUpdateRepo(" frizynn/collie ")).toBe("frizynn/collie");
+    expect(resolveUpdateRepo("some-org/code_ui.next")).toBe("some-org/code_ui.next");
   });
 });
 
@@ -139,6 +133,33 @@ function makeMonitor(over: Partial<UpdateMonitorDeps> = {}) {
 }
 
 describe("UpdateMonitor", () => {
+  it("never fetches, pushes, or advertises releases for local builds, while detecting real staleness", async () => {
+    let fetches = 0;
+    const { monitor, notified, store } = makeMonitor({
+      repo: null,
+      bridgeStamp: () => "changed-code",
+      fetchTags: async () => { fetches++; return ["v0.12.0", "v1.6.0"]; },
+    });
+    await Promise.all([monitor.checkRelease(), monitor.checkRelease()]);
+    expect(fetches).toBe(0);
+    expect(notified).toEqual([]);
+    expect(store.saved).toEqual([]);
+    expect(monitor.status()).toEqual({
+      current: "0.11.0", releaseChannel: "local", latest: null, latestUrl: null,
+      releaseAvailable: false, majorAvailable: null, majorUrl: null,
+      bridgeStale: true, checkedAt: null,
+    });
+  });
+
+  it("checks and links only the explicitly selected fork", async () => {
+    const { monitor } = makeMonitor({ repo: "frizynn/collie" });
+    await monitor.checkRelease();
+    expect(monitor.status()).toMatchObject({
+      releaseChannel: "github", releaseRepo: "frizynn/collie",
+      latestUrl: "https://github.com/frizynn/collie/releases/tag/v0.12.0",
+    });
+  });
+
   it("surfaces releaseAvailable + latest + latestUrl after a successful check", async () => {
     // Use a REAL Collie release (v0.10.3) with `current` below it, so the asserted release URL exists.
     const { monitor } = makeMonitor({

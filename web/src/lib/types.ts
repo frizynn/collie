@@ -153,6 +153,9 @@ export interface SessionSummary {
  * update banner renders nothing). `latest` is null when the newest upstream release isn't known.
  */
 export interface UpdateInfo {
+  /** Local installations do not follow releases from the original project's repository. */
+  releaseChannel?: "local" | "github";
+  releaseRepo?: string;
   /** The version this bridge is running, e.g. "0.11.0". */
   current: string;
   /** Newest upstream release, e.g. "0.12.0", or null when unknown. */
