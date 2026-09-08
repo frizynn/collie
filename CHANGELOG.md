@@ -8,6 +8,14 @@ All notable changes to Nenu are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.37.1] - 2026-09-08
+
+### Changed
+
+- Replaced the detailed Nenu artwork with the selected lightweight monoline terrier across the app,
+  favicon, Apple touch icon, and PWA install icons.
+- Added a minimal README banner that identifies Nenu as a Herdr agent workbench for mobile and web.
+
 ## [0.37.0] - 2026-09-08
 
 ### Added
