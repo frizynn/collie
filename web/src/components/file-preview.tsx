@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Download, FileText, Loader2, X } from "lucide-react";
 import { fetchPaneFile } from "@/lib/api";
 import { FilePreviewContext } from "@/lib/file-preview-context";
+import { useHoldReload } from "@/lib/reload-guard";
 import { MarkdownText } from "./markdown-text";
 import "./file-preview.css";
 
@@ -10,6 +11,7 @@ const PdfPreview = lazy(() => import("./pdf-preview"));
 type DocumentData = { kind: "pdf"; bytes: ArrayBuffer; url: string } | { kind: "image"; url: string } | { kind: "text"; text: string; markdown: boolean; url: string };
 
 export default function FilePreview({ paneId, session, path, onClose }: { paneId: string; session?: string; path: string; onClose: () => void }) {
+  useHoldReload("document-preview", true);
   const [data, setData] = useState<DocumentData | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);

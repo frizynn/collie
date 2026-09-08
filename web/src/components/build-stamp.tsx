@@ -66,7 +66,7 @@ export function BuildStamp({ className }: { className?: string }) {
                 updating…
               </span>
             ) : (
-              "new build — tap to update"
+              "Reload interface"
             )}
           </button>
         </>

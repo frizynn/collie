@@ -5,7 +5,6 @@ import { ArrowUpRight, Folder, Plus } from "lucide-react";
 import { AgentIcon } from "@/components/agent-icon";
 import { ReadOnlyBanner } from "@/components/read-only-banner";
 import { NewSpaceSheet } from "@/components/new-space-sheet";
-import { UpdateBanner } from "@/components/update-banner";
 import { useSpaceActions } from "@/hooks/use-spaces";
 import { ROOT_ROUTE_ID, type HomeData } from "@/lib/loaders";
 import { panePath, spacePath } from "@/lib/nav";
@@ -72,7 +71,6 @@ export function HomeRoute() {
         </section>}
       </div>
     </main>
-    <UpdateBanner className="px-5 pt-2" />
     <NewSpaceSheet open={newSpaceOpen} onClose={() => setNewSpaceOpen(false)} onCreate={newSpace} />
   </div>;
 }

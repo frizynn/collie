@@ -8,7 +8,6 @@ import { SpaceView } from "@/components/space-view";
 import { TabStrip } from "@/components/tab-strip";
 import { NewSpaceSheet } from "@/components/new-space-sheet";
 import { BuildStamp } from "@/components/build-stamp";
-import { UpdateBanner } from "@/components/update-banner";
 import { useLoadingStalled } from "@/hooks/use-loading-stalled";
 import { useSpaceActions } from "@/hooks/use-spaces";
 import { ROOT_ROUTE_ID, type HomeData } from "@/lib/loaders";
@@ -120,9 +119,7 @@ export function SpaceRoute() {
           </>
         )}
 
-        {/* An available update / needed restart, then the build stamp (which bundle you're
-            running, with a stale-cache nudge). */}
-        <UpdateBanner className="px-3 pt-3" />
+        {/* The interface build in use; server maintenance details stay in Settings. */}
         <BuildStamp className="px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)_+_0.5rem)]" />
       </div>
 

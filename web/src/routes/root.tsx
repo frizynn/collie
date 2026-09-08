@@ -67,9 +67,8 @@ export function RootLayout() {
   // from covering the route's sticky header — it reserves real space instead of overlaying.
   return (
     <div className="app-viewport flex flex-col">
-      {/* API-observed self-update: mounted unconditionally so its controller runs (and can
-          auto-update) for the app's lifetime; renders the slim "tap to update" row only when a fresh
-          build is confirmed but auto-update is held off (unsent work) or already spent. */}
+      {/* The self-updater stays mounted; its dismissible notice renders in a portal so publishing
+          an interface update never changes the conversation's height or scroll position. */}
       <UpdateAvailableBanner />
       {/* The app's ONE connection surface: a thin, animated bar that stays hidden while healthy, fades
           in amber "reconnecting…" only after ≥4s of sustained trouble (the flicker fix), escalates to a

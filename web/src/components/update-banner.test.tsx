@@ -24,6 +24,10 @@ const someUpdate = (over: Partial<UpdateInfo>): UpdateInfo => ({
 // running process) outranks releaseAvailable (upgrade) since restarting is the cheaper, more urgent
 // fix; an absent `update` (older bridge) and a "nothing pending" update both fall through to null.
 describe("updateNotice", () => {
+  it("never advertises inherited releases for a locally managed installation", () => {
+    expect(updateNotice(someUpdate({ releaseChannel: "local", releaseAvailable: true, majorAvailable: "1.0.0" }))).toBeNull();
+    expect(updateNotice(someUpdate({ releaseChannel: "local", bridgeStale: true }))?.command).toContain("restart");
+  });
   it("returns null when update is absent (older bridge / no info)", () => {
     expect(updateNotice(undefined)).toBeNull();
   });
@@ -34,14 +38,14 @@ describe("updateNotice", () => {
 
   it("prefers the bridge restart over a release when both are pending", () => {
     expect(updateNotice(someUpdate({ bridgeStale: true, releaseAvailable: true }))).toEqual({
-      line: "Bridge restart needed",
+      line: "Server changes pending — restart the service on your Mac",
       command: "herdr plugin action invoke restart --plugin herdr.collie",
     });
   });
 
   it("names the available release and links to it, with no command (the release page carries them)", () => {
     expect(updateNotice(someUpdate({ releaseAvailable: true, latest: "0.10.3" }))).toEqual({
-      line: "Collie 0.10.3 available",
+      line: "Version 0.10.3 available",
       href: RELEASE_URL,
     });
   });
@@ -51,7 +55,7 @@ describe("updateNotice", () => {
     // the `update-major` command rather than leaving the operator to tap update and stay behind.
     const major = "https://github.com/AltanS/collie/releases/tag/v1.0.0";
     expect(updateNotice(someUpdate({ majorAvailable: "1.0.0", majorUrl: major }))).toEqual({
-      line: "Collie 1.0.0 — a new major",
+      line: "Version 1.0.0 — a new major",
       href: major,
       command: "herdr plugin action invoke update-major --plugin herdr.collie",
     });
@@ -60,7 +64,7 @@ describe("updateNotice", () => {
       updateNotice(
         someUpdate({ releaseAvailable: true, latest: "0.32.0", majorAvailable: "1.0.0", majorUrl: major }),
       ),
-    ).toEqual({ line: "Collie 0.32.0 available", href: RELEASE_URL });
+    ).toEqual({ line: "Version 0.32.0 available", href: RELEASE_URL });
   });
 
   it("stays silent when a release is flagged but no version is known", () => {
@@ -109,14 +113,14 @@ function renderBanner(update: UpdateInfo | undefined) {
 describe("UpdateBanner", () => {
   it("shows the release notice as a link to the release, with no command (the page carries it)", async () => {
     renderBanner(someUpdate({ releaseAvailable: true, latest: "0.10.3" }));
-    const link = await screen.findByRole("link", { name: "Collie 0.10.3 available" });
+    const link = await screen.findByRole("link", { name: "Version 0.10.3 available" });
     expect(link).toHaveAttribute("href", RELEASE_URL);
     expect(screen.queryByRole("button")).toBeNull(); // no copyable command for the release case
   });
 
   it("shows the restart line (no link) when the running bridge is stale", async () => {
     renderBanner(someUpdate({ bridgeStale: true }));
-    expect(await screen.findByText("Bridge restart needed")).toBeInTheDocument();
+    expect(await screen.findByText("Server changes pending — restart the service on your Mac")).toBeInTheDocument();
     expect(screen.queryByRole("link")).toBeNull(); // restart isn't a release — no GitHub link
     expect(
       screen.getByText("herdr plugin action invoke restart --plugin herdr.collie"),

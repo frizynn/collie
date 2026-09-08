@@ -68,6 +68,12 @@ beforeEach(() => {
 });
 
 describe("UpdateCheckControl", () => {
+  it("explains local updates without offering an unrelated release check", async () => {
+    renderControl({ ...upToDate, releaseChannel: "local", checkedAt: null });
+    expect(await screen.findByText(/updates are managed on your mac/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /check for updates/i })).toBeNull();
+    expect(screen.queryByText(/up to date/i)).toBeNull();
+  });
   it("shows the running version and 'Up to date' when nothing is pending", async () => {
     renderControl(upToDate);
     expect(await screen.findByText(/running v0\.11\.0/i)).toBeInTheDocument();
@@ -131,7 +137,7 @@ describe("UpdateCheckControl", () => {
 
   it("prompts to check when the bridge reports no update info", async () => {
     renderControl(undefined);
-    expect(await screen.findByText(/whether a new collie version is available/i)).toBeInTheDocument();
+    expect(await screen.findByText(/whether a new version is available/i)).toBeInTheDocument();
     expect(screen.queryByText(/up to date/i)).toBeNull();
   });
 });

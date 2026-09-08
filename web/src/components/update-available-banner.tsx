@@ -1,31 +1,25 @@
-import { ArrowUpCircle } from "lucide-react";
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import { ArrowUpCircle, X } from "lucide-react";
 
 import { checkForUpdate } from "@/lib/pwa";
 import { useSelfUpdate } from "@/lib/self-update";
+import { useServerBuild } from "@/lib/server-build";
 
-// Slim persistent "New version — tap to update" row, the fallback for when the self-updater is
-// confirmed-stale but can't auto-update right now — the user has unsent work (an open composer draft,
-// an in-flight upload, an open action sheet) or we already auto-updated once for this build. An
-// in-flow row (not an overlay) that stacks above the route in RootLayout's flex column rather than
-// covering the sticky header. Shares the top-band idiom with the ConnectionBanner — text-xs, one
-// truncating row, safe-area top inset — so every top-of-app row reads as one consistent band.
-//
-// Mounted unconditionally so useSelfUpdate() runs the controller for its whole lifetime — the
-// auto-update path runs even while this returns null (banner hidden). Tapping takes the same update
-// path as the footer button and the auto-path: checkForUpdate() reloads onto the fresh bundle
-// (SW update→activate→reload, or a plain reload when no SW controls the page).
+// Browser refresh is separate from installing a release. The notice never shifts the conversation;
+// dismiss it for this build while automatic refresh waits for safe idle.
 export function UpdateAvailableBanner() {
   const show = useSelfUpdate();
-  if (!show) return null;
+  const build = useServerBuild();
+  const [dismissed, setDismissed] = useState<string>();
+  if (!show || dismissed === build) return null;
 
-  return (
-    <button
-      type="button"
-      onClick={() => void checkForUpdate()}
-      className="flex w-full shrink-0 items-center gap-2 border-b border-status-working/40 bg-status-working/15 px-4 py-1.5 text-left text-xs font-medium text-foreground"
-    >
-      <ArrowUpCircle className="size-3.5 shrink-0 text-status-working" />
-      <span className="min-w-0 flex-1 truncate">New version — tap to update</span>
-    </button>
-  );
+  return createPortal(<div role="status"
+    className="fixed z-40 flex w-max max-w-[calc(100vw-24px)] items-center gap-2 rounded-xl border border-border bg-background px-3 py-1.5 text-xs shadow-lg motion-safe:animate-in motion-safe:fade-in motion-safe:duration-150"
+    style={{ top: "calc(env(safe-area-inset-top) + 56px)", right: "max(12px, env(safe-area-inset-right))" }}>
+    <ArrowUpCircle aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+    <span>Interface updated</span>
+    <button type="button" onClick={() => void checkForUpdate()} className="min-h-11 rounded-md px-2 font-medium hover:bg-muted">Reload</button>
+    <button type="button" onClick={() => setDismissed(build)} aria-label="Dismiss update notice" className="flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-muted"><X aria-hidden="true" className="size-4" /></button>
+  </div>, document.body);
 }

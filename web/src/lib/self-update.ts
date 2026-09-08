@@ -31,7 +31,7 @@ const reloadedKey = (id: string): string => `collie:auto-reloaded-for=${id}`;
 // Injectable update trigger — the default is the same path the footer button uses (checkForUpdate,
 // which reloads onto the fresh bundle on both SW and no-SW origins). Tests swap in a spy (jsdom's
 // window.location.reload throws) and assert the auto-update fires.
-let reloadImpl: () => void = () => void checkForUpdate();
+let reloadImpl: () => void = () => void checkForUpdate({ automatic: true });
 
 /** Test seam — replace the reload implementation. */
 export function __setReloadImpl(fn: () => void): void {
@@ -173,5 +173,5 @@ export function __resetSelfUpdate(): void {
   pendingStale = undefined;
   confirmedStale = undefined;
   banner = false;
-  reloadImpl = () => void checkForUpdate();
+  reloadImpl = () => void checkForUpdate({ automatic: true });
 }
