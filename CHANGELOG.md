@@ -8,6 +8,13 @@ All notable changes to Nenu are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.37.2] - 2026-09-08
+
+### Fixed
+
+- Codex conversations hide injected `AGENTS.md` instructions and internal memory citations to match
+  the native Codex transcript (cae461f).
+
 ## [0.37.1] - 2026-09-08
 
 ### Changed
