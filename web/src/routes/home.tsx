@@ -11,7 +11,7 @@ import { panePath, spacePath } from "@/lib/nav";
 import { triage } from "@/lib/triage";
 import { isReadOnly, paneDisplayName, STATUS_LABEL } from "@/lib/types";
 
-// T3's index route centers the next useful action. Existing Collie sessions are opened explicitly;
+// T3's index route centers the next useful action. Existing Nenu sessions are opened explicitly;
 // creating a workspace uses the established shell flow, without claiming to have started an agent.
 export function HomeRoute() {
   const data = useRouteLoaderData(ROOT_ROUTE_ID) as HomeData;

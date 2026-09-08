@@ -27,7 +27,7 @@ export type { NotifyPrefs, UpdateInfo };
  * unauthenticated request with a REDIRECT never produces one: `fetch` follows the 302 to the
  * identity provider's origin, that response carries no CORS headers, and the call rejects as a
  * `TypeError` — a transport failure with no status. The user then gets the connection banner
- * ("can't reach Collie") and, worse, loses the Sign-in link that would have fixed it, since a
+ * ("can't reach Nenu") and, worse, loses the Sign-in link that would have fixed it, since a
  * missing session is precisely the thing it recovers from.
  *
  * Measured against Cloudflare Access with no session: a plain request, `Accept: application/json`
@@ -39,7 +39,7 @@ export type { NotifyPrefs, UpdateInfo };
  *
  * Some forward-auth deployments still turn that 401 back into a 3xx at the reverse-proxy layer.
  * Every API fetch therefore uses `redirect: "manual"`; a returned redirect is normalised to a local
- * 401 below so the same refusal banner appears instead of a CORS/transport failure. Collie never
+ * 401 below so the same refusal banner appears instead of a CORS/transport failure. Nenu never
  * follows or discovers the proxy's login flow itself — the banner's ordinary `/auth/` link remains
  * the operator-owned recovery path.
  *
@@ -131,7 +131,7 @@ async function errorDetail(res: Response): Promise<string> {
 
 // `redirect: "manual"` is intentionally local to the API client rather than a global fetch patch.
 // Browsers expose a manual redirect as `opaqueredirect` (status 0); test/runtime implementations may
-// expose the actual 3xx. Collie's own API has no redirect contract, and 304 is a normal pane ETag hit,
+// expose the actual 3xx. Nenu's own API has no redirect contract, and 304 is a normal pane ETag hit,
 // so only these redirect statuses are authentication-front-door territory.
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 

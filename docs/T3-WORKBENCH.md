@@ -1,4 +1,4 @@
-# Collie Workbench
+# Nenu Workbench
 
 ## Integration audit — 2026-09-07
 
@@ -9,7 +9,7 @@ not a merge between applications.
 
 ## Architecture
 
-Keep Collie's Bun bridge, React Router, Herdr sessions, verified composer, identity/device
+Keep Nenu's Bun bridge, React Router, Herdr sessions, verified composer, identity/device
 gates, journal containment, and PWA. Port T3's palette, typography, compact controls and
 context meter with attribution. Add a responsive workspace/sidebar shell and make the real
 agent conversation the primary pane surface. Keep the live pane reachable for approvals,
@@ -148,7 +148,7 @@ controls Model, Context and Usage through one panel state. Following T3's contro
 ProviderModelPicker and dismissible Base UI popover behavior, inspectors close on outside
 interaction, Escape, their trigger or an explicit close button. They do not trap focus or lock
 scroll; entering the composer dismisses the inspector and preserves the caret and draft.
-The single shared panel controller is Collie's implementation, not copied T3 state management.
+The single shared panel controller is Nenu's implementation, not copied T3 state management.
 
 Closing models verifies the live menu, sends only its advertised Escape cancellation, and
 verifies the resulting input state. Sending waits for that release; unrelated permissions or
@@ -180,7 +180,7 @@ Validation for this correction: all 4,039 frontend tests passed (30 existing TOD
 
 All transient feedback now uses one root-level portal, styled after T3's compact top-right
 toast viewport, neutral surface, small tone icon, title/body typography and explicit close.
-The full-width in-flow chat status row and route-specific renderers are removed. Collie's
+The full-width in-flow chat status row and route-specific renderers are removed. Nenu's
 mobile top offset clears its additional navigation rows. Text wraps inside a bounded scroller;
 the close button has a 44px target and selecting text does not dismiss an error. Notifications
 never take focus or lock scrolling. Persistent connection/update/read-only states keep their

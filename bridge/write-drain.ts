@@ -5,7 +5,7 @@
 // socket actually ACCEPTED, which under backpressure is fewer than it was handed (and can be 0). The
 // unaccepted tail is NOT queued for you: dropping it on the floor silently truncates the request, and
 // because Herdr's RPC is one-shot the server then waits forever for a newline that never comes, so
-// the call dies on Collie's timeout rather than reporting anything useful. Observed as ~219 KB
+// the call dies on Nenu's timeout rather than reporting anything useful. Observed as ~219 KB
 // payloads losing their tail. The fix is to remember how far we got and resume from the socket's
 // `drain` callback until the cursor is complete.
 

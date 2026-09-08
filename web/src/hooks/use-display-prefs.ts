@@ -25,7 +25,7 @@ export interface DisplayPrefs {
    * target. Off, the mirror is a document: taps land on the text, so you can put a caret in it, and
    * the keyboard only appears when you tap the composer itself. Reported from the outside as the
    * mirror "absorbing the click", by someone expecting to interact with a line rather than reply to
-   * it — which Collie cannot offer (herdr's `pane.read` strips the OSC 8 hyperlinks a terminal like
+   * it — which Nenu cannot offer (herdr's `pane.read` strips the OSC 8 hyperlinks a terminal like
    * Termux makes tappable, so the link target never reaches us). Getting out of the way is the part
    * that IS ours to give.
    */

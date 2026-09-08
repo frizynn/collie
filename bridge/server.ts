@@ -128,7 +128,7 @@ const TAB_ACTION_ROUTE = /^\/api\/tab\/([^/]+)\/(rename|close)$/;
 export const SEEN_HEADER = "x-collie-seen";
 
 /**
- * Whether this request proves it came from Collie's own page, and may therefore stamp the pane as
+ * Whether this request proves it came from Nenu's own page, and may therefore stamp the pane as
  * seen (bridge/activity.ts).
  *
  * This exists because marking-seen made a **read-level GET mutate server state**, which it never did
@@ -227,7 +227,7 @@ export function startServer(opts: {
             ...(device.enforced ? { device } : {}),
             // The one place a pane leaves the bridge: the session ref is stripped to a presence flag
             // here, so an agent-reported filesystem path never reaches a browser (see toPaneWire).
-            // The flag is computed against the registry, so a harness Herdr detects but Collie has no
+            // The flag is computed against the registry, so a harness Herdr detects but Nenu has no
             // journal for doesn't advertise a History button that can only ever come back empty.
             // withActivity runs FIRST: it returns an AgentView, which is what toPaneWire consumes,
             // and the two timestamps then ride through its rest-spread onto the wire shape.
@@ -332,9 +332,9 @@ export function startServer(opts: {
 
       // ── Misc API ─────────────────────────────────────────────────────────
       if (pathname === "/api/config") {
-        // Read-level, like the other non-terminal endpoints. Nothing Collie puts here is a
+        // Read-level, like the other non-terminal endpoints. Nothing Nenu puts here is a
         // credential — the VAPID public key is handed to every browser by design — but the payload
-        // is no longer entirely Collie's: operatorCommands is operator-authored text, and any read
+        // is no longer entirely Nenu's: operatorCommands is operator-authored text, and any read
         // client sees it verbatim (`.env.example` says so where it is set).
         // It was also the one route that skipped checkAccess entirely, so COLLIE_PUBLIC_HOSTS
         // didn't cover it and a rebound DNS name could read it. The client only ever calls this
@@ -440,7 +440,7 @@ export function startServer(opts: {
       // ── Reserved for a fronting proxy's sign-in page ─────────────────────
       // `/auth/` is the one path the service worker always passes to the network (web/src/lib/
       // sw-routes.ts), so it is the only address an installed PWA can reach when a proxy in front of
-      // the bridge refuses a stale session. Collie never routes it. If a request gets this far, no
+      // the bridge refuses a stale session. Nenu never routes it. If a request gets this far, no
       // proxy claimed it — say so, instead of letting the SPA fallback answer with the app shell and
       // leave the operator staring at the UI they were trying to escape.
       if (isReservedAuthPath(pathname)) return reservedAuthPlaceholder();
@@ -960,7 +960,7 @@ async function renamePane(
  * Validate an untrusted tab-rename body's `label`. A tab label is a NON-null, NON-empty string:
  * herdr's `tab.rename` rejects `null`, and an empty string is stored literally (a blank tab chip)
  * rather than clearing to the default number — both live-verified 2026-07-19. So, unlike a pane label
- * (where a blank field clears to `null`), Collie has no "clear" for a tab and rejects a blank label.
+ * (where a blank field clears to `null`), Nenu has no "clear" for a tab and rejects a blank label.
  * Pure + exported so the rule is unit-testable without standing up Bun.serve.
  */
 export function normalizeTabLabel(
@@ -1388,7 +1388,8 @@ function supersededEndpoint(body: unknown): string | undefined {
 }
 
 // Build id of the bundle currently on disk (written by the Vite build to dist/build-info.json).
-// Surfaced via the X-Collie-Build header and /api/config so a stale, service-worker-cached client
+// Surfaced via the legacy-compatible X-Collie-Build header and /api/config so a stale,
+// service-worker-cached client
 // can tell it's behind. Cached by file mtime so a frontend rebuild (live, no restart) is picked up.
 let buildCache: { id: string; mtime: number } | null = null;
 async function buildId(): Promise<string> {
@@ -1442,7 +1443,7 @@ export function resolveStaticPath(
  * The namespace reserved for the operator's front door. Matches `/auth` with or without a trailing
  * slash and anything beneath it — a proxy may serve one page or a whole flow. Kept in lockstep with
  * the service worker's navigation denylist (`web/src/lib/sw-routes.ts`); if these two disagree, an
- * installed PWA either can't reach the proxy or can't reach Collie. Pure + exported for tests.
+ * installed PWA either can't reach the proxy or can't reach Nenu. Pure + exported for tests.
  */
 export function isReservedAuthPath(pathname: string): boolean {
   return pathname === "/auth" || pathname.startsWith("/auth/");
@@ -1450,7 +1451,7 @@ export function isReservedAuthPath(pathname: string): boolean {
 
 /**
  * What `/auth/` says when nothing is in front of the bridge. Deliberately a 404: the path is
- * reserved, not implemented — Collie has no sign-in of its own and must not imply otherwise. Plain
+ * reserved, not implemented — Nenu has no sign-in of its own and must not imply otherwise. Plain
  * HTML with no inline style or script (the strict CSP forbids both) and a link home, because in an
  * installed PWA this page may be the only thing on screen and there is no address bar to leave it.
  * Unauthenticated by design: it sits outside every gate, since the reason to be here is that a gate
@@ -1462,16 +1463,16 @@ function reservedAuthPlaceholder(): Response {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Nothing configured here — Collie</title>
+<title>Nothing configured here — Nenu</title>
 </head>
 <body>
 <h1>Nothing is configured at this address</h1>
-<p>Collie reserves <code>/auth/</code> for a reverse proxy sitting in front of it, so that an
-installed app has somewhere to reach a sign-in or device-enrolment page. Collie itself serves
+<p>Nenu reserves <code>/auth/</code> for a reverse proxy sitting in front of it, so that an
+installed app has somewhere to reach a sign-in or device-enrolment page. Nenu itself serves
 nothing here and has no sign-in of its own.</p>
-<p>If you are the operator: point this path at your proxy's sign-in flow. See <em>Serving Collie
+<p>If you are the operator: point this path at your proxy's sign-in flow. See <em>Serving Nenu
 behind your own reverse proxy</em> in the README.</p>
-<p><a href="/">Back to Collie</a></p>
+<p><a href="/">Back to Nenu</a></p>
 </body>
 </html>
 `;

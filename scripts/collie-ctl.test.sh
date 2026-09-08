@@ -128,7 +128,7 @@ EOF
   chmod +x "${BIN_DIR}/tailscale"
 }
 
-# Publishing must move cleanly between ports and modes, and must never clobber a root mount Collie
+# Publishing must move cleanly between ports and modes, and must never clobber a root mount Nenu
 # didn't create.
 test_tailscale_cutovers_and_collisions() {
   setup_case tailscale
@@ -253,7 +253,7 @@ EOF
 }
 
 # If the ownership record can't be deleted, teardown must report failure and KEEP the record —
-# dropping it would orphan a live mapping with nothing left that knows Collie owns it.
+# dropping it would orphan a live mapping with nothing left that knows Nenu owns it.
 test_state_delete_failures() {
   setup_case state-delete-failures
   cat > "${BIN_DIR}/tailscale" <<'EOF'
@@ -294,7 +294,7 @@ EOF
   bash "$harness" > "${CASE_DIR}/delete-failure.out" 2>&1
 }
 
-# An install that predates ownership tracking has Collie's OWN root mount and no record of it.
+# An install that predates ownership tracking has Nenu's OWN root mount and no record of it.
 # Publishing must adopt that mount, not refuse it — refusing breaks start/restart/update on every
 # deployment that upgrades into this feature.
 test_adopts_preexisting_collie_mount() {
@@ -310,7 +310,7 @@ EOF
   [ ! -e "${CONFIG_DIR}/tailscale-managed-handler" ] || fail "fixture already had ownership state"
 
   run_ctl serve > "${CASE_DIR}/adopt-http.out" 2>&1 ||
-    fail "serve refused to adopt Collie's own pre-existing HTTP mount"
+    fail "serve refused to adopt Nenu's own pre-existing HTTP mount"
   assert_eq "$(cat "${CONFIG_DIR}/tailscale-managed-handler")" \
     'http:8787|host.example:8787|http://127.0.0.1:8787'
 
@@ -322,7 +322,7 @@ EOF
 COLLIE_PORT=8787
 EOF
   run_ctl serve > "${CASE_DIR}/adopt-https.out" 2>&1 ||
-    fail "serve refused to adopt Collie's own pre-existing HTTPS mount"
+    fail "serve refused to adopt Nenu's own pre-existing HTTPS mount"
   assert_eq "$(cat "${CONFIG_DIR}/tailscale-managed-handler")" \
     'https:443|host.example:443|http://127.0.0.1:8787'
 
@@ -722,7 +722,7 @@ test_qr_subcommand() {
   assert_contains "$out" "https://collie.example.com"
   assert_contains "$out" "█"
 
-  # Variant C/E without one: Collie doesn't know the ingress, so there's nothing true to encode.
+  # Variant C/E without one: Nenu doesn't know the ingress, so there's nothing true to encode.
   if out="$(COLLIE_SKIP_SERVE=1 run_ctl qr 2>&1)"; then
     fail "qr invented a URL under COLLIE_SKIP_SERVE=1"
   fi
@@ -932,7 +932,7 @@ EOF
   assert_contains "$(cat "${CASE_DIR}/build.out")" 'bun not found'
 }
 
-# ── update: the checkout can be in either of the two shapes Collie is installed in ───────────────
+# ── update: the checkout can be in either of the two shapes Nenu is installed in ───────────────
 #
 # `herdr plugin install` does NOT clone: it runs `git init` + `git fetch --depth 1 origin HEAD` +
 # `git checkout --detach FETCH_HEAD`, so the plugin lives in a detached, shallow checkout with no
@@ -940,7 +940,7 @@ EOF
 # which is issue #63 — the turnkey install could never self-update. These stage both shapes for real,
 # against a local origin, and drive the actual git logic.
 # `core.hooksPath=/dev/null` because these sandboxes make real commits: a developer who set
-# `core.hooksPath` globally (Collie's own install-hooks.sh sets it per-repo, but not everyone's does)
+# `core.hooksPath` globally (Nenu's own install-hooks.sh sets it per-repo, but not everyone's does)
 # would otherwise have this repo's pre-commit fire inside a scratch repo that has no
 # scripts/check-version.sh, failing the suite for a reason that has nothing to do with the test.
 git_q() {
@@ -1106,7 +1106,7 @@ test_update_targets_the_highest_release_in_the_major() {
   assert_eq "$(git -C "$root" rev-parse HEAD)" "$(git -C "$ORIGIN_DIR" rev-parse 'v9.10.0^{commit}')"
   assert_eq "$(cat "${root}/VERSION")" "9.10.0"
   # …and it SAYS the major exists, naming the one command that takes it.
-  assert_contains "$out" "Collie 10.0.0 is out — a NEW MAJOR"
+  assert_contains "$out" "Nenu 10.0.0 is out — a NEW MAJOR"
   assert_contains "$out" "update-major --plugin herdr.collie"
 }
 
@@ -1121,7 +1121,7 @@ test_update_holds_at_a_major_boundary() {
 
   local out; out="$(run_update_checkout "$root")" || fail "a routine update at a boundary must succeed: $out"
   assert_contains "$out" "already current — v9.10.0"
-  assert_contains "$out" "Collie 10.0.0 is out — a NEW MAJOR"
+  assert_contains "$out" "Nenu 10.0.0 is out — a NEW MAJOR"
   assert_contains "$out" "herdr plugin action invoke update-major --plugin herdr.collie"
   assert_eq "$(git -C "$root" rev-parse HEAD)" "$at"
 }
@@ -1136,14 +1136,14 @@ test_update_major_crosses_exactly_one_major() {
   local root; root="$(stage_managed_at refs/tags/v9.10.0)"
 
   local out; out="$(run_update_checkout "$root" --major)" || fail "update --major failed: $out"
-  assert_contains "$out" "crossing to Collie 10.0.0"
+  assert_contains "$out" "crossing to Nenu 10.0.0"
   assert_eq "$(git -C "$root" rev-parse HEAD)" "$(git -C "$ORIGIN_DIR" rev-parse 'v10.0.0^{commit}')"
   assert_eq "$(cat "${root}/VERSION")" "10.0.0"
   git -C "$root" symbolic-ref -q HEAD >/dev/null 2>&1 &&
     fail "crossing a major must leave the managed checkout detached"
   # And from major 10, `--major` again takes the next one — never two at a time.
   out="$(run_update_checkout "$root" --major)" || fail "second crossing failed: $out"
-  assert_contains "$out" "crossing to Collie 11.0.0"
+  assert_contains "$out" "crossing to Nenu 11.0.0"
 }
 
 # A manifest we cannot read a major out of must never strand the install: pin to the newest

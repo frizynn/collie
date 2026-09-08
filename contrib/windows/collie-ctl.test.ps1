@@ -164,13 +164,13 @@ COLLIE_HOST="127.0.0.1"
   }
   Remove-Item Env:COLLIE_TASK_RUN_LEVEL
 
-  Stop-Collie | Out-Null
-  Assert-Equal ($script:disabled -join ",") "herdr.collie-test" "stop disables only Collie's task"
-  Assert-Equal ($script:stopped -join ",") "herdr.collie-test" "stop stops only Collie's task"
+  Stop-Nenu | Out-Null
+  Assert-Equal ($script:disabled -join ",") "herdr.collie-test" "stop disables only Nenu's task"
+  Assert-Equal ($script:stopped -join ",") "herdr.collie-test" "stop stops only Nenu's task"
 
   $script:unregistered = @()
-  $uninstallOutput = Uninstall-Collie | Out-String
-  Assert-Equal ($script:unregistered -join ",") "herdr.collie-test" "uninstall always removes Collie's task"
+  $uninstallOutput = Uninstall-Nenu | Out-String
+  Assert-Equal ($script:unregistered -join ",") "herdr.collie-test" "uninstall always removes Nenu's task"
   Assert-Contains $uninstallOutput "operator-managed" "uninstall leaves Tailscale Serve unchanged"
 
   $fakeTailscale = Join-Path $temp "tailscale.cmd"
@@ -187,10 +187,10 @@ COLLIE_HOST="127.0.0.1"
   function Ensure-CollieBuild {}
   function Test-HerdrReady([int]$Attempts = 1) { $false }
   function Show-CollieStatus {}
-  $startOutput = Start-Collie 3>&1 | Out-String
+  $startOutput = Start-Nenu 3>&1 | Out-String
   Assert-Contains $startOutput "temporarily unavailable" "temporary Herdr outage warning"
-  Assert-Equal ($script:started -join ",") "herdr.collie-test" "start launches Collie's task"
-  Assert-Equal ($script:disabled -join ",") "" "temporary Herdr outage keeps Collie's task enabled"
+  Assert-Equal ($script:started -join ",") "herdr.collie-test" "start launches Nenu's task"
+  Assert-Equal ($script:disabled -join ",") "" "temporary Herdr outage keeps Nenu's task enabled"
 
   function Invoke-TestGit([string]$Repo, [string[]]$GitArgs) {
     & git -c user.name=collie-test -c user.email=test@example.invalid -C $Repo @GitArgs | Out-Null

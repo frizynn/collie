@@ -58,8 +58,8 @@ interface WirePane {
    *
    * `terminal_title_stripped` is NOT a drop-in for display. Herdr strips the settled `✳` but leaves
    * Claude's rotating spinner frames in place (live-observed in one snapshot: `✳ Read Notes From
-   * Underground` stripped, `◐ Custom UI for Collie…` not). Those frames advance on every poll, so a
-   * label bound straight to it churns. `meaningfulTerminalTitle` does the strip Collie can rely on.
+   * Underground` stripped, `◐ Custom UI for Nenu…` not). Those frames advance on every poll, so a
+   * label bound straight to it churns. `meaningfulTerminalTitle` does the strip Nenu can rely on.
    */
   terminal_title?: string | null;
   terminal_title_stripped?: string | null;
@@ -67,7 +67,7 @@ interface WirePane {
   /**
    * The agent's OWN session identity, as the agent reported it to Herdr (herdr ≥ 0.7.2). For Claude
    * this is `{kind:"id", value:"<uuid>"}` — the uuid naming its on-disk session log, which is how
-   * Collie serves real conversation history for a pane whose terminal keeps no scrollback (see
+   * Nenu serves real conversation history for a pane whose terminal keeps no scrollback (see
    * transcript.ts). Optional + defensively typed: older servers omit it, and `kind` may be something
    * other than "id" for other agents.
    */
@@ -466,7 +466,7 @@ export class HerdrClient {
    * rejects `null` (`invalid type: null, expected a string`) and stores an empty string literally
    * rather than clearing to the default number — both live-verified 2026-07-19 — so a tab has no
    * "clear". Resolves on herdr's `tab_info` reply; the new label surfaces on the next snapshot poll
-   * (tab.rename also emits a `tab_renamed` event, which Collie doesn't consume). Bad id → `tab_not_found`.
+   * (tab.rename also emits a `tab_renamed` event, which Nenu doesn't consume). Bad id → `tab_not_found`.
    */
   renameTab(tabId: string, label: string): Promise<void> {
     return this.request<void>("tab.rename", { tab_id: tabId, label });
@@ -476,7 +476,7 @@ export class HerdrClient {
    * Close a tab, terminating EVERY pane inside it (live-verified 2026-07-19: the tab's shell/agent
    * panes all disappear with it — closing a tab is a bulk pane-close). Resolves on herdr's
    * `{type:"ok"}` reply; the closure surfaces on the next `session.snapshot` poll (tab.close also
-   * emits a `tab_closed` event, which Collie doesn't consume). Bad id → `tab_not_found`.
+   * emits a `tab_closed` event, which Nenu doesn't consume). Bad id → `tab_not_found`.
    */
   closeTab(tabId: string): Promise<void> {
     return this.request<void>("tab.close", { tab_id: tabId });

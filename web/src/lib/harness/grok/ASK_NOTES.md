@@ -42,7 +42,7 @@ The adapter lifts a radio `prompt-select` with `keys: ["N"]` only on the complet
 layout: consecutive 1..n radios, a `z` row, and an inner `Enter:select` / `Enter:submit` /
 `Enter:edit` hint — as one contiguous `┃` run with nothing but a couple of blank rows between
 the card and its footer (the capture shows exactly one). Wizard steps and Esc-park keep that layout. `z` is modelled as
-`feedback` with `purpose: "free-text"` so a focused row locks the option buttons; Collie
+`feedback` with `purpose: "free-text"` so a focused row locks the option buttons; Nenu
 does not type into it (the Claude plan-feedback send path is the wrong recipe). A card
 missing `z` or the Enter hint, or painting an `a`–`f` option row, returns null. Checkbox
 cards return null.

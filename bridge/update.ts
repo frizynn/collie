@@ -128,7 +128,7 @@ export function resolveUpdateRepo(value: string | undefined): string | null {
 
 // ── Impure seams (injected into the monitor; not unit-tested) ─────────────────
 
-/** The GitHub release page for a version, e.g. `…/releases/tag/v0.12.0`. Collie tags are `vX.Y.Z`
+/** The GitHub release page for a version, e.g. `…/releases/tag/v0.12.0`. Nenu tags are `vX.Y.Z`
  *  (the versioning convention), so the `v` prefix is reconstructed from the bare version. GitHub
  *  serves the tag page even when there's no formal release attached, so this is always a live link. */
 export function githubReleaseUrl(repo: string, version: string): string {

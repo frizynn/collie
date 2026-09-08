@@ -450,7 +450,7 @@ describe("PromptSelectBlock — the feedback input row", () => {
   });
 
   it("shows what is in the box instead of offering to type, once it holds text", async () => {
-    // Answers still work here (verified live), but Collie must not type: the caret resets to position
+    // Answers still work here (verified live), but Nenu must not type: the caret resets to position
     // 0 on re-entry, so our words would be prepended to the sentence already there.
     const model = fixtureModel("claude--plan-approval--feedback-typed.txt");
     const onAction = vi.fn();

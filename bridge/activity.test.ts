@@ -73,7 +73,7 @@ describe("meaningfulTerminalTitle", () => {
   test("strips the status glyph Herdr leaves behind", () => {
     // Live-observed 2026-08-15 (herdr 0.8.0): the raw title keeps its spinner frame and so does
     // Herdr's "stripped" form, because Herdr only knows the settled glyph.
-    expect(title("◐ Custom UI for Collie", "◐ Custom UI for Collie")).toBe("Custom UI for Collie");
+    expect(title("◐ Custom UI for Nenu", "◐ Custom UI for Nenu")).toBe("Custom UI for Nenu");
     expect(title("✳ Read Notes From Underground", "Read Notes From Underground")).toBe(
       "Read Notes From Underground",
     );

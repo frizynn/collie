@@ -77,7 +77,7 @@ interface AgentChatProps {
   revision?: number;
   /** Per-device auth from the snapshot; an unauthorised device drops the composer to read-only. */
   device?: DeviceAuth;
-  // Global connection state — fed straight to the shared AppHeader, which drives the header Collie
+  // Global connection state — fed straight to the shared AppHeader, which drives the header Nenu
   // mark (gallop/rest, identically to the dashboard), and lets us dim the stale StatusBadge while not
   // live. Defaults describe a healthy link so tests that don't care render "live".
   bridge?: BridgeStatus | undefined;
@@ -121,7 +121,7 @@ export function AgentChat({
   const revalidator = useRevalidator();
   const navigate = useNavigate();
   // Poll-truth "is the data on screen not live". The header (AppHeader) reads the same inputs to drive
-  // the Collie mark + pill; here we use it to dim the StatusBadge, so the badge stops presenting the
+  // the Nenu mark + pill; here we use it to dim the StatusBadge, so the badge stops presenting the
   // last snapshot's status as current while we're reconnecting/lost, and restores instantly on recovery.
   const connecting = isConnecting({ bridge, error, stalled });
   const { newTab } = useSpaceActions();
@@ -604,7 +604,7 @@ export function AgentChat({
   //    someone expects who is trying to interact with a LINE rather than reply to it, and they read
   //    it as the tap being absorbed. Off, the mirror keeps its buttons and its links; it just stops
   //    volunteering the keyboard. (What it still cannot offer is a tappable agent-printed hyperlink:
-  //    herdr's `pane.read` strips OSC 8, so the link target never reaches Collie at all.)
+  //    herdr's `pane.read` strips OSC 8, so the link target never reaches Nenu at all.)
   //  - the tap landed on an interactive control INSIDE the mirror — a native prompt/wizard/preview
   //    button, the Load-older button, or the note editor's own textarea. Their click bubbles up to
   //    this handler, and focusing the composer here would pop the soft keyboard on every option tap
@@ -624,7 +624,7 @@ export function AgentChat({
 
   return (
     <div className="workbench-chat flex min-h-0 w-full min-w-0 max-w-[100dvw] flex-1 flex-col overflow-x-hidden">
-      {/* Header — the SAME AppHeader shell the dashboard and space mount, so the Collie mark is
+      {/* Header — the SAME AppHeader shell the dashboard and space mount, so the Nenu mark is
           identical on every screen (no hand-rolled bar to drift). The pane's own bits ride in via
           slots: the `space › tab` breadcrumb as the center, the agent StatusBadge as the right-cluster
           lead, and the find bar as the full-row takeover while searching. */}
@@ -710,8 +710,8 @@ export function AgentChat({
                 <TerminalSquare className="size-3 text-muted-foreground" />
               </div>
             ) : (
-              // Deliberately smaller than the size-8 Collie mark beside it — the agent logo is the
-              // pane's subject, not a second brand competing with Collie's for the header.
+              // Deliberately smaller than the size-8 Nenu mark beside it — the agent logo is the
+              // pane's subject, not a second brand competing with Nenu's for the header.
               <AgentIcon agent={agent.agent} className="size-6" />
             )}
             <div className="min-w-0 flex-1">

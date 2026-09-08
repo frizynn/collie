@@ -343,7 +343,7 @@ describe("the styled status-row acceptor fails closed", () => {
 
   it("accepts Codex's dim final status field", () => {
     // Current Codex paints the final collaboration-mode field together with its separator:
-    // `...<coloured cwd><dim> · Main [default]</dim>`. This is the live shape that left Collie's
+    // `...<coloured cwd><dim> · Main [default]</dim>`. This is the live shape that left Nenu's
     // composer visible but made the reply pre-flight report that no input box was on screen.
     const { text, line } = row(
       `  ${FG}gpt-5.6-sol medium${OFF}${SEP}${FG2}/tmp/project${OFF}${DIM} · Main [default]${OFF}`,

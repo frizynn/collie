@@ -1,6 +1,6 @@
 # CLAUDE.md — working agreement for this repo
 
-**Collie** (repo `AltanS/collie`) — a phone web UI for your Herdr agent herd, served over
+**Nenu** (repo `AltanS/collie`) — a phone web UI for your Herdr agent herd, served over
 Tailscale. A mobile-first PWA (Vite + React + TS + Tailwind v4 + shadcn) plus a Bun/TS bridge that
 talks to Herdr's Unix socket, letting you monitor and reply to agents from a phone. The Herdr
 plugin id is `herdr.collie` (manifest: `herdr-plugin.toml`). Orientation:
@@ -68,7 +68,7 @@ line — do it as part of the change, not after**:
 
 **Tag the release when you push it.** Cutting a release means the three version files + the newest
 `CHANGELOG.md` heading agree on `x.y.z` (steps 1–3). When that release lands on `main` and you push,
-**always push a matching annotated git tag with it** — `git tag -a vX.Y.Z -m "Collie X.Y.Z" && git
+**always push a matching annotated git tag with it** — `git tag -a vX.Y.Z -m "Nenu X.Y.Z" && git
 push origin vX.Y.Z` (or `git push --follow-tags` so the tag ships *with* the release). One `v<x.y.z>`
 tag per shipped version on the remote. Not hook-enforced — it's on you. (Adding/adjusting this note is
 a doc-only change and needs no version bump.)
@@ -122,7 +122,7 @@ the unit name; the Herdr action runs from anywhere.
   followed by `revalidator.revalidate()`. There is **no TanStack Query** — don't reintroduce it.
 - Routes (`web/src/router.tsx`): `/`, `/space/:spaceId`, `/settings`, `/pane/:paneId` and
   `/pane/:paneId/history`. The router instance is module-scoped so it keeps its location.
-- **The idle lock pauses; it does not gate.** It only appears when Collie is left *open, visible and
+- **The idle lock pauses; it does not gate.** It only appears when Nenu is left *open, visible and
   untouched* — a hidden page never locks, and returning to the foreground auto-resumes. It covers a
   still-mounted router (unmounting it ate in-progress composer drafts) and pauses polling through
   `lib/idle.ts`. Don't restore it as a security control or re-describe it as one
@@ -161,13 +161,13 @@ the unit name; the Herdr action runs from anywhere.
   threshold collapses in the input box to `[Pasted text #N +M lines]`; the guard accepts that token as
   send evidence only when it is consistent with the message just typed. Don't try to dodge the
   threshold by chunking sends ([ADR 0010](./.adr/0010-long-sends-are-verified-via-the-paste-placeholder.md)).
-- **A password prompt is recognised so Collie can SAY what it is, never so it can send** — no
+- **A password prompt is recognised so Nenu can SAY what it is, never so it can send** — no
   automatic Enter, no relaxed verification, no secret channel; the remedy offered is the operator's
   own tap on "Type" ([ADR 0017](./.adr/0017-recognising-a-password-prompt-changes-what-collie-says.md)).
   Recognition does one thing on its own: it drops the stored draft and stops persisting keystrokes.
 - Pane output is rendered as **React text nodes** (never `innerHTML`); the ANSI parser only derives
   colors/weights. Keep it that way — it's the XSS boundary. Strict CSP + same-origin gate stay.
-- **Collie runs no terminal emulator** — `pane.read` returns Herdr's already-rendered grid, so the
+- **Nenu runs no terminal emulator** — `pane.read` returns Herdr's already-rendered grid, so the
   parser needs colour and nothing else. Don't add one on either side, and don't reach for
   `terminal session observe`/`control`: a stale mirror is a transport problem, cursor position is an
   upstream ask, and `control` resizes the *shared* PTY
@@ -179,7 +179,7 @@ the unit name; the Herdr action runs from anywhere.
 - **The plan dialog's last row is a text input, and it is never a button** — its label is only a
   placeholder while the box is empty, and its digit merely focuses the field. While `❯` sits on it the
   terminal swallows every digit as a character, so no button on that dialog may be pressable; while it
-  holds text, Collie must not type into it (the caret resets to position 0, so it would prepend). A
+  holds text, Nenu must not type into it (the caret resets to position 0, so it would prepend). A
   long value **wraps** the row rather than windowing it, which re-flows the screen above — so nothing
   may read that row as one line, and no mid-flight identity may reach above the question.
   Feedback is sent as a verified sequence, never a keystroke — the ground truth for every state is
@@ -222,8 +222,8 @@ conforming reverse proxy per DEPLOYMENT.md Variant C (`COLLIE_SKIP_SERVE=1`) · 
 optional identity/device gates · strict CSP. A socket call can type into a real terminal — treat the bridge as
 remote shell access.
 
-**Collie manages exactly one front door: `tailscale serve`** — `collie-ctl.sh` publishes it, records
+**Nenu manages exactly one front door: `tailscale serve`** — `collie-ctl.sh` publishes it, records
 the mapping in `tailscale-managed-handler`, and only ever tears down a mapping matching that record.
 Every other tunnel (NetBird, ZeroTier, Cloudflare Tunnel) is `COLLIE_SKIP_SERVE=1` + DEPLOYMENT.md
-Variant E: the operator owns the ingress, Collie publishes nothing. **Don't add a second managed front
+Variant E: the operator owns the ingress, Nenu publishes nothing. **Don't add a second managed front
 door** — [ADR 0001](./.adr/0001-one-managed-front-door.md).

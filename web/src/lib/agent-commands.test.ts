@@ -316,7 +316,7 @@ describe("commandsFor with the operator's own rows", () => {
     ).toEqual(["Family"]);
   });
 
-  it("scopes to an agent Collie ships no catalog for", () => {
+  it("scopes to an agent Nenu ships no catalog for", () => {
     const mine = { agent: "aider", command: "/mine", description: "Mine", takesArg: false, argHint: "" };
     expect(commandsFor("aider", [mine]).map((c) => c.command)).toEqual(["/mine"]);
     expect(commandsFor("omp", [mine]).some((c) => c.command === "/mine")).toBe(false);

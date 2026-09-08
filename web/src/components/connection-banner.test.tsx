@@ -132,17 +132,17 @@ describe("ConnectionBanner — the single connection surface", () => {
     setOnline(false);
     renderBanner();
     await act(async () => {});
-    expect(screen.getByText("Offline — can't reach Collie")).toBeInTheDocument();
+    expect(screen.getByText("Offline — can't reach Nenu")).toBeInTheDocument();
     expect(screen.getByRole("alert").className).toMatch(/bg-status-blocked/); // offline is always red
   });
 
-  it("says 'Can't reach Collie' when the probe fails but the browser still reports online", async () => {
+  it("says 'Can't reach Nenu' when the probe fails but the browser still reports online", async () => {
     h.lost = true;
     cfg.reachable = false;
     setOnline(true);
     renderBanner();
     await act(async () => {});
-    expect(screen.getByText("Can't reach Collie")).toBeInTheDocument();
+    expect(screen.getByText("Can't reach Nenu")).toBeInTheDocument();
   });
 
   // A cold boot with the tunnel down re-renders the whole herd from cache, which looks exactly like a
@@ -153,7 +153,7 @@ describe("ConnectionBanner — the single connection surface", () => {
     setOnline(true);
     renderBanner({ error: true, lastSeenAt: new Date(2026, 0, 2, 14, 32).getTime() });
     await act(async () => {});
-    expect(screen.getByRole("alert")).toHaveTextContent(/Can't reach Collie — last seen \d/);
+    expect(screen.getByRole("alert")).toHaveTextContent(/Can't reach Nenu — last seen \d/);
   });
 
   it("leaves the red row undated when nothing can date it", async () => {

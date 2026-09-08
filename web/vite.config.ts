@@ -140,10 +140,10 @@ export default defineConfig({
       strategies: "injectManifest",
       srcDir: "src",
       filename: "sw.ts", // source; compiled to dist/sw.js (the bridge sets Service-Worker-Allowed: /)
-      includeAssets: ["favicon.svg", "favicon.ico", "favicon-96x96.png", "apple-touch-icon.png"],
+      includeAssets: ["nenu-mark.png", "favicon.ico", "favicon-96x96.png", "apple-touch-icon.png"],
       manifest: {
-        name: "Collie",
-        short_name: "Collie",
+        name: "Nenu",
+        short_name: "Nenu",
         description: "Monitor and reply to your Herdr agent herd from your phone",
         id: "/",
         start_url: "/",
@@ -154,9 +154,8 @@ export default defineConfig({
         theme_color: "#0a0a0a",
         icons: [
           // The 192/512 are safe-zone-padded, so they serve as both the regular ("any") install
-          // icon and the Android adaptive ("maskable") icon. favicon.svg remains the transparent,
-          // theme-aware browser/header mark; the install assets use the padded inverse on black so
-          // iOS and Android never lose the silhouette against launcher chrome.
+          // icon and the Android adaptive ("maskable") icon. The smaller derivatives keep the same
+          // safe area on every launcher; the full ImageGen master stays outside the shipped PWA.
           { src: "/web-app-manifest-192x192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
           { src: "/web-app-manifest-512x512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
         ],

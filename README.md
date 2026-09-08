@@ -1,24 +1,24 @@
-# Collie
+# Nenu
 
 <p align="center">
-  <img src="assets/collie-hero.webp" alt="A collie herding a flock of sheep" width="640">
+  <img src="assets/brand/nenu-logo-master.png" alt="Nenu, a winking black terrier guarding three tiny sheep" width="420">
 </p>
 
 <p align="center">
   <a href="https://colliepwa.dev/demo"><b>Try it in your browser — no install</b></a> ·
   <a href="https://colliepwa.dev">colliepwa.dev</a><br>
-  <sub>A real Collie build running in the page against faked data.</sub>
+  <sub>A real Nenu build running in the page against faked data.</sub>
 </p>
 
 A phone web UI for your [Herdr](https://herdr.dev) agent herd, served over Tailscale. Open a URL, see
 which agent is waiting on you, and answer it with your phone's keyboard.
 
-The reply box is an ordinary text field, so your phone's own voice dictation works in it; Collie
+The reply box is an ordinary text field, so your phone's own voice dictation works in it; Nenu
 ships none of its own.
 
 It assumes a [Tailscale](https://tailscale.com) tailnet — your phone and the host on the same one —
 and it is **single-user**: one operator, one tailnet, no multi-tenant auth. If you need shared or
-public access, Collie isn't built for it. Read the
+public access, Nenu isn't built for it. Read the
 [security note](#%EF%B8%8F-security--read-before-you-run-it) either way.
 
 **Features**
@@ -66,7 +66,7 @@ real app in your browser against faked data — nothing to install.
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="assets/dashboard.png" alt="Collie dashboard — Needs you, Recent, Spaces" width="250"><br><sub><b>Dashboard</b> — agents needing you float to the top</sub></td>
+    <td align="center" width="50%"><img src="assets/dashboard.png" alt="Nenu dashboard — Needs you, Recent, Spaces" width="250"><br><sub><b>Dashboard</b> — agents needing you float to the top</sub></td>
     <td align="center" width="50%"><img src="assets/ask-question.png" alt="A Claude AskUserQuestion prompt up-leveled into tappable buttons" width="250"><br><sub><b>Ask</b> — Claude's own questions become tappable buttons</sub></td>
   </tr>
   <tr>
@@ -81,7 +81,7 @@ real app in your browser against faked data — nothing to install.
 
 ## ⚠️ Security — read before you run it
 
-**Collie is remote shell access to your machine, by design.** One bridge call types arbitrary
+**Nenu is remote shell access to your machine, by design.** One bridge call types arbitrary
 keystrokes into a live terminal pane, so anyone who can reach the URL can read every pane (source,
 secrets, env, agent output) and run any command as your user. No sandbox, no command allow-list
 (that would defeat the purpose). Treat the URL like a root login.
@@ -94,7 +94,7 @@ The sharp edges:
   unattended screen and gates nothing (details:
   [ADR 0007](./.adr/0007-the-idle-lock-is-a-pause-not-a-gate.md)).
 - **Every uid on the host can reach it.** Herdr's socket is a file, so its permissions keep other
-  local users out; Collie's port is TCP, so they're all in. The per-device gate closes the write half
+  local users out; Nenu's port is TCP, so they're all in. The per-device gate closes the write half
   of that; reads stay open, so it bounds damage, not disclosure (details:
   [ARCHITECTURE.md §6](./ARCHITECTURE.md#6-security-model)).
 - **One bridge fronts _every_ session** under your config root by default, sandbox ones included
@@ -113,7 +113,7 @@ The sharp edges:
   [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
 > 🚫 **Never `tailscale funnel` this** — funnel exposes it to the public internet; `serve` keeps it
-> tailnet-only. There is no scenario where funneling Collie is correct.
+> tailnet-only. There is no scenario where funneling Nenu is correct.
 
 Narrow the blast radius with Tailscale ACLs and `COLLIE_TRUSTED_USER`. Provided as-is, no warranty.
 
@@ -125,7 +125,7 @@ On the **host** (the tailnet node your agents run on). Need Herdr 0.7.0+ — che
 | Tool | Why |
 | --- | --- |
 | [**Bun**](https://bun.sh) | Runs the bridge and builds the web UI — the only hard dependency. |
-| [**Herdr**](https://herdr.dev) ≥ 0.7.0 | The herd Collie mirrors; its CLI registers the plugin. |
+| [**Herdr**](https://herdr.dev) ≥ 0.7.0 | The herd Nenu mirrors; its CLI registers the plugin. |
 | [**Tailscale**](https://tailscale.com) | Front door for the default variant (`tailscale serve`); optional if you run [Variant C](./DEPLOYMENT.md#variant-c--reverse-proxy-as-the-only-front-door-no-tailscale) behind your own reverse proxy. Without any front door, the bridge is `127.0.0.1`-only. |
 | **git** | Clone, and the `update` command. |
 
@@ -184,14 +184,14 @@ building web UI (first run)…                    # linked clone only; a GitHub 
 bridge started (systemd --user: collie)
 tailscale serve (https) → tailnet :443 -> 127.0.0.1:8787
 
-  ✓ Collie is running  ·  v0.15.0+174c4e4
+  ✓ Nenu is running  ·  v0.15.0+174c4e4
     service   systemd --user (collie) · active
     local     http://127.0.0.1:8787
     tailnet   https://myhost.tail1234.ts.net
 ```
 
 The `✓` is a real probe — the script connected to the bridge's port and got an answer, not just
-"the unit is active". If you get `⚠ Collie isn't answering on :8787 yet` instead, see
+"the unit is active". If you get `⚠ Nenu isn't answering on :8787 yet` instead, see
 [Troubleshooting](#troubleshooting).
 
 ### What just happened
@@ -227,7 +227,7 @@ A sixty-second check, host side then phone side:
 ```console
 $ scripts/collie-ctl.sh status
 
-  ✓ Collie is running  ·  v0.15.0+174c4e4
+  ✓ Nenu is running  ·  v0.15.0+174c4e4
     service   systemd --user (collie) · active
     local     http://127.0.0.1:8787
     tailnet   https://myhost.tail1234.ts.net
@@ -256,7 +256,7 @@ see [Troubleshooting](#troubleshooting).
 
 ## Configure
 
-Out of the box Collie runs **open single-user**: anyone on your tailnet who can reach the URL has
+Out of the box Nenu runs **open single-user**: anyone on your tailnet who can reach the URL has
 full control — that's the TRUSTED_USER warning. Close it:
 
 ```bash
@@ -277,14 +277,14 @@ The bridge reads `.env` only at startup — after any edit, `scripts/collie-ctl.
 [`.env.example`](./.env.example) for the full option list — commonly `COLLIE_PORT`,
 `COLLIE_SERVE_MODE=http` (Headscale / `.internal` domains; read by the control script when it runs
 `tailscale serve`), or `COLLIE_SERVE_PORT` (tailnet listener port for the https front door, default
-443, https mode only — one Collie per user on a shared host, see
+443, https mode only — one Nenu per user on a shared host, see
 [DEPLOYMENT.md](./DEPLOYMENT.md#several-collies-on-one-host)).
 
 Reading history from more than one agent home? List them all in `COLLIE_TRANSCRIPT_ROOT`,
 comma-separated.
 
 **Custom domain or reverse proxy?** [`DEPLOYMENT.md`](./DEPLOYMENT.md) has the full front-door setup.
-The one rule to know here: Collie is same-origin only, so a different hostname or TLS terminator
+The one rule to know here: Nenu is same-origin only, so a different hostname or TLS terminator
 needs the exact origin allowed —
 
 ```bash
@@ -369,7 +369,7 @@ session it finds is drivable through the same URL — including a private or san
 
 ## Dark mode / light mode
 
-**Collie follows your phone by default.** To pin it, open **Settings → Appearance** and pick
+**Nenu follows your phone by default.** To pin it, open **Settings → Appearance** and pick
 **System**, **Light** or **Dark** — per device, stored in the browser.
 
 The terminal mirror is the exception: it always renders on a **dark ground** and light mode *inverts*
@@ -391,7 +391,7 @@ below as `invoke <cmd>`). The ones you'll actually use:
 | **Start** — build if needed, serve, print the URL | `collie-ctl.sh start` | `invoke start` |
 | **Stop** — pause the bridge; removes nothing | `collie-ctl.sh stop` | `invoke stop` |
 | **Restart** | `collie-ctl.sh restart` | `invoke restart` |
-| **Status** — the *Collie is running* banner + URLs | `collie-ctl.sh status` | `invoke status` |
+| **Status** — the *Nenu is running* banner + URLs | `collie-ctl.sh status` | `invoke status` |
 | **URL** — print the tailnet URL | `collie-ctl.sh url` | `invoke url` |
 | **QR** — the same URL as a scannable code | `collie-ctl.sh qr` | — (script only) |
 | **Version** — the running version (`0.x.y+sha`) | `collie-ctl.sh version` | `invoke version` |
@@ -405,7 +405,7 @@ The actions are declared in `herdr-plugin.toml` and each one shells out to the c
 them live with `herdr plugin action list --plugin herdr.collie`. `build` · `serve` · `unserve` are
 script-only too.
 
-`start` and `status` end with the **Collie is running** banner — annotated line by line in
+`start` and `status` end with the **Nenu is running** banner — annotated line by line in
 [First run](#first-run--what-youll-see). Its version comes from the *served* bundle stamp, so it is
 the authoritative "what's running". **Through a Herdr action you get Herdr's JSON envelope, not the
 banner** — the human-readable output is the action's *captured stdout*, read with
@@ -423,7 +423,7 @@ scripts/collie-ctl.sh stop      # or: herdr plugin action invoke stop --plugin h
 
 To tear the service down completely — stop + disable it, remove the service definition (the
 `systemd --user` unit, or the launchd agent plist on macOS), and remove
-Collie's own `tailscale serve` mapping (port-scoped, so other tailnet mappings on the host survive) —
+Nenu's own `tailscale serve` mapping (port-scoped, so other tailnet mappings on the host survive) —
 use `uninstall`. It leaves your `.env` and the checkout untouched:
 
 ```bash
@@ -484,7 +484,7 @@ repo's pre-commit / pre-push checks.
 
 ## When 1.0 arrives
 
-Collie 1.0.0 will be a MAJOR release: something about your setup will need your attention before
+Nenu 1.0.0 will be a MAJOR release: something about your setup will need your attention before
 you take it. This release is the gatekeeper that makes that safe:
 
 - A routine `update` now follows release tags **within major 0** — it will never carry you into
@@ -497,7 +497,7 @@ you take it. This release is the gatekeeper that makes that safe:
 ### Surviving reboots
 
 A `systemd --user` service only runs while you have a login session. On a host that should serve
-Collie unattended, enable lingering once:
+Nenu unattended, enable lingering once:
 
 ```bash
 loginctl enable-linger $USER
@@ -511,7 +511,7 @@ The unit is `enable`d, so with lingering it starts at boot with your user manage
 (`~/Library/LaunchAgents/herdr.collie.plist`) with `RunAtLoad`, so the bridge comes back when you log
 in and launchd restarts it if it exits abnormally. Inspect it with
 `launchctl print gui/$(id -u)/herdr.collie`. It's a *LaunchAgent*, not a daemon, so it starts at
-**login** rather than at boot — a Mac sitting at the login window is not serving Collie. (Neither
+**login** rather than at boot — a Mac sitting at the login window is not serving Nenu. (Neither
 supervisor? A `nohup` process with a pidfile in the config dir instead.)
 
 ## Deployment variants
@@ -541,14 +541,14 @@ isn't in the path at all, [`DEPLOYMENT.md`](./DEPLOYMENT.md) has the rest:
 
 - **[B — identity-aware proxy, authorised by device](./DEPLOYMENT.md#variant-b--identity-aware-proxy--per-device-authorisation)** — a proxy on this host; some devices drive, others watch.
 - **[C — reverse proxy as the only front door](./DEPLOYMENT.md#variant-c--reverse-proxy-as-the-only-front-door-no-tailscale)** — no Tailscale anywhere in the path.
-- **[D — off-host identity proxy over the tailnet](./DEPLOYMENT.md#variant-d--off-host-identity-proxy-over-the-tailnet)** — one central ingress node fronting Collie among your other services.
-- **[E — any other mesh or tunnel](./DEPLOYMENT.md#variant-e--any-other-mesh-or-tunnel-netbird-zerotier-cloudflare-tunnel)** — NetBird, ZeroTier, Cloudflare Tunnel: you own the ingress, Collie publishes nothing.
+- **[D — off-host identity proxy over the tailnet](./DEPLOYMENT.md#variant-d--off-host-identity-proxy-over-the-tailnet)** — one central ingress node fronting Nenu among your other services.
+- **[E — any other mesh or tunnel](./DEPLOYMENT.md#variant-e--any-other-mesh-or-tunnel-netbird-zerotier-cloudflare-tunnel)** — NetBird, ZeroTier, Cloudflare Tunnel: you own the ingress, Nenu publishes nothing.
 
 ## Windows (experimental)
 
 The **bridge** runs on Windows against Herdr's Windows beta; the **launcher** does not. Herdr there
 exposes its control socket as a *named pipe* named after the full socket path, not an AF_UNIX
-socket, so Collie dials it through `node:net` instead of `Bun.connect` — one shim,
+socket, so Nenu dials it through `node:net` instead of `Bun.connect` — one shim,
 [`bridge/dial.ts`](./bridge/dial.ts), which explains the mapping at the top of the file.
 
 What that means in practice:
@@ -623,8 +623,8 @@ default `tailscale serve` (Tailscale manages the MagicDNS cert; nothing to obtai
 terminates TLS. Plain-HTTP modes (`COLLIE_SERVE_MODE=http`) are **not** a secure context, so the
 browser won't even offer the subscribe button — Settings flags it `insecure`.
 
-Collie pushes when an agent goes **blocked** or **done**, with the agent's message in the body;
-**tapping it opens Collie at that agent**.
+Nenu pushes when an agent goes **blocked** or **done**, with the agent's message in the body;
+**tapping it opens Nenu at that agent**.
 
 ## Troubleshooting
 
@@ -635,11 +635,11 @@ Symptoms below, in order — search the page for yours. **`Os { NotFound }` from
 reboot** · **`herdr plugin list` shows the old version** · **stale UI after a rebuild**.
 
 **`herdr plugin …` fails with `Error: Os { code: 2, kind: NotFound, message: "No such file or
-directory" }`** (plugin install fails, action invoke fails)**.** This is *not* a Collie problem — it
+directory" }`** (plugin install fails, action invoke fails)**.** This is *not* a Nenu problem — it
 means the **Herdr server isn't running**, so its CLI can't reach the control socket
 (`~/.config/herdr/herdr.sock`). The tell is the *raw* `Os {…}`
 error: a reachable server answers path/manifest problems with structured JSON (e.g.
-`plugin_manifest_not_found`), so a bare `Os { NotFound }` is a failed socket connect, before Collie
+`plugin_manifest_not_found`), so a bare `Os { NotFound }` is a failed socket connect, before Nenu
 or your path is ever examined. It hits `link`, `install`, `action invoke` — every subcommand that
 talks to the server — while `herdr plugin --help` still works (it never opens the socket). Fix: start
 Herdr first (`herdr server &`, or just launch the Herdr TUI — it boots the server), confirm
@@ -669,7 +669,7 @@ Headscale / `.internal` tailnet domains — HTTPS certs aren't available, which 
 `COLLIE_SERVE_MODE=http` is for: set it in `.env`, then `scripts/collie-ctl.sh restart`. Verify with
 `tailscale serve status`.
 
-**Banner shows `⚠ Collie isn't answering on :8787 yet`** (service won't start, connection
+**Banner shows `⚠ Nenu isn't answering on :8787 yet`** (service won't start, connection
 refused)**.** The service was started but the HTTP server isn't answering the probe. Check the unit
 first — `systemctl --user status collie` — then `scripts/collie-ctl.sh logs` (or
 `journalctl --user -u collie -f` to watch live) for why: most commonly the port is already taken
@@ -693,7 +693,7 @@ up only when this node's filter admits *nothing* — which can equally mean no o
 the tailnet yet — and stays quiet whenever it can't tell.
 
 **Page loads but stays empty** (blank page, white screen); **API calls fail
-`403 cross-origin rejected`.** You're reaching Collie through an origin the bridge doesn't expect — a
+`403 cross-origin rejected`.** You're reaching Nenu through an origin the bridge doesn't expect — a
 custom domain, or a proxy that rewrites `Host`. Allow the exact public origin with
 `COLLIE_ALLOWED_ORIGINS` (see [Configure](#configure)), or make the proxy forward `Host` unchanged —
 the fourth proxy requirement in
@@ -704,7 +704,7 @@ Controls row, not Send. Send *verifies* what it typed by reading it back off the
 presses Enter ([#34](https://github.com/AltanS/collie/issues/34)), and a password prompt turns echo
 off, so there is nothing to read back — **Type** sends your keystrokes straight to the pane, Enter
 included. Nothing you type in **Type** is stored, echoed into a draft, or restored later, and the
-moment Collie recognises a password prompt it drops the stored draft too
+moment Nenu recognises a password prompt it drops the stored draft too
 ([#103](https://github.com/AltanS/collie/issues/103)).
 
 **No push notifications arriving.** Fire one by hand: `bash scripts/collie-ctl.sh push-test`. Three
@@ -714,7 +714,7 @@ push says it's disabled (the keys never reached the bridge — run `push-keys` a
 them in Settings → notifications); or it reports a send and nothing arrives (the phone is on a
 plain-HTTP origin, which is not a secure context — Settings flags it `insecure`).
 
-**Collie is gone after a reboot.** On Linux this is almost always lingering — see
+**Nenu is gone after a reboot.** On Linux this is almost always lingering — see
 [Surviving reboots](#surviving-reboots) for the one command. On macOS the launchd agent starts at
 **login**, so check you're actually logged in (not sitting at the login window) and that the agent is
 loaded: `launchctl print gui/$(id -u)/herdr.collie`.
@@ -725,9 +725,9 @@ it read at install or link time. The authority on what's running is the footer b
 with `herdr plugin link "$(pwd)"`); on Herdr ≥0.8.0 the manifest is re-read from disk anyway.
 
 **Phone shows a stale UI after a rebuild.** A PWA's service-worker cache is per-origin, so reaching
-Collie at two origins (a custom domain *and* the raw `host:8787`) gives you two installs, each
+Nenu at two origins (a custom domain *and* the raw `host:8787`) gives you two installs, each
 caching its own bundle. The footer **build stamp** (`vX.Y.Z · sha · time`) shows the bundle you're
-running; the bridge reports what it serves via the `X-Collie-Build` header and `/api/config`. On a
+running; the bridge reports what it serves via the legacy-compatible `X-Collie-Build` header and `/api/config`. On a
 mismatch, the footer offers **"new build — tap to update."** Otherwise reopen the PWA a couple times
 (the SW auto-updates) or clear that origin's site data. Best practice: **pick one HTTPS origin and
 stick to it.** (Over plain HTTP the SW can't register — always fresh, but no PWA features.)
@@ -743,7 +743,7 @@ A small Bun process sits between your phone and Herdr — the browser never touc
   tailscale serve        terminates TLS, injects the identity header
      │  127.0.0.1:PORT    (the bridge binds loopback only)
      ▼
-  Collie bridge (Bun)    serves the UI + a small JSON API; polls Herdr
+  Nenu bridge (Bun)    serves the UI + a small JSON API; polls Herdr
      │  one-shot JSON-RPC over a Unix socket
      ▼
   Herdr server           owns the panes, agents and terminal state
@@ -786,4 +786,4 @@ Herdr's plugin system itself is upstream's to document:
 - Ops, versioning & conventions — [`CLAUDE.md`](./CLAUDE.md)
 - Changes — [`CHANGELOG.md`](./CHANGELOG.md)
 
-In the works: more than one machine under a single URL — one Collie leads, the others join it.
+In the works: more than one machine under a single URL — one Nenu leads, the others join it.

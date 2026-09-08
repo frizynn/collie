@@ -1,6 +1,6 @@
-# Architecture — Collie (a Herdr web bridge over Tailscale)
+# Architecture — Nenu (a Herdr web bridge over Tailscale)
 
-> **Why Collie is shaped the way it is.** The deployment model, the interaction loop, and especially
+> **Why Nenu is shaped the way it is.** The deployment model, the interaction loop, and especially
 > the security posture — the reasoning the code can't state itself. This describes what is built; a
 > few deliberate *non*-decisions are called out as such, and §8 parks ideas that are not built on
 > purpose. For how to run it see [`README.md`](./README.md); for repo conventions
@@ -8,7 +8,7 @@
 
 ## 1. The problem (real workflow, real pain)
 
-The route Collie replaces: **Termux on Android → SSH into a tailnet machine → run the Herdr TUI.**
+The route Nenu replaces: **Termux on Android → SSH into a tailnet machine → run the Herdr TUI.**
 Three pains:
 
 1. The on-screen **terminal keyboard is terrible** to type on.
@@ -19,7 +19,7 @@ The goal: a **mobile web interface, reachable over Tailscale, that you don't hav
 into** — so you can check on and steer your agent herd from a phone with the native keyboard and
 voice, no SSH.
 
-## 2. What Collie is
+## 2. What Nenu is
 
 A Herdr web bridge — a long-lived local process that
 
@@ -40,7 +40,7 @@ The browser never touches the socket directly; the bridge is the only thing that
    tailscale serve  ── injects identity headers, terminates TLS   (Variant C: a reverse proxy instead)
         │  127.0.0.1:PORT   (bridge binds loopback ONLY)
         ▼
-   Collie (this project)
+   Nenu (this project)
      • static web app + small JSON API (browser polls /api/snapshot)
      • herdr-client adapter (the ONLY code that knows socket method names)
      • snapshot poll, event-poked (see §5)
@@ -94,7 +94,7 @@ agent goes blocked
 Product details that shaped the loop:
 
 - **Don't show a raw screenful.** A "last screenful" is often a mid-stack-trace — the actual
-  question is lines above. Collie parses recognised prompts out of the pane text into interactive
+  question is lines above. Nenu parses recognised prompts out of the pane text into interactive
   blocks (`web/src/lib/blocks.ts`), so answering a permission dialog or a menu is a tap, not a
   transcription exercise. The raw pane stays below for context.
   - **Where this stops short of the design.** The original intent was for the *bridge* to capture the
@@ -202,7 +202,7 @@ default). These four are genuine RCE vectors and are **load-bearing — do not r
   owning uid; a TCP port bounds callers to the network namespace, which every uid on the host shares.
   So a process running as a *different* user — an agent you deliberately put under
   `sudo -u agent-review` to contain it — cannot open your herdr socket but **can** open
-  `127.0.0.1:$COLLIE_PORT` and drive any pane in the herd. Installing Collie removes that uid
+  `127.0.0.1:$COLLIE_PORT` and drive any pane in the herd. Installing Nenu removes that uid
   boundary; if it is the containment you were relying on, the device gate below makes that port
   **read-only** — the one write gate that doesn't rest on "local means trusted". Note its scope: it
   gates writes and only writes, so that uid keeps reading snapshots, pane output and transcript
@@ -239,7 +239,7 @@ default). These four are genuine RCE vectors and are **load-bearing — do not r
 - **A same-origin gate on every API request** — accepted only when the browser's `Origin` host equals
   the `Host` header the bridge receives (loopback always allowed), so a page on any other tailnet
   device can't CSRF the bridge. With a plain `tailscale serve` on the MagicDNS name these match
-  automatically (no config). When Collie is fronted by a *different* public hostname or an extra
+  automatically (no config). When Nenu is fronted by a *different* public hostname or an extra
   reverse proxy / TLS terminator (custom domain, load balancer, Headscale + upstream TLS, or a
   reverse-proxy front door — [DEPLOYMENT.md → Variant C](./DEPLOYMENT.md#variant-c--reverse-proxy-as-the-only-front-door-no-tailscale)),
   the public origin no longer matches the forwarded `Host` — list that exact origin in
@@ -285,7 +285,7 @@ so they don't get re-discovered from scratch or acted on by accident.
   a pane as NDJSON live ANSI frames — `observe` is read-only; `control` additionally accepts stdin
   commands (`terminal.input`, `terminal.resize`, `terminal.scroll`, `terminal.release`) with
   one-controller-at-a-time semantics (`--takeover` to steal control). Consuming either would mean
-  running a terminal emulator, and **Collie doesn't** — the emulation already happened one process
+  running a terminal emulator, and **Nenu doesn't** — the emulation already happened one process
   upstream, so `pane.read` hands us a rendered grid rather than a byte stream. Latency is a transport
   question and cursor position is an upstream ask; `control` would resize the *shared* PTY and fight
   the desktop. The full argument, the costs the proposal hides, and the narrow shape that would be

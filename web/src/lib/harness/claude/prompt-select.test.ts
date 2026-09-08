@@ -105,7 +105,7 @@ describe("detectPromptSelect — the plan-approval feedback row is an INPUT, in 
   //
   // It is never a button. What the model carries instead is the row's two variables — is it FOCUSED
   // (the terminal then swallows every digit as a character, so no button on the dialog can fire) and
-  // what TEXT is in it (non-empty means Collie must not type: the caret resets to position 0 on
+  // what TEXT is in it (non-empty means Nenu must not type: the caret resets to position 0 on
   // re-entry, so our words would be prepended to someone else's sentence).
   //
   // The four states were walked a keystroke at a time on Claude Code 2.1.228 and again on 2.1.233;

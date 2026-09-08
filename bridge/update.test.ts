@@ -161,7 +161,7 @@ describe("UpdateMonitor", () => {
   });
 
   it("surfaces releaseAvailable + latest + latestUrl after a successful check", async () => {
-    // Use a REAL Collie release (v0.10.3) with `current` below it, so the asserted release URL exists.
+    // Use a REAL Nenu release (v0.10.3) with `current` below it, so the asserted release URL exists.
     const { monitor } = makeMonitor({
       current: "0.9.0",
       fetchTags: async () => ["v0.2.0", "v0.10.0", "v0.10.3"],

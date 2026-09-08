@@ -24,7 +24,7 @@ describe("DogGallop", () => {
     expect(el).not.toHaveAttribute("aria-hidden");
   });
 
-  it("drives box + sprite scale from a single --dog-size length", () => {
+  it("drives the activity mark size from a single --dog-size length", () => {
     const { container } = render(<DogGallop size="4rem" />);
     expect(container.querySelector<HTMLElement>(".dog-gallop")?.style.getPropertyValue("--dog-size")).toBe(
       "4rem",

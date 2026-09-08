@@ -2,7 +2,7 @@
 
 ## T3 Code UI adaptations
 
-Collie's workbench uses theme values and layout/control styling adapted from
+Nenu's workbench uses theme values and layout/control styling adapted from
 [T3 Code](https://github.com/pingdotgg/t3code), commit
 `191a4ef754b2e679f74a49230b34b48e42688349`:
 
@@ -15,7 +15,7 @@ Collie's workbench uses theme values and layout/control styling adapted from
 - `apps/web/src/components/ui/toast.tsx`: compact top-right notification surface and typography.
 - `apps/web/src/components/chat/MessagesTimeline.tsx` and `MessagesTimeline.logic.ts`: work grouping, minimal disclosures, separate final answers, and isolated elapsed-time updates.
 
-Adaptations retain Collie's identity, React Router navigation, Herdr transport,
+Adaptations retain Nenu's identity, React Router navigation, Herdr transport,
 and guarded terminal input. They do not use T3 Code's orchestration runtime.
 
 MIT License

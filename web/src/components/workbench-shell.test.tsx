@@ -8,8 +8,8 @@ const data: HomeData = {
   bridge: "connected", device: undefined, session: "work", sessions: [],
   error: false, authError: false, snoozedUntil: null, update: undefined,
   tabs: [], shellPanes: [],
-  workspaces: [{ workspaceId: "w:1", number: 1, label: "Collie", focused: true, activeTabId: "t1", tabCount: 1, paneCount: 1 }],
-  agents: [{ paneId: "w:1:p2", workspaceId: "w:1", workspaceLabel: "Collie", workspaceNumber: 1, tabId: "t1", agent: "codex", status: "working", cwd: "/dev/collie", focused: true, paneLabel: "Improve interface" }],
+  workspaces: [{ workspaceId: "w:1", number: 1, label: "Nenu", focused: true, activeTabId: "t1", tabCount: 1, paneCount: 1 }],
+  agents: [{ paneId: "w:1:p2", workspaceId: "w:1", workspaceLabel: "Nenu", workspaceNumber: 1, tabId: "t1", agent: "codex", status: "working", cwd: "/dev/collie", focused: true, paneLabel: "Improve interface" }],
 };
 
 function setup() {
@@ -21,7 +21,7 @@ function setup() {
 it("keeps project, pane and settings links scoped to the active session", () => {
   const { sidebar } = setup();
   expect(sidebar.getByRole("link", { name: /Improve interface/ })).toHaveAttribute("href", "/pane/w%3A1%3Ap2?s=work");
-  expect(sidebar.getByRole("link", { name: "Collie" })).toHaveAttribute("href", "/space/w%3A1?s=work");
+  expect(sidebar.getByRole("link", { name: "Nenu" })).toHaveAttribute("href", "/space/w%3A1?s=work");
   expect(sidebar.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings?s=work");
 });
 

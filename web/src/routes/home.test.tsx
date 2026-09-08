@@ -10,10 +10,10 @@ vi.mock("@/hooks/use-spaces", () => ({ useSpaceActions: () => ({ newSpace }) }))
 const data: HomeData = {
   bridge: "connected", device: undefined, session: "work", sessions: [], error: false, authError: false,
   snoozedUntil: null, update: undefined, tabs: [], shellPanes: [],
-  workspaces: [{ workspaceId: "w1", number: 1, label: "Collie", focused: true, activeTabId: "t1", tabCount: 1, paneCount: 2 }],
+  workspaces: [{ workspaceId: "w1", number: 1, label: "Nenu", focused: true, activeTabId: "t1", tabCount: 1, paneCount: 2 }],
   agents: [
-    { paneId: "w1:p1", workspaceId: "w1", workspaceLabel: "Collie", workspaceNumber: 1, tabId: "t1", agent: "codex", status: "idle", cwd: "/dev/collie", focused: false, paneLabel: "Earlier thread" },
-    { paneId: "w1:p2", workspaceId: "w1", workspaceLabel: "Collie", workspaceNumber: 1, tabId: "t1", agent: "claude", status: "blocked", cwd: "/dev/collie", focused: true, paneLabel: "Review changes" },
+    { paneId: "w1:p1", workspaceId: "w1", workspaceLabel: "Nenu", workspaceNumber: 1, tabId: "t1", agent: "codex", status: "idle", cwd: "/dev/collie", focused: false, paneLabel: "Earlier thread" },
+    { paneId: "w1:p2", workspaceId: "w1", workspaceLabel: "Nenu", workspaceNumber: 1, tabId: "t1", agent: "claude", status: "blocked", cwd: "/dev/collie", focused: true, paneLabel: "Review changes" },
   ],
 };
 
