@@ -43,6 +43,14 @@ describe("selectNativeModel", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
+  it("selects cached Astra when Codex marks it default and another model is current", async () => {
+    const otherCurrent = highlight(model.replace("gpt-6-astra (current)", "gpt-6-astra (default)")
+      .replace("gpt-5.6-sol            ", "gpt-5.6-sol (current)  "), 2);
+    frames(otherCurrent, otherCurrent, highlight(otherCurrent, 1));
+    expect(await selectNativeModel({ ...args, name: "gpt-6-astra" })).toMatchObject({ ok: true, name: "gpt-6-astra", menu: { selectedIndex: 0 } });
+    expect(send).toHaveBeenCalledExactlyOnceWith("one", ["Up"], "qa", expect.any(String));
+  });
+
   it.each(["gpt-5.6", "GPT-5.6-TERRA", "gpt-5.6-terra ", "GPT 5.6 Terra"])("refuses unmatched Codex name %s without keys", async (name) => {
     expect(await selectNativeModel({ ...args, name })).toMatchObject({ ok: false, reason: "unknown-model" });
     expect(send).not.toHaveBeenCalled();

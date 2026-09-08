@@ -35,6 +35,16 @@ it("declines unknown, incomplete or ambiguous row layouts", () => {
   expect(parse("❯ 1. A\n  Other option\n  2. B")).toBeNull();
 });
 
+it("separates the Codex default model annotation from its slug without changing reasoning or Claude labels", () => {
+  const lines = splitLines(parseAnsi("  1. gpt-6-astra (default)  Most capable model\n› 2. gpt-5.6-sol (current)  Everyday tasks"));
+  const result = parseNativeModelMenu({ ...menu, title: "Select Model and Effort" }, lines)!;
+  expect(result.rows[0]).toEqual({ name: "gpt-6-astra", description: "Most capable model", selected: false, current: false });
+  expect(result.rows[1]).toMatchObject({ name: "gpt-5.6-sol", current: true, selected: true });
+  const reasoning = splitLines(parseAnsi("  1. Medium (default)  Everyday tasks\n› 2. High (current)  Complex tasks"));
+  expect(parseNativeModelMenu({ ...menu, title: "Select Reasoning Level for gpt-6-astra" }, reasoning)!.rows[0]!.name).toBe("Medium (default)");
+  expect(parseNativeModelMenu(menu, lines)!.rows[0]!.name).toBe("gpt-6-astra (default)");
+});
+
 it("uses only relative arrows and refuses out-of-range positions", () => {
   expect(modelRowKeys(2, 4, 5)).toEqual(["Down", "Down"]);
   expect(modelRowKeys(4, 1, 5)).toEqual(["Up", "Up", "Up"]);

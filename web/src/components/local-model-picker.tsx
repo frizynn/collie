@@ -32,7 +32,7 @@ export function LocalModelPicker({ rows, currentModel, disabled, onApply, onCanc
     selectionRef.current = rows[index].name;
     setSelection(rows[index].name);
     setError(null);
-    if (focus) buttons.current[index]?.focus();
+    if (focus) buttons.current[index]?.focus({ preventScroll: true });
   }
 
   async function apply() {
