@@ -1,5 +1,15 @@
 # Third-party notices
 
+## Collie project origin
+
+Nenu originated as a fork of [Collie](https://github.com/AltanS/collie), created by
+[Altan Sarisin](https://github.com/AltanS). Collie provided the original Herdr bridge, self-hosted
+PWA, Tailscale access, notification system, terminal controls, and much of the repository history
+on which Nenu continues to build.
+
+Collie is distributed under the MIT License. Its original copyright and full license terms are
+preserved in Nenu's root [LICENSE](LICENSE) file.
+
 ## T3 Code UI adaptations
 
 Nenu's workbench uses theme values and layout/control styling adapted from
