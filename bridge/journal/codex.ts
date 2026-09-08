@@ -134,11 +134,29 @@ function codexToolSummary(args: unknown): string {
 }
 
 /**
- * Injected context Codex sends as a user turn. Rendering it as "You" would be actively wrong — the
- * operator never typed it — so it is dropped exactly like Claude's `system-reminder`.
+ * Injected context Codex persists with a `user` role even though its own conversation UI hides it.
+ * Rendering either wrapper as "You" would be actively wrong — the operator never typed it — so it
+ * is dropped exactly like Claude's `system-reminder`.
  */
 function isInjectedContext(text: string): boolean {
-  return text.trimStart().startsWith("<environment_context>");
+  const body = text.trim();
+  if (body.startsWith("<environment_context>")) return true;
+  return body.startsWith("# AGENTS.md instructions for ")
+    && body.includes("\n<INSTRUCTIONS>\n")
+    && body.endsWith("</INSTRUCTIONS>");
+}
+
+/** Codex app metadata appended to final answers is not part of the visible assistant message. */
+function visibleAssistantText(text: string, phase: unknown): string {
+  if (phase !== "final_answer") return text;
+  const marker = "<oai-mem-citation>";
+  const start = text.lastIndexOf(marker);
+  if (start < 0) return text;
+  const metadata = text.slice(start).trim();
+  if (!metadata.endsWith("</oai-mem-citation>")
+    || !metadata.includes("<citation_entries>")
+    || !metadata.includes("<rollout_ids>")) return text;
+  return text.slice(0, start).trimEnd();
 }
 
 interface CodexRow {
@@ -194,7 +212,8 @@ export function parseCodexTranscript(text: string): TranscriptEntry[] {
       // as things the operator said. Anything that isn't user or assistant is plumbing: drop it.
       if (p.role !== "user" && p.role !== "assistant") continue;
       const role = p.role;
-      const body = stripAnsi(blockText(p.content));
+      const rawBody = stripAnsi(blockText(p.content));
+      const body = role === "assistant" ? visibleAssistantText(rawBody, p.phase) : rawBody;
       if (body.trim() === "") continue;
       if (role === "user" && isInjectedContext(body)) continue;
       emit({ uuid, ts, role, parts: [{ kind: "text", ...clamp(body, MAX_TEXT_CHARS) }],
