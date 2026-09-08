@@ -972,7 +972,7 @@ describe("cacheControlFor", () => {
       "build-info.json",
       "favicon.svg",
       "favicon.ico",
-      "apple-touch-icon.png",
+      "nenu-apple-touch-icon.png",
     ]) {
       expect(cacheControlFor(rel)).toBe("no-cache");
     }

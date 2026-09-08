@@ -94,7 +94,7 @@ self.addEventListener("message", (event: ExtendableMessageEvent) => {
 // ── Web Push ────────────────────────────────────────────────────────────────────────────────────
 // The branching (suppress vs show vs clear, tag/title/renotify) lives in lib/push-decision so it's
 // unit-tested; here we only parse the event, read client visibility, and run the side effect.
-const ICON = "/web-app-manifest-192x192.png";
+const ICON = "/nenu-pwa-192x192.png";
 
 self.addEventListener("push", (event: PushEvent) => {
   event.waitUntil(handlePush(event));
