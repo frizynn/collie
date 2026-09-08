@@ -63,7 +63,7 @@ export function TabActionsSheet({
 
   // Autofocus the label input when rename mode opens, so the phone keyboard pops without a second tap.
   useEffect(() => {
-    if (mode === "rename") inputRef.current?.focus();
+    if (mode === "rename") inputRef.current?.focus({ preventScroll: true });
   }, [mode]);
 
   const trimmed = label.trim();

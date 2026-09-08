@@ -10,7 +10,7 @@ vi.mock("@/lib/api", async (original) => ({
 }));
 
 const fetchMock = vi.mocked(fetchModelCatalog);
-const key = "collie.model-catalog.v1";
+const key = "collie.model-catalog.v2";
 const options = { paneId: "w1:p1", session: "one", agent: "claude", enabled: true };
 const scope = (value = options) => JSON.stringify([value.paneId, value.session, value.agent]);
 const rows = [{ name: "Model A", description: "Available candidate" }];
@@ -75,6 +75,24 @@ it("keeps observed native rows over late backend candidates, including persisten
   expect(result.current.rows).toEqual(nativeRows);
   expect(JSON.parse(localStorage.getItem(key)!)[0].rows).toEqual(nativeRows);
   expect(result.current.loading).toBe(false);
+});
+
+it("replaces pre-fix cache labels with canonical Codex slugs and reopens them synchronously", async () => {
+  const codex = { ...options, agent: "codex" };
+  localStorage.setItem("collie.model-catalog.v1", JSON.stringify([{ scope: scope(codex), at: Date.now(),
+    rows: [{ name: "gpt-6-astra (default)", description: "Most capable model" }] }]));
+  const pending = deferred();
+  fetchMock.mockReturnValue(pending.promise);
+  const initialProps: typeof codex & { live?: MenuBlock } = codex;
+  const first = renderHook((props) => useModelCatalog(props), { initialProps });
+  expect(first.result.current.rows).toEqual([]);
+  first.rerender({ ...codex, live: { ...live, menu: { ...live.menu, title: "Select Model and Effort" },
+    lines: splitLines(parseAnsi("  1. gpt-6-astra (default)  Most capable model\n› 2. gpt-5.6-sol (current)  Everyday tasks")) } });
+  expect(first.result.current.rows.map((row) => row.name)).toEqual(["gpt-6-astra", "gpt-5.6-sol"]);
+  first.unmount();
+  const next = renderHook(() => useModelCatalog(codex));
+  expect(next.result.current.rows.map((row) => row.name)).toEqual(["gpt-6-astra", "gpt-5.6-sol"]);
+  next.unmount();
 });
 
 it("aborts superseded scopes and ignores their late results without caching them", async () => {

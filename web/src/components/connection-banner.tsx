@@ -86,7 +86,7 @@ function AuthErrorBanner() {
           role="alert"
           aria-live="polite"
           className={cn(
-            "flex items-center gap-2 border-b px-4 py-1 text-xs [padding-top:calc(env(safe-area-inset-top)_+_0.25rem)]",
+            "flex items-center gap-2 border-b px-4 py-1 text-xs",
             TINT.blocked.row,
           )}
         >
@@ -222,7 +222,7 @@ function ConnectionStateBanner({
     // opacity; the inner wrapper clips the content while it's collapsed. Snaps under reduced motion.
     <div
       className={cn(
-        "grid shrink-0 overflow-hidden transition-all duration-200 ease-out motion-reduce:transition-none",
+        "grid shrink-0 overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none",
         open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
       )}
     >
@@ -233,7 +233,7 @@ function ConnectionStateBanner({
           aria-live="polite"
           className={cn(
             // Thin single row: text-xs, tight padding, safe-area top inset, never wraps.
-            "flex items-center gap-2 border-b px-4 py-1 text-xs [padding-top:calc(env(safe-area-inset-top)_+_0.25rem)]",
+            "flex items-center gap-2 border-b px-4 py-1 text-xs",
             view.row,
           )}
         >

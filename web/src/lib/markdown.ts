@@ -28,9 +28,12 @@
  * ``**`c6fe96`**`` (bold wrapping code) is routine in agent prose, and a flat model rendered those
  * backticks literally. `code` is the one leaf: its content is verbatim by definition.
  */
+import { localFilePath } from "./file-links";
+
 export type MdSpan =
   | { kind: "text"; text: string }
   | { kind: "code"; text: string }
+  | { kind: "file"; path: string; spans: MdSpan[] }
   | { kind: "bold"; spans: MdSpan[] }
   | { kind: "italic"; spans: MdSpan[] }
   /** `href` is already scheme-checked; anything unsafe never becomes a link (see `safeHref`). */
@@ -74,7 +77,7 @@ const INLINE_RE = new RegExp(
     "(`+)([^`]+?)\\1", // 1,2  inline code
     "\\*\\*(\\S(?:[^\\n]*?\\S)?)\\*\\*", // 3    bold
     "\\*(\\S(?:[^\\n*]*?\\S)?)\\*", // 4    italic
-    "\\[([^\\]\\n]*)\\]\\(([^)\\s]+)\\)", // 5,6  link
+    "\\[([^\\]\\n]*)\\]\\((<[^>\\n]+>|[^)\\s]+)\\)", // 5,6 link
   ].join("|"),
   "g",
 );
@@ -108,9 +111,11 @@ export function parseInline(text: string, depth = 0): MdSpan[] {
     else if (m[3] !== undefined) push({ kind: "bold", spans: parseInline(m[3], depth + 1) });
     else if (m[4] !== undefined) push({ kind: "italic", spans: parseInline(m[4], depth + 1) });
     else if (m[5] !== undefined && m[6] !== undefined) {
+      const path = localFilePath(m[6]);
       const href = safeHref(m[6]);
       // An unsafe target keeps its literal Markdown, so nothing silently disappears from the text.
-      if (href) push({ kind: "link", href, spans: parseInline(m[5] || href, depth + 1) });
+      if (path) push({ kind: "file", path, spans: parseInline(m[5] || path, depth + 1) });
+      else if (href) push({ kind: "link", href, spans: parseInline(m[5] || href, depth + 1) });
       else push({ kind: "text", text: m[0] });
     }
     last = m.index + m[0].length;

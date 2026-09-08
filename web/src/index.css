@@ -236,11 +236,64 @@
     /* Respect notches; keep the app glued to the viewport edges on mobile. */
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
+    height: 100%;
+    overflow: hidden;
   }
   body {
     @apply bg-background text-foreground;
     overscroll-behavior-y: none;
+    height: 100%;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
   }
+}
+
+/* One owner for the screen cutout, even when connection/update banners appear. Route headers
+   sit below this inset instead of each adding another notch-sized gap. */
+.app-viewport {
+  position: fixed;
+  inset-inline: 0;
+  top: var(--app-viewport-top, 0px);
+  height: var(--app-viewport-height, 100dvh);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+  overflow: hidden;
+}
+.sheet-viewport {
+  top: var(--app-viewport-top, 0px);
+  height: var(--app-viewport-height, 100dvh);
+}
+.sheet-bottom-panel {
+  max-height: min(82dvh, calc(var(--app-viewport-height, 100dvh) - env(safe-area-inset-top) - 16px));
+  padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+  transition: transform 200ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-bottom-panel { transition: none; }
+}
+
+/* A sub-16px editable field makes iOS zoom the entire app on focus. Keep browser zoom available
+   for accessibility; make touch fields readable instead of disabling scaling in the viewport. */
+@media (max-width: 1023px), (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select {
+    font-size: max(16px, 1em);
+  }
+}
+
+.workbench-icon-button {
+  transition: background-color 120ms ease-out, color 120ms ease-out, scale 120ms ease-out;
+}
+.workbench-icon-button:active { scale: 0.96; }
+[data-workbench-popover] {
+  opacity: 1;
+  translate: 0 0;
+  transition: opacity 150ms ease-out, translate 150ms ease-out;
+}
+@starting-style {
+  [data-workbench-popover] { opacity: 0; translate: 0 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workbench-icon-button, [data-workbench-popover] { transition: none; }
+  .workbench-icon-button:active { scale: none; }
 }
 
 /* We don't use view transitions (removed). But React Router can still fire document.startViewTransition

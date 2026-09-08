@@ -33,7 +33,7 @@ export function FindBar({
   const inputRef = useRef<HTMLInputElement>(null);
   // Focus (and pop the keyboard) as soon as the bar opens so the user can type immediately.
   useEffect(() => {
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
   }, []);
 
   const countLabel = query ? (count > 0 ? `${current + 1}/${count}` : "0/0") : "";

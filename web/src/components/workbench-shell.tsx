@@ -23,8 +23,8 @@ export function WorkbenchShell({ data, children }: { data: HomeData; children: R
   const collapseButton = useRef<HTMLButtonElement>(null);
   const wasCollapsed = useRef(false);
   useEffect(() => {
-    if (collapsed) expandButton.current?.focus();
-    else if (wasCollapsed.current) collapseButton.current?.focus();
+    if (collapsed) expandButton.current?.focus({ preventScroll: true });
+    else if (wasCollapsed.current) collapseButton.current?.focus({ preventScroll: true });
     wasCollapsed.current = collapsed;
   }, [collapsed]);
   const location = useLocation();

@@ -465,7 +465,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   function focusInputImmediately() {
     const el = inputRef.current;
     if (!el) return;
-    el.focus();
+    el.focus({ preventScroll: true });
     el.setSelectionRange(el.value.length, el.value.length);
   }
 

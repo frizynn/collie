@@ -4,7 +4,8 @@ import { parseNativeModelMenu } from "@/lib/native-model-menu";
 import type { MenuBlock } from "@/lib/blocks";
 
 export interface ModelCatalogRow { name: string; description: string }
-const KEY = "collie.model-catalog.v1";
+// v1 could persist Codex's presentation-only "(default)" suffix as part of the model slug.
+const KEY = "collie.model-catalog.v2";
 const TTL = 24 * 60 * 60 * 1000;
 type Entry = { scope: string; at: number; rows: ModelCatalogRow[] };
 function validRows(value: unknown): value is ModelCatalogRow[] {

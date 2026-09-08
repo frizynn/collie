@@ -1,6 +1,7 @@
 import { Outlet, useLoaderData, useParams, useRouteError, useRouteLoaderData } from "react-router";
 
 import { usePolling } from "@/hooks/use-polling";
+import { useAppViewport } from "@/hooks/use-app-viewport";
 import { usePollBusy } from "@/hooks/use-poll-busy";
 import { useAgentTransitions } from "@/hooks/use-transitions";
 import { usePushSetup } from "@/hooks/use-push";
@@ -10,6 +11,7 @@ import { ConnectionBanner } from "@/components/connection-banner";
 import { DogGallop } from "@/components/dog-gallop";
 import { StatusArea } from "@/components/status-area";
 import { WorkbenchShell } from "@/components/workbench-shell";
+import { FilePreviewProvider } from "@/components/file-preview-provider";
 import { homePath } from "@/lib/nav";
 import { SESSION_PARAM, normalizeSession } from "@/lib/session";
 import { PANE_ROUTE_ID, type HomeData, type PaneData } from "@/lib/loaders";
@@ -38,6 +40,7 @@ export function shownLastSeenAt(home: HomeData, pane: PaneData | undefined): num
 // routes (home + pane detail) via the router's loader data. Mounted only while unlocked (the
 // idle-lock in App swaps the whole RouterProvider out), so polling pauses when the app is locked.
 export function RootLayout() {
+  useAppViewport();
   // SAFETY: this component IS the element of the route whose `loader` is rootLoader (router.tsx pairs
   // the two), and it renders only after that loader settles — so useLoaderData returns its HomeData.
   const data = useLoaderData() as HomeData;
@@ -63,7 +66,7 @@ export function RootLayout() {
   // active route fills the rest (each route root is `min-h-0 flex-1`). This is what keeps a banner
   // from covering the route's sticky header — it reserves real space instead of overlaying.
   return (
-    <div className="flex h-[100dvh] flex-col">
+    <div className="app-viewport flex flex-col">
       {/* API-observed self-update: mounted unconditionally so its controller runs (and can
           auto-update) for the app's lifetime; renders the slim "tap to update" row only when a fresh
           build is confirmed but auto-update is held off (unsent work) or already spent. */}
@@ -78,7 +81,7 @@ export function RootLayout() {
         authError={data.authError}
         lastSeenAt={shownLastSeenAt(data, pane)}
       />
-      <WorkbenchShell data={data}><Outlet /></WorkbenchShell>
+      <WorkbenchShell data={data}><FilePreviewProvider key={`${paneId}:${data.session}`} paneId={paneId} session={data.session}><Outlet /></FilePreviewProvider></WorkbenchShell>
       <StatusArea />
     </div>
   );

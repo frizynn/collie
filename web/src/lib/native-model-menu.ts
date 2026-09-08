@@ -17,6 +17,7 @@ export interface NativeModelMenu {
 export function parseNativeModelMenu(menu: MenuModel, lines: StyledLine[]): NativeModelMenu | null {
   const reasoning = /^Select Reasoning Level for [a-zA-Z0-9_.-]+$/i.test(menu.title);
   if (!reasoning && !/^Select model(?: and (?:reasoning )?effort)?$/i.test(menu.title)) return null;
+  const codexModel = /^Select model and (?:reasoning )?effort$/i.test(menu.title);
   if (!menu.nav.upDown) return null;
   const text = lines.map((line) => line.segments.map((segment) => segment.text).join(""));
   const matches = text.map((line, index) => ({ match: /^\s*([❯›])?\s*([1-9]\d*)\.\s+(.+?)\s*$/.exec(line), index }))
@@ -29,8 +30,12 @@ export function parseNativeModelMenu(menu: MenuModel, lines: StyledLine[]): Nati
   if (!matches.every((row, index) => index === 0 || row.index === matches[index - 1]!.index + 1)) return null;
   const rows = matches.map(({ match }) => {
     const [label = "", ...description] = match[3]!.split(/\s{2,}/);
+    // Codex decorates its default model only while another model is current. It is not part of
+    // the slug: keeping it makes the cached gpt-6-astra candidate fail exact live-row matching.
+    // Reasoning labels and Claude's "Default (recommended)" belong to different grammars.
+    const name = label.replace(/[✔✓]/g, "").replace(/\s*\(current\)/gi, "").trim();
     return {
-      name: label.replace(/[✔✓]/g, "").replace(/\s*\(current\)/gi, "").trim(),
+      name: codexModel ? name.replace(/\s+\(default\)$/i, "") : name,
       description: description.join(" ").trim(),
       selected: Boolean(match[1]),
       current: /[✔✓]|\(current\)/i.test(label),

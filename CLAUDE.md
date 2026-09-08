@@ -204,12 +204,16 @@ the unit name; the Herdr action runs from anywhere.
 ## The journal (scrollback the mirror can't give you)
 
 `bridge/journal/` reads the agent's own session log off disk, per harness (`claude` / `codex` / `pi`,
-registered in `registry.ts`). It is the **only** thing in the bridge that touches the filesystem, so
+registered in `registry.ts`). For journal reads,
 the containment rule in [`files.ts`](./bridge/journal/files.ts) is absolute: **every** path an
 adapter is about to read goes through `containedRealpath` — after symlink resolution, on the real
 paths, including paths derived from one already checked. The client never supplies a path. Run
 `bun scripts/journal-probe.ts` against real logs after touching an adapter; unit tests pin the
 grammar, the probe catches on-disk format drift.
+
+Project file previews (`bridge/pane-files.ts`) separately accept a client path under the live pane's
+cwd only. Every read is bounded and contained after realpath resolution; private paths are refused.
+HTML/SVG/source render as text. Never turn this endpoint into unrestricted host file access.
 
 ## Security posture (don't regress)
 

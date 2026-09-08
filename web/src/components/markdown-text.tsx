@@ -2,6 +2,8 @@ import { createContext, useContext, useMemo } from "react";
 
 import { parseMarkdown, type MdBlock, type MdSpan } from "@/lib/markdown";
 import { splitHighlight } from "@/lib/transcript-search";
+import { FilePreviewContext } from "@/lib/file-preview-context";
+import { localFilePath } from "@/lib/file-links";
 
 // Renders the Markdown AST as React elements. Every string from the log reaches the DOM as a TEXT
 // NODE — there is no `dangerouslySetInnerHTML` here and there must never be one. That is the repo's
@@ -39,7 +41,10 @@ function Hit({ text }: { text: string }) {
 // Emphasis and links hold child spans (agents nest them — ``**`sha`**`` is routine), so this recurses
 // through <Spans>. `code` is the leaf.
 function Span({ span }: { span: MdSpan }) {
+  const openFile = useContext(FilePreviewContext);
   switch (span.kind) {
+    case "file":
+      return openFile ? <button type="button" className="text-primary underline underline-offset-2 break-all text-left" onClick={() => openFile(span.path)}><LinkLabel spans={span.spans} /></button> : <Spans spans={span.spans} />;
     case "bold":
       return (
         <strong className="font-semibold">
@@ -52,12 +57,15 @@ function Span({ span }: { span: MdSpan }) {
           <Spans spans={span.spans} />
         </em>
       );
-    case "code":
+    case "code": {
+      const path = localFilePath(span.text);
+      if (path && openFile) return <button type="button" className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em] text-primary underline underline-offset-2 break-all text-left" onClick={() => openFile(path)}><Hit text={span.text} /></button>;
       return (
         <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em] break-all">
           <Hit text={span.text} />
         </code>
       );
+    }
     case "link":
       // `href` was scheme-checked in the parser. noreferrer/noopener because these URLs come from
       // agent output, and target=_blank keeps the PWA shell alive behind the tap.
@@ -68,13 +76,18 @@ function Span({ span }: { span: MdSpan }) {
           rel="noopener noreferrer"
           className="text-primary underline underline-offset-2 break-all"
         >
-          <Spans spans={span.spans} />
+          <LinkLabel spans={span.spans} />
         </a>
       );
     default:
       return <Hit text={span.text} />;
   }
 }
+
+// A code-formatted filename inside a link is its label, never another nested interactive control.
+const LinkLabel = ({ spans }: { spans: MdSpan[] }) => (
+  <FilePreviewContext.Provider value={null}><Spans spans={spans} /></FilePreviewContext.Provider>
+);
 
 const Spans = ({ spans }: { spans: MdSpan[] }) => (
   <>

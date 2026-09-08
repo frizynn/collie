@@ -37,6 +37,7 @@ describe("sheet — focus & labelling", () => {
     opener.textContent = "open";
     document.body.appendChild(opener);
     opener.focus();
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
     expect(document.activeElement).toBe(opener);
 
     const { rerender } = render(
@@ -47,6 +48,7 @@ describe("sheet — focus & labelling", () => {
     // Focus is now inside the dialog panel (not left on the opener behind the modal).
     expect(screen.getByRole("dialog").contains(document.activeElement)).toBe(true);
     expect(document.activeElement).not.toBe(opener);
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
 
     rerender(
       <BottomSheet open={false} onClose={vi.fn()} title="Keys">
@@ -54,8 +56,32 @@ describe("sheet — focus & labelling", () => {
       </BottomSheet>,
     );
     expect(document.activeElement).toBe(opener);
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
+    focus.mockRestore();
     opener.remove();
   });
+});
+
+it("does not dismiss a sheet while scrolling a nested list or selecting input text", () => {
+  const onClose = vi.fn();
+  render(<BottomSheet open onClose={onClose} title="Workspaces">
+    <div data-testid="nested" style={{ overflowY: "auto" }}>Long list</div>
+    <textarea aria-label="Draft" />
+  </BottomSheet>);
+  const list = screen.getByTestId("nested");
+  list.scrollTop = 120;
+  for (const target of [list, screen.getByRole("textbox")]) {
+    fireEvent.touchStart(target, { touches: [{ clientY: 100 }] });
+    fireEvent.touchMove(target, { touches: [{ clientY: 240 }] });
+    fireEvent.touchEnd(target, { touches: [] });
+    expect(onClose).not.toHaveBeenCalled();
+  }
+  // Pulling from the sheet's own header still dismisses it.
+  const header = screen.getByText("Workspaces");
+  fireEvent.touchStart(header, { touches: [{ clientY: 100 }] });
+  fireEvent.touchMove(header, { touches: [{ clientY: 240 }] });
+  fireEvent.touchEnd(header, { touches: [] });
+  expect(onClose).toHaveBeenCalledOnce();
 });
 
 // The on-device bug: a long-press that opens the sheet leaves the finger down at mount time: the

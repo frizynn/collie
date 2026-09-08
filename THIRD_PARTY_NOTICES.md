@@ -49,3 +49,10 @@ Both use the SIL Open Font License 1.1; complete notices are in
 `web/public/fonts/dm-sans-LICENSE.txt` and
 `web/public/fonts/jetbrains-mono-LICENSE.txt`. Existing Nerd Font subsets and
 `web/public/fonts/LICENSE.txt` remain unchanged.
+
+## PDF.js
+
+The optional document viewer uses Mozilla PDF.js (`pdfjs-dist`), licensed under Apache-2.0.
+The full license is distributed at `web/public/pdfjs-LICENSE.txt`. Font and image decoder notices
+are also included alongside the lazily served PDF.js resources. See
+[PDF.js examples](https://mozilla.github.io/pdf.js/examples/) for the document/page rendering API.
