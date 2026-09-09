@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useNavigate, useRevalidator } from "react-router";
-import { ArrowUpToLine, Loader2, ScrollText, Search, TerminalSquare } from "lucide-react";
+import { ArrowUpToLine, Loader2, MessageSquareText, ScrollText, Search, TerminalSquare } from "lucide-react";
 import { useSwipeUp } from "@/hooks/use-swipe";
 import { useSpaceActions } from "@/hooks/use-spaces";
 import { useDashPrefs, openForCount } from "@/hooks/use-dash-prefs";
@@ -126,7 +126,8 @@ export function AgentChat({
   const connecting = isConnecting({ bridge, error, stalled });
   const { newTab } = useSpaceActions();
   // Single display-prefs instance: the View controls (in <Composer>) write it, the mirror reads it.
-  const { prefs, setWrap, stepFontSize, setRawTerminal, setTapToFocus } = useDisplayPrefs();
+  const displayScope = JSON.stringify([session ?? "default", paneId]);
+  const { prefs, setWrap, stepFontSize, setRawTerminal, setTapToFocus } = useDisplayPrefs(displayScope);
   // Raw-terminal escape hatch: when on, every Claude grammar is bypassed and the plain mirror shows,
   // so a mis-detected/mis-rendered dialog can always be driven by hand with the keys pad.
   const grammarsOn = !prefs.rawTerminal;
@@ -265,7 +266,9 @@ export function AgentChat({
   }, [dialogPresent, text, revision, agent?.hasSession]);
   // Approvals and native pickers own the terminal keyboard. Bring their verified controls into
   // view even while the journal is selected; transcript text never impersonates an approval UI.
-  const showConversation = Boolean(agent?.hasSession) && !prefs.rawTerminal;
+  const conversationCapable = !isShell && Boolean(adapterFor(agent?.agent)) &&
+    Boolean(agent?.hasSession || agent?.status === "idle" || agent?.status === "working");
+  const showConversation = conversationCapable && !prefs.rawTerminal;
 
   // Both are threaded to the composer: the RAW value (live) plus a stabilised one. extractInputDraft
   // is stateless, so it can't distinguish a stranded draft from the ~350ms flash where our OWN
@@ -684,6 +687,18 @@ export function AgentChat({
                   className="-mr-1 flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60"
                 >
                   <ScrollText className="size-4" />
+                </button>
+              )}
+              {conversationCapable && (
+                <button
+                  type="button"
+                  onClick={() => setRawTerminal(!prefs.rawTerminal)}
+                  aria-label={prefs.rawTerminal ? "Show conversation" : "Show raw terminal"}
+                  aria-pressed={prefs.rawTerminal}
+                  title={prefs.rawTerminal ? "Show conversation" : "Show raw terminal"}
+                  className="-mr-1 flex size-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground active:bg-muted md:size-8"
+                >
+                  {prefs.rawTerminal ? <MessageSquareText aria-hidden="true" className="size-4" /> : <TerminalSquare aria-hidden="true" className="size-4" />}
                 </button>
               )}
               {isShell ? (

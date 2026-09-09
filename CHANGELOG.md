@@ -8,6 +8,17 @@ All notable changes to Nenu are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.37.3] - 2026-09-09
+
+### Fixed
+
+- Fresh Codex sessions now open directly in the conversation workbench before their journal exists,
+  without flashing back to the terminal while the first message starts running (4b77f15).
+- Mobile sends containing blank paragraphs or several URLs are verified and submitted once instead
+  of being stranded in Codex's input box and duplicated on retry (4b77f15).
+- Raw terminal is now an explicit compact header escape hatch scoped to one pane; an old global
+  terminal preference can no longer make every new phone session open in the raw view (4b77f15).
+
 ## [0.37.2] - 2026-09-08
 
 ### Fixed

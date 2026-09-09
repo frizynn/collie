@@ -1857,7 +1857,7 @@ describe("Composer — quick dock (in-flow, matches the keys dock)", () => {
 });
 
 describe("Composer — display prefs behind the gear", () => {
-  it("the View row is gone; wrap/raw/font live behind the Display gear as labelled controls", async () => {
+  it("the View row is gone; persistent mirror prefs live behind the Display gear", async () => {
     const user = userEvent.setup();
     renderComposer();
 
@@ -1868,7 +1868,8 @@ describe("Composer — display prefs behind the gear", () => {
 
     // Named controls, not bare glyphs — the whole point of the move.
     expect(screen.getByRole("switch", { name: "Wrap lines" })).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "Raw terminal" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Tap to type" })).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Raw terminal" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Decrease font size" })).toBeInTheDocument();
   });
 

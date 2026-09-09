@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 // Terminal mirror display preferences, persisted in localStorage.
 // Safe to call in SSR contexts (localStorage guarded throughout).
@@ -32,10 +32,14 @@ export interface DisplayPrefs {
   tapToFocus: boolean;
 }
 
-// NOT bumped for `tapToFocus`: loadPrefs defaults each field independently, so a v4 payload written
-// before it existed simply reads the default. Bumping would silently reset everyone's wrap, size and
-// raw-terminal choice to buy nothing.
-const STORAGE_KEY = "collie:display-prefs:v4";
+// v5 deliberately drops the old global raw-terminal bit: one emergency switch must not make every
+// future pane open as a terminal. Common preferences migrate from v4; raw view now lives separately
+// and is scoped to one Herdr session + pane.
+const STORAGE_KEY = "collie:display-prefs:v5";
+const LEGACY_STORAGE_KEY = "collie:display-prefs:v4";
+const RAW_STORAGE_KEY = "collie:raw-terminal-scopes:v1";
+const DEFAULT_SCOPE = "global";
+const MAX_RAW_SCOPES = 32;
 export const FONT_MIN = 9;
 export const FONT_MAX = 16;
 const DEFAULTS: DisplayPrefs = { wrap: true, fontSize: 12, rawTerminal: false, tapToFocus: true };
@@ -44,31 +48,62 @@ function clampFont(n: number): number {
   return Math.max(FONT_MIN, Math.min(FONT_MAX, Math.round(n)));
 }
 
-function loadPrefs(): DisplayPrefs {
+function loadRawTerminal(scope: string): boolean {
   try {
-    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-    if (!raw) return DEFAULTS;
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(RAW_STORAGE_KEY) : null;
+    if (!raw) return false;
     const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null) return DEFAULTS;
+    if (typeof parsed !== "object" || parsed === null) return false;
+    return (parsed as Record<string, unknown>)[scope] === true;
+  } catch {
+    return false;
+  }
+}
+
+function loadPrefs(scope: string): DisplayPrefs {
+  try {
+    const raw = typeof localStorage !== "undefined"
+      ? localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY)
+      : null;
+    if (!raw) return { ...DEFAULTS, rawTerminal: loadRawTerminal(scope) };
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return { ...DEFAULTS, rawTerminal: loadRawTerminal(scope) };
     const p = parsed as Record<string, unknown>;
     return {
       wrap: typeof p.wrap === "boolean" ? p.wrap : DEFAULTS.wrap,
       fontSize: typeof p.fontSize === "number" ? clampFont(p.fontSize) : DEFAULTS.fontSize,
-      rawTerminal: typeof p.rawTerminal === "boolean" ? p.rawTerminal : DEFAULTS.rawTerminal,
+      rawTerminal: loadRawTerminal(scope),
       tapToFocus: typeof p.tapToFocus === "boolean" ? p.tapToFocus : DEFAULTS.tapToFocus,
     };
   } catch {
-    return DEFAULTS;
+    return { ...DEFAULTS, rawTerminal: loadRawTerminal(scope) };
   }
 }
 
 function savePrefs(prefs: DisplayPrefs): void {
   try {
     if (typeof localStorage !== "undefined") {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+      const { rawTerminal: _rawTerminal, ...common } = prefs;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(common));
     }
   } catch {
     // Ignore quota / SSR write errors.
+  }
+}
+
+function saveRawTerminal(scope: string, rawTerminal: boolean): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    const stored = localStorage.getItem(RAW_STORAGE_KEY);
+    const parsed: unknown = stored ? JSON.parse(stored) : {};
+    const previous = typeof parsed === "object" && parsed !== null
+      ? parsed as Record<string, unknown>
+      : {};
+    const entries = Object.entries(previous).filter(([key, value]) => key !== scope && value === true);
+    if (rawTerminal) entries.push([scope, true]);
+    localStorage.setItem(RAW_STORAGE_KEY, JSON.stringify(Object.fromEntries(entries.slice(-MAX_RAW_SCOPES))));
+  } catch {
+    // Ignore quota / malformed previous payload / SSR write errors.
   }
 }
 
@@ -86,8 +121,12 @@ export interface UseDisplayPrefsReturn {
   setTapToFocus: (tapToFocus: boolean) => void;
 }
 
-export function useDisplayPrefs(): UseDisplayPrefsReturn {
-  const [prefs, setPrefs] = useState<DisplayPrefs>(loadPrefs);
+export function useDisplayPrefs(scope = DEFAULT_SCOPE): UseDisplayPrefsReturn {
+  const [prefs, setPrefs] = useState<DisplayPrefs>(() => loadPrefs(scope));
+
+  useEffect(() => {
+    setPrefs(loadPrefs(scope));
+  }, [scope]);
 
   const setWrap = useCallback((wrap: boolean) => {
     setPrefs((p) => {
@@ -116,10 +155,10 @@ export function useDisplayPrefs(): UseDisplayPrefsReturn {
   const setRawTerminal = useCallback((rawTerminal: boolean) => {
     setPrefs((p) => {
       const next: DisplayPrefs = { ...p, rawTerminal };
-      savePrefs(next);
+      saveRawTerminal(scope, rawTerminal);
       return next;
     });
-  }, []);
+  }, [scope]);
 
   const setTapToFocus = useCallback((tapToFocus: boolean) => {
     setPrefs((p) => {
