@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { parseAnsi } from "../ansi";
 import { splitLines, type StyledLine } from "../blocks";
+import { draftCarriesSend } from "../reply-action";
 import { codexAdapter } from "./codex";
 import { locateComposer, stripChrome } from "./codex/chrome";
 import { isStatusRow, lineText, PLACEHOLDER } from "./codex/markers";
@@ -226,6 +227,34 @@ describe("chrome", () => {
     expect(codexAdapter.extractInputDraft(lines)).toBe(
       "please move all the images across to the new blog then take the originals down once the copy is verified",
     );
+  });
+
+  it("verifies a multiline phone draft with blank paragraphs and URLs", () => {
+    const sent = [
+      "review these failures",
+      "",
+      "https://example.test/first",
+      "https://example.test/second",
+      "",
+      "and keep the recovery safe",
+    ].join("\n");
+    const screen = [
+      "› review these failures",
+      "",
+      "  https://example.test/first",
+      "  https://example.test/second",
+      "",
+      "  and keep the recovery safe",
+      "",
+      "  gpt-5.6-sol medium · /home/user/project · Context 50% left",
+    ].join("\n");
+    const lines = splitLines(parseAnsi(screen));
+
+    expect(locateComposer(lines)).not.toBeNull();
+    expect(codexAdapter.composerReady!(lines)).toBe(true);
+    const draft = codexAdapter.extractInputDraft(lines);
+    expect(draft).toBe("review these failures https://example.test/first https://example.test/second and keep the recovery safe");
+    expect(draftCarriesSend(sent, draft)).toBe(true);
   });
 
   it("a draft that wraps past 8 rows is still a composer", () => {

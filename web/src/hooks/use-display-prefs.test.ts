@@ -2,7 +2,8 @@ import { renderHook, act } from "@testing-library/react";
 import { useDisplayPrefs } from "./use-display-prefs";
 
 // Minimal localStorage stub — Vitest/jsdom includes a real one but this ensures it's clean per test.
-const STORAGE_KEY = "collie:display-prefs:v4";
+const STORAGE_KEY = "collie:display-prefs:v5";
+const RAW_STORAGE_KEY = "collie:raw-terminal-scopes:v1";
 
 describe("useDisplayPrefs", () => {
   beforeEach(() => localStorage.clear());
@@ -27,19 +28,21 @@ describe("useDisplayPrefs", () => {
   });
 
   it("loads persisted prefs from localStorage on mount", () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ wrap: false, fontSize: 14, rawTerminal: true, tapToFocus: false }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ wrap: false, fontSize: 14, tapToFocus: false }));
     const { result } = renderHook(() => useDisplayPrefs());
-    expect(result.current.prefs).toEqual({ wrap: false, fontSize: 14, rawTerminal: true, tapToFocus: false });
+    expect(result.current.prefs).toEqual({ wrap: false, fontSize: 14, rawTerminal: false, tapToFocus: false });
   });
 
-  it("persists rawTerminal and reloads it on mount (the escape hatch survives a reload)", () => {
-    const { result } = renderHook(() => useDisplayPrefs());
+  it("persists rawTerminal only for the current pane scope", () => {
+    const { result } = renderHook(() => useDisplayPrefs("pane-a"));
     expect(result.current.prefs.rawTerminal).toBe(false);
     act(() => result.current.setRawTerminal(true));
     expect(result.current.prefs.rawTerminal).toBe(true);
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).rawTerminal).toBe(true);
-    const { result: reloaded } = renderHook(() => useDisplayPrefs());
+    expect(JSON.parse(localStorage.getItem(RAW_STORAGE_KEY)!)["pane-a"]).toBe(true);
+    const { result: reloaded } = renderHook(() => useDisplayPrefs("pane-a"));
     expect(reloaded.current.prefs.rawTerminal).toBe(true);
+    const { result: other } = renderHook(() => useDisplayPrefs("pane-b"));
+    expect(other.current.prefs.rawTerminal).toBe(false);
   });
 
   it("persists tapToFocus and reloads it on mount", () => {
@@ -51,12 +54,10 @@ describe("useDisplayPrefs", () => {
     expect(reloaded.current.prefs.tapToFocus).toBe(false);
   });
 
-  // The storage key was deliberately NOT bumped for tapToFocus: a payload written before it existed
-  // must keep every other choice and take the default for the new one. A bump would have reset them.
-  it("reads a pre-tapToFocus payload without discarding the prefs it does have", () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ wrap: false, fontSize: 15, rawTerminal: true }));
+  it("migrates common v4 prefs but drops its global raw-terminal choice", () => {
+    localStorage.setItem("collie:display-prefs:v4", JSON.stringify({ wrap: false, fontSize: 15, rawTerminal: true }));
     const { result } = renderHook(() => useDisplayPrefs());
-    expect(result.current.prefs).toEqual({ wrap: false, fontSize: 15, rawTerminal: true, tapToFocus: true });
+    expect(result.current.prefs).toEqual({ wrap: false, fontSize: 15, rawTerminal: false, tapToFocus: true });
   });
 
   it("setFontSize clamps below minimum to 9", () => {

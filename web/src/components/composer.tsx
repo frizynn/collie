@@ -148,7 +148,7 @@ function ComposerDock({
 }
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  { paneId, session, agent, isShell, gone, readOnly, disconnected = false, nativeWorkbench = false, prepareSend, onInputFocus, dialogPresent, text, terminalDraft, rawTerminalDraft, prefs, setWrap, stepFontSize, setRawTerminal, setTapToFocus, onSent },
+  { paneId, session, agent, isShell, gone, readOnly, disconnected = false, nativeWorkbench = false, prepareSend, onInputFocus, dialogPresent, text, terminalDraft, rawTerminalDraft, prefs, setWrap, stepFontSize, setTapToFocus, onSent },
   ref,
 ) {
   const revalidator = useRevalidator();
@@ -820,7 +820,6 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               prefs={prefs}
               setWrap={setWrap}
               stepFontSize={stepFontSize}
-              setRawTerminal={setRawTerminal}
               setTapToFocus={setTapToFocus}
             />
           </ComposerDock>

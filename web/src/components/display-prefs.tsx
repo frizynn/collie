@@ -9,10 +9,9 @@ import { FONT_MAX, FONT_MIN } from "@/hooks/use-display-prefs";
 // The mirror's display prefs, as LABELLED rows behind the composer's ⚙ toggle.
 //
 // These used to be a permanent icon-only "View" row above the Controls row — five 28px glyphs that
-// cost a whole row of a phone viewport for settings you touch once and then never again. Worse, the
-// raw-terminal toggle was a bare `>_` icon whose only explanation was a `title` attribute no phone
-// ever shows; nobody could tell what it did. Behind the ⚙ each pref gets a real name and, where it
-// isn't self-evident, a sentence.
+// cost a whole row of a phone viewport for settings you touch once and then never again. Behind the
+// gear each persistent mirror preference gets a real name and explanation. The workbench/terminal
+// escape hatch lives in the header, where it is reachable without opening another panel.
 //
 // It rides the same in-flow ComposerDock as Keys/Quick rather than a covering sheet, deliberately:
 // every control here changes how the mirror LOOKS, so you have to be able to see the mirror while
@@ -22,7 +21,6 @@ interface DisplayPrefsContentProps {
   prefs: DisplayPrefs;
   setWrap: (wrap: boolean) => void;
   stepFontSize: (delta: number) => void;
-  setRawTerminal: (raw: boolean) => void;
   setTapToFocus: (tapToFocus: boolean) => void;
 }
 
@@ -56,7 +54,6 @@ export function DisplayPrefsContent({
   prefs,
   setWrap,
   stepFontSize,
-  setRawTerminal,
   setTapToFocus,
 }: DisplayPrefsContentProps) {
   return (
@@ -84,19 +81,6 @@ export function DisplayPrefsContent({
             checked={prefs.tapToFocus}
             onCheckedChange={setTapToFocus}
             aria-label="Tap to type"
-          />
-        }
-      />
-      <Row
-        label="Raw terminal"
-        hint="Shows the plain mirror — no tappable prompt buttons, no chrome or status strips. Use it when a dialog renders wrong and you want to drive it by hand from Keys."
-        htmlFor="pref-raw"
-        control={
-          <Switch
-            id="pref-raw"
-            checked={prefs.rawTerminal}
-            onCheckedChange={setRawTerminal}
-            aria-label="Raw terminal"
           />
         }
       />

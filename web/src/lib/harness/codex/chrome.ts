@@ -97,15 +97,18 @@ export function locateComposer(lines: StyledLine[]): ComposerBox | null {
     return locateCommandAutocomplete(lines, texts, statusRow);
   }
 
-  // One blank row separates the prompt/draft run from the status row (every capture); above the
-  // gap the run is CONTIGUOUS non-blank rows — wrapped-draft continuations under the `› ` prompt.
+  // One blank row separates the prompt/draft run from the status row. Deliberate paragraph breaks
+  // inside a multiline draft are blank too, so the bounded walk must cross them rather than treating
+  // them as a dialog. Every non-blank row between the prompt and status still has to be a renderer-
+  // owned continuation, which keeps the status anchor fail-closed.
   const top = skipBlanksUp(texts, statusRow - 1);
   if (top < 0) return null;
   for (let i = top; i >= 0 && top - i < MAX_DRAFT_ROWS; i--) {
     const t = texts[i]!;
     if (promptText(t) !== null) return { promptRow: i, statusRow };
-    // A blank or foreign-shaped row inside the run means this status row is not under a composer.
-    if (isBlank(t) || !CONTINUATION.test(t) || isStatusRow(t, lines[i])) return null;
+    if (isBlank(t)) continue;
+    // A foreign-shaped or nested status row means this status row is not under a composer.
+    if (!CONTINUATION.test(t) || isStatusRow(t, lines[i])) return null;
   }
   return null;
 }

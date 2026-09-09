@@ -159,6 +159,13 @@ describe("AgentChat — read-only device", () => {
 describe("AgentChat — raw-terminal escape hatch", () => {
   afterEach(() => localStorage.clear());
 
+  function enableRawTerminal(): void {
+    localStorage.setItem(
+      "collie:raw-terminal-scopes:v1",
+      JSON.stringify({ '["default","w1:p1"]': true }),
+    );
+  }
+
   it("lifts a tail menu into buttons by default (grammars on)", async () => {
     renderChat({ text: MENU_TEXT });
     expect(await screen.findByRole("button", { name: "Yes" })).toBeInTheDocument();
@@ -166,11 +173,22 @@ describe("AgentChat — raw-terminal escape hatch", () => {
     expect(screen.queryByText(/❯ 1\. Yes/)).not.toBeInTheDocument();
   });
 
+  it.each(["idle", "working"] as const)("opens a fresh %s agent in the workbench before its first journal entry", async (status) => {
+    const user = userEvent.setup();
+    const fresh = { ...fixtureAgents[1]!, status, hasSession: false };
+    renderChat({ agent: fresh, agents: [fresh], text: "Codex is ready" });
+
+    expect(screen.getByRole("region", { name: "Live conversation" })).toBeInTheDocument();
+    expect(screen.getByText(/waiting for the first conversation entry/i)).toBeInTheDocument();
+    expect(screen.queryByText("Codex is ready")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Show raw terminal" }));
+    expect(screen.getByText("Codex is ready")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show conversation" })).toBeInTheDocument();
+  });
+
   it("shows the plain mirror (no buttons, menu as raw text) when raw terminal is on", () => {
-    localStorage.setItem(
-      "collie:display-prefs:v4",
-      JSON.stringify({ wrap: true, fontSize: 11, rawTerminal: true }),
-    );
+    enableRawTerminal();
     renderChat({ text: MENU_TEXT });
     // No native prompt buttons — the escape hatch bypasses the block grammars entirely…
     expect(screen.queryByRole("button", { name: "Yes" })).not.toBeInTheDocument();
@@ -190,7 +208,7 @@ describe("AgentChat — raw-terminal escape hatch", () => {
 
   it("leaves focus alone on a mirror tap when Tap to type is off", async () => {
     localStorage.setItem(
-      "collie:display-prefs:v4",
+      "collie:display-prefs:v5",
       JSON.stringify({ wrap: true, fontSize: 11, rawTerminal: false, tapToFocus: false }),
     );
     renderChat({ text: "just some output\n" });
@@ -202,7 +220,7 @@ describe("AgentChat — raw-terminal escape hatch", () => {
 
   it("still lifts a menu into buttons with Tap to type off — it gates focus, not the grammars", async () => {
     localStorage.setItem(
-      "collie:display-prefs:v4",
+      "collie:display-prefs:v5",
       JSON.stringify({ wrap: true, fontSize: 11, rawTerminal: false, tapToFocus: false }),
     );
     renderChat({ text: MENU_TEXT });
@@ -218,10 +236,7 @@ describe("AgentChat — raw-terminal escape hatch", () => {
   });
 
   it("raw terminal bypasses the wizard too — the dialog shows verbatim, keys-pad drivable", () => {
-    localStorage.setItem(
-      "collie:display-prefs:v4",
-      JSON.stringify({ wrap: true, fontSize: 11, rawTerminal: true }),
-    );
+    enableRawTerminal();
     renderChat({ text: WIZARD_TEXT });
     expect(screen.queryByRole("button", { name: /Parser/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Next step" })).not.toBeInTheDocument();
@@ -562,8 +577,7 @@ describe("AgentChat — top-of-mirror history affordance", () => {
     const agent = { ...fixtureAgents[0]!, hasSession: true, readableLines: 51 };
     renderChat({ agent, agents: [agent], requestedLines: 600 });
     expect(screen.getByRole("region", { name: "Live conversation" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Display settings" }));
-    fireEvent.click(screen.getByRole("switch", { name: "Raw terminal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show raw terminal" }));
     expect(showHistory()).toBeInTheDocument();
     expect(loadOlder()).not.toBeInTheDocument();
   });
@@ -599,8 +613,7 @@ describe("AgentChat — top-of-mirror history affordance", () => {
   it("a transcript wins even when the pane also reports scrollback", () => {
     const agent = { ...fixtureAgents[0]!, hasSession: true, readableLines: 6946 };
     renderChat({ agent, agents: [agent], requestedLines: 600 });
-    fireEvent.click(screen.getByRole("button", { name: "Display settings" }));
-    fireEvent.click(screen.getByRole("switch", { name: "Raw terminal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show raw terminal" }));
     expect(showHistory()).toBeInTheDocument();
     expect(loadOlder()).not.toBeInTheDocument();
   });
