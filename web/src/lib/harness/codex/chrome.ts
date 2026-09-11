@@ -51,6 +51,28 @@ const PROMPT_PREFIX = "› ";
 // Enter executes that exact command. Partial/multiple suggestions and skill insertion pickers do
 // not establish that meaning, so they stay refused. See SLASH_NOTES.md and the captured fixtures.
 const COMMAND_SUGGESTION = /^ {2}(\/[a-z][a-z0-9_-]*) {2,}\S.{0,250}$/;
+const QUEUE_FOOTER = /^ {2}tab to queue message\s+\d+% context(?: left)?$/i;
+
+/** While Codex is working it exposes a real queued-input composer, but replaces the normal model
+ * status row with the exact renderer-owned `tab to queue message` footer. On narrow panes `left`
+ * wraps to the final row. Tail anchoring + the bold prompt marker keep transcript lookalikes dark. */
+function locateQueuedComposer(lines: StyledLine[], texts: string[], tail: number): ComposerBox | null {
+  let footer = tail;
+  if (/^left$/i.test(texts[tail] ?? "")) footer--;
+  if (footer < 0 || !QUEUE_FOOTER.test(texts[footer] ?? "")) return null;
+  const top = skipBlanksUp(texts, footer - 1);
+  if (top < 0) return null;
+  for (let i = top; i >= 0 && top - i < MAX_DRAFT_ROWS; i--) {
+    const t = texts[i]!;
+    if (promptText(t) !== null) {
+      const marker = lines[i]!.segments.find((segment) => segment.text.length > 0);
+      return marker?.text.startsWith("›") && marker.bold === true ? { promptRow: i, statusRow: footer } : null;
+    }
+    if (isBlank(t)) continue;
+    if (!CONTINUATION.test(t)) return null;
+  }
+  return null;
+}
 
 function locateCommandAutocomplete(lines: StyledLine[], texts: string[], tail: number): ComposerBox | null {
   const command = COMMAND_SUGGESTION.exec(texts[tail] ?? "")?.[1];
@@ -94,7 +116,7 @@ export function locateComposer(lines: StyledLine[]): ComposerBox | null {
   const statusRow = lastNonBlankIndex(texts);
   if (statusRow < 0) return null;
   if (!isStatusRow(texts[statusRow]!, lines[statusRow])) {
-    return locateCommandAutocomplete(lines, texts, statusRow);
+    return locateQueuedComposer(lines, texts, statusRow) ?? locateCommandAutocomplete(lines, texts, statusRow);
   }
 
   // One blank row separates the prompt/draft run from the status row. Deliberate paragraph breaks
