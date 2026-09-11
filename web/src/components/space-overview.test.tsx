@@ -82,7 +82,7 @@ describe("SpaceOverview — folding", () => {
   it("hides the list when folded, keeping the count on the header", () => {
     render(view({ workspaces: spaces, open: false }));
     expect(screen.queryByText("anchorgenius")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /spaces/i })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /projects/i })).toHaveAttribute(
       "aria-expanded",
       "false",
     );
@@ -101,7 +101,7 @@ describe("SpaceOverview — folding", () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
     render(view({ workspaces: spaces, open: true, onOpenChange }));
-    await user.click(screen.getByRole("button", { name: /spaces/i }));
+    await user.click(screen.getByRole("button", { name: /projects/i }));
     expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
   });
 
@@ -142,11 +142,12 @@ describe("SpaceOverview — hierarchy", () => {
     expect(tabToggle).toHaveAttribute("aria-expanded", "true");
     expect(tabToggle).toHaveAttribute("aria-controls", "spaces-tab-w1%2Fw1%3At1");
     expect(screen.getByRole("button", { name: "Open pane Frontend" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open pane Review changes" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Collapse tab Review" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open tab Review, pane Review changes" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Open workspace anchorgenius" }));
     expect(onOpen).toHaveBeenCalledExactlyOnceWith("w1");
-    await user.click(screen.getByRole("button", { name: "Open pane Review changes" }));
+    await user.click(screen.getByRole("button", { name: "Open tab Review, pane Review changes" }));
     expect(onOpenPane).toHaveBeenCalledExactlyOnceWith("w1:p3");
 
     tabToggle.focus();
@@ -156,7 +157,18 @@ describe("SpaceOverview — hierarchy", () => {
 
     await user.click(workspaceToggle);
     expect(workspaceToggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("button", { name: "Collapse tab Review" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open tab Review, pane Review changes" })).not.toBeInTheDocument();
+  });
+
+  it("does not render disclosure controls for a workspace and tab with one child", () => {
+    const singleWorkspace = ws("w1", "solo", 1, 1);
+    const singleTab = [{ tabId: "w1:t1", workspaceId: "w1", number: 1, label: "Main", focused: true, paneCount: 1 }];
+    const singlePane = [pane({ paneId: "w1:p1", workspaceId: "w1", tabId: "w1:t1", paneLabel: "Only pane" })];
+    render(view({ workspaces: [singleWorkspace], tabs: singleTab, agents: singlePane }));
+
+    expect(screen.queryByRole("button", { name: /^(collapse|expand) workspace solo$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /collapse tab main/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open tab Main, pane Only pane" })).toBeInTheDocument();
   });
 });
 

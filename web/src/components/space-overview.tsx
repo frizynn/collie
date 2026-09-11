@@ -63,7 +63,7 @@ export function SpaceOverview({
   return (
     <section className="flex flex-col gap-2 px-3 py-4">
       <SectionHeader
-        label="Spaces"
+        label="Projects"
         // While filtering, the count reports what you can SEE — a header reading (45) above four
         // rows makes you doubt the filter rather than trust it.
         count={query.trim() ? visible.length : workspaces.length}
@@ -95,7 +95,7 @@ export function SpaceOverview({
       />
 
       {open && (
-        <div id="spaces-body" className="flex flex-col divide-y divide-border/60">
+        <div id="spaces-body" className="flex flex-col gap-3">
           {/* Deliberately NOT autofocused: on a phone that would throw the keyboard over the list
               you just asked to see. */}
           {/* Sticky: at 45 spaces the list is five screens, and a filter that scrolls away turns
@@ -127,28 +127,33 @@ export function SpaceOverview({
               const status = bucket ? TRIAGE_STATUS[bucket] : null;
               const blocked = bucket === "needs";
               const seen = lastSeen.get(w.workspaceId) ?? 0;
-              const workspaceOpen = expandedWorkspaces[w.workspaceId] ?? true;
+              const workspaceCanExpand = workspaceTabs.length > 1;
+              const workspaceOpen = !workspaceCanExpand || (expandedWorkspaces[w.workspaceId] ?? true);
               const workspaceBodyId = treeSectionId("workspace", w.workspaceId);
               return (
                 <div
                   key={w.workspaceId}
-                  className="min-w-0"
+                  className={cn(
+                    "min-w-0 overflow-hidden rounded-xl border bg-card shadow-sm",
+                    blocked && "border-status-blocked/40",
+                  )}
                 >
-                  <div className="flex min-w-0 items-center gap-1">
-                    <button
-                      type="button"
-                      aria-label={`${workspaceOpen ? "Collapse" : "Expand"} workspace ${w.label || `Workspace ${w.number}`}`}
-                      aria-expanded={workspaceOpen}
-                      aria-controls={workspaceBodyId}
-                      data-expanded={workspaceOpen}
-                      className="flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      onClick={() => setExpandedWorkspaces((current) => ({
-                        ...current,
-                        [w.workspaceId]: !(current[w.workspaceId] ?? true),
-                      }))}
-                    >
-                      <ChevronRight className={cn("size-4 transition-transform", workspaceOpen && "rotate-90")} aria-hidden />
-                    </button>
+                  <div className="flex min-w-0 items-center gap-1 p-1.5">
+                    {workspaceCanExpand && (
+                      <button
+                        type="button"
+                        aria-label={`${workspaceOpen ? "Collapse" : "Expand"} workspace ${w.label || `Workspace ${w.number}`}`}
+                        aria-expanded={workspaceOpen}
+                        aria-controls={workspaceBodyId}
+                        className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-95"
+                        onClick={() => setExpandedWorkspaces((current) => ({
+                          ...current,
+                          [w.workspaceId]: !(current[w.workspaceId] ?? true),
+                        }))}
+                      >
+                        <ChevronRight className={cn("size-4 transition-transform", workspaceOpen && "rotate-90")} aria-hidden />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => onOpen(w.workspaceId)}
@@ -157,7 +162,7 @@ export function SpaceOverview({
                         // Square, like the herd rows: this is a divide-y list, and a rounded fill under
                         // a straight hairline reads as a fault. The blocked row below has a real border,
                         // so it keeps its radius.
-                        "flex min-h-11 min-w-0 flex-1 flex-row items-center gap-3 rounded-md px-2.5 py-2.5 text-left transition-colors active:scale-[0.99]",
+                        "flex min-h-12 min-w-0 flex-1 flex-row items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors active:scale-[0.99]",
                         blocked
                           ? "border border-status-blocked/40 bg-status-blocked/5"
                           : "hover:bg-muted/50",
@@ -194,32 +199,54 @@ export function SpaceOverview({
                       )}
                     </button>
                   </div>
-                  <div id={workspaceBodyId} hidden={!workspaceOpen} className="pl-12 pr-1">
+                  <div id={workspaceBodyId} hidden={!workspaceOpen} className="border-t border-border/60 bg-muted/15 p-2">
                     {workspaceTabs.map((tab) => {
                       // Tab ids are normally globally unique, but older bridges scoped them to the
                       // workspace. Keep both the fold state and controlled region collision-free.
                       const tabStateKey = `${w.workspaceId}/${tab.tabId}`;
-                      const tabOpen = expandedTabs[tabStateKey] ?? true;
+                      const tabCanExpand = tab.panes.length > 1;
+                      const tabOpen = !tabCanExpand || (expandedTabs[tabStateKey] ?? true);
                       const tabBodyId = treeSectionId("tab", tabStateKey);
+                      const onlyPane = tab.panes[0];
                       return (
                         <div key={tab.tabId} className="min-w-0">
-                          <button
-                            type="button"
-                            aria-label={`${tabOpen ? "Collapse" : "Expand"} tab ${tab.label}`}
-                            aria-expanded={tabOpen}
-                            aria-controls={tabBodyId}
-                            data-expanded={tabOpen}
-                            className="flex min-h-11 w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                            onClick={() => setExpandedTabs((current) => ({
-                              ...current,
-                              [tabStateKey]: !(current[tabStateKey] ?? true),
-                            }))}
-                          >
-                            <ChevronRight className={cn("size-3.5 shrink-0 transition-transform", tabOpen && "rotate-90")} aria-hidden />
-                            <span className="min-w-0 flex-1 truncate">{tab.label}</span>
-                            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{tab.paneCount}</span>
-                          </button>
-                          <div id={tabBodyId} hidden={!tabOpen} className="pl-5">
+                          {tabCanExpand ? (
+                            <button
+                              type="button"
+                              aria-label={`${tabOpen ? "Collapse" : "Expand"} tab ${tab.label}`}
+                              aria-expanded={tabOpen}
+                              aria-controls={tabBodyId}
+                              className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg px-3 text-left text-sm font-medium transition-colors hover:bg-muted active:scale-[0.99]"
+                              onClick={() => setExpandedTabs((current) => ({
+                                ...current,
+                                [tabStateKey]: !(current[tabStateKey] ?? true),
+                              }))}
+                            >
+                              <ChevronRight className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", tabOpen && "rotate-90")} aria-hidden />
+                              <span className="min-w-0 flex-1 truncate">{tab.label}</span>
+                              <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] tabular-nums text-muted-foreground">{tab.paneCount} panes</span>
+                            </button>
+                          ) : onlyPane ? (
+                            <button
+                              type="button"
+                              onClick={() => onOpenPane(onlyPane.paneId)}
+                              aria-label={`Open tab ${tab.label}, pane ${paneLabel(onlyPane)}`}
+                              className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg px-3 text-left transition-colors hover:bg-muted active:scale-[0.99]"
+                            >
+                              {onlyPane.kind === "shell" ? <Terminal className="size-4 shrink-0 text-muted-foreground" aria-hidden /> : <span className="workbench-status-dot" data-status={onlyPane.status} aria-hidden />}
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-medium">{tab.label}</span>
+                                <span className="block truncate text-xs text-muted-foreground">{paneLabel(onlyPane)}</span>
+                              </span>
+                              <span className="text-[11px] text-muted-foreground">{STATUS_LABEL[onlyPane.status]}</span>
+                            </button>
+                          ) : (
+                            <div className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground">
+                              <span className="min-w-0 flex-1 truncate">{tab.label}</span>
+                              <span className="text-[11px]">Empty</span>
+                            </div>
+                          )}
+                          {tabCanExpand && <div id={tabBodyId} hidden={!tabOpen} className="grid gap-1 pl-5">
                             {tab.panes.map((pane) => (
                               <button
                                 key={pane.paneId}
@@ -227,15 +254,14 @@ export function SpaceOverview({
                                 onClick={() => onOpenPane(pane.paneId)}
                                 aria-label={`Open pane ${paneLabel(pane)}`}
                                 title={`${paneLabel(pane)} · ${pane.agent} · ${STATUS_LABEL[pane.status]}`}
-                                className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg px-3 text-left text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.99]"
                               >
                                 {pane.kind === "shell" ? <Terminal className="size-3.5 shrink-0" aria-hidden /> : <span className="workbench-status-dot" data-status={pane.status} aria-hidden />}
                                 <span className="min-w-0 flex-1 truncate">{paneLabel(pane)}</span>
                                 <span className="sr-only">{STATUS_LABEL[pane.status]}</span>
                               </button>
                             ))}
-                            {tab.panes.length === 0 && <p className="px-2 py-2 text-xs text-muted-foreground">No active panes</p>}
-                          </div>
+                          </div>}
                         </div>
                       );
                     })}

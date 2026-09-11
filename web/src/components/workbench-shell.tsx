@@ -196,28 +196,31 @@ function WorkspaceNavigation({
       <div className="workbench-projects">
         <div className="workbench-section-label">Projects <span>{data.workspaces.length}</span></div>
         {groups.map((space) => {
-          const workspaceOpen = expandedWorkspaces[space.workspaceId] ?? true;
+          const workspaceCanExpand = space.tabs.length > 1;
+          const workspaceOpen = !workspaceCanExpand || (expandedWorkspaces[space.workspaceId] ?? true);
           const workspaceSectionId = sectionId("workspace", space.workspaceId);
           return (
             <section className="workbench-project" key={space.workspaceId}>
               <div className="workbench-project-title-row">
-                <TreeToggle
-                  open={workspaceOpen}
-                  label={space.label || `Workspace ${space.number}`}
-                  controls={workspaceSectionId}
-                  onClick={() => onWorkspaceToggle(space.workspaceId)}
-                />
+                {workspaceCanExpand && <TreeToggle
+                    open={workspaceOpen}
+                    label={space.label || `Workspace ${space.number}`}
+                    controls={workspaceSectionId}
+                    onClick={() => onWorkspaceToggle(space.workspaceId)}
+                  />}
                 <Link className="workbench-project-title" to={spacePath(space.workspaceId, data.session)} onClick={onNavigate} aria-current={spaceId === space.workspaceId ? "page" : undefined}>
                   <Folder aria-hidden="true" size={15} /><span>{space.label || `Workspace ${space.number}`}</span><span className="workbench-count" aria-hidden="true">{space.paneCount}</span>
                 </Link>
               </div>
               <div id={workspaceSectionId} hidden={!workspaceOpen} className="workbench-project-children">
                 {space.tabs.map((tab) => {
-                  const tabOpen = expandedTabs[tab.tabId] ?? true;
+                  const tabCanExpand = tab.panes.length > 1;
+                  const tabOpen = !tabCanExpand || (expandedTabs[tab.tabId] ?? true);
                   const tabSectionId = sectionId("tab", tab.tabId);
+                  const onlyPane = tab.panes[0];
                   return (
                     <div className="workbench-tab" key={tab.tabId}>
-                      <button
+                      {tabCanExpand ? <button
                         type="button"
                         className="workbench-tab-toggle"
                         aria-label={`${tabOpen ? "Collapse" : "Expand"} tab ${tab.label}`}
@@ -229,8 +232,20 @@ function WorkspaceNavigation({
                         <ChevronRight aria-hidden="true" size={14} />
                         <span className="workbench-tab-name">{tab.label}</span>
                         <span className="workbench-count" aria-hidden="true">{tab.paneCount}</span>
-                      </button>
-                      <div id={tabSectionId} hidden={!tabOpen} className="workbench-tab-children">
+                      </button> : onlyPane ? <Link
+                        className="workbench-tab-toggle"
+                        to={panePath(onlyPane.paneId, data.session)}
+                        onClick={onNavigate}
+                        aria-current={paneId === onlyPane.paneId ? "page" : undefined}
+                        aria-label={`Open tab ${tab.label}, pane ${threadLabel(onlyPane)}`}
+                      >
+                        {onlyPane.kind === "shell" ? <Terminal aria-hidden="true" size={13} /> : <span className="workbench-status-dot" data-status={onlyPane.status} aria-hidden="true" />}
+                        <span className="workbench-tab-name">{tab.label}</span>
+                      </Link> : <div className="workbench-tab-toggle" aria-label={`Tab ${tab.label}, no active panes`}>
+                        <span className="workbench-tab-name">{tab.label}</span>
+                        <span className="workbench-count">empty</span>
+                      </div>}
+                      {tabCanExpand && <div id={tabSectionId} hidden={!tabOpen} className="workbench-tab-children">
                         {tab.panes.map((pane) => (
                           <Link key={pane.paneId} className="workbench-thread" to={panePath(pane.paneId, data.session)} onClick={onNavigate} aria-current={paneId === pane.paneId ? "page" : undefined} title={`${threadLabel(pane)} · ${pane.agent} · ${STATUS_LABEL[pane.status]}`}>
                             {pane.kind === "shell" ? <Terminal aria-hidden="true" size={13} /> : <span className="workbench-status-dot" data-status={pane.status} aria-hidden="true" />}
@@ -238,8 +253,7 @@ function WorkspaceNavigation({
                             <span className="sr-only"> · {STATUS_LABEL[pane.status]}</span>
                           </Link>
                         ))}
-                        {tab.panes.length === 0 && <div className="workbench-empty-project">No active panes</div>}
-                      </div>
+                      </div>}
                     </div>
                   );
                 })}

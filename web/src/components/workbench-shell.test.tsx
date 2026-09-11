@@ -28,7 +28,14 @@ it("keeps project, pane and settings links scoped to the active session", () => 
 it("renders a keyboard-accessible workspace, tab and pane tree", async () => {
   const { sidebar, user } = setup({
     ...data,
-    tabs: [{ tabId: "t1", workspaceId: "w:1", number: 1, label: "Main", focused: true, paneCount: 1 }],
+    tabs: [
+      { tabId: "t1", workspaceId: "w:1", number: 1, label: "Main", focused: true, paneCount: 2 },
+      { tabId: "t2", workspaceId: "w:1", number: 2, label: "Later", focused: false, paneCount: 0 },
+    ],
+    agents: [
+      ...data.agents,
+      { ...data.agents[0]!, paneId: "w:1:p3", paneLabel: "Test interface" },
+    ],
   });
   const workspaceToggle = sidebar.getByRole("button", { name: "Collapse Nenu" });
   const tabToggle = sidebar.getByRole("button", { name: "Collapse tab Main" });
@@ -53,7 +60,10 @@ it("renders a keyboard-accessible workspace, tab and pane tree", async () => {
 it("shares expanded state with the mobile workspace drawer", async () => {
   const { sidebar, user } = setup({
     ...data,
-    tabs: [{ tabId: "t1", workspaceId: "w:1", number: 1, label: "Main", focused: true, paneCount: 1 }],
+    tabs: [
+      { tabId: "t1", workspaceId: "w:1", number: 1, label: "Main", focused: true, paneCount: 1 },
+      { tabId: "t2", workspaceId: "w:1", number: 2, label: "Later", focused: false, paneCount: 0 },
+    ],
   });
   await user.click(sidebar.getByRole("button", { name: "Collapse Nenu" }));
 

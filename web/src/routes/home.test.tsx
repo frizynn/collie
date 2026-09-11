@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, Outlet, RouterProvider } from "react-router";
 import { HomeRoute } from "./home";
@@ -21,19 +21,19 @@ async function setup(value = data) {
   const router = createMemoryRouter([{ id: ROOT_ROUTE_ID, loader: () => value, element: <Outlet />, children: [
     { path: "/", element: <HomeRoute /> },
     { path: "/space/:spaceId", element: <p>Project opened</p> },
+    { path: "/pane/:paneId", element: <p>Pane opened</p> },
   ] }], { initialEntries: ["/?s=work"] });
   render(<RouterProvider router={router} />);
   await screen.findByRole("heading", { name: "What should we work on?" });
   return { router, user: userEvent.setup() };
 }
 
-it("offers compact contextual threads in attention order with scoped navigation", async () => {
+it("organizes work by project instead of duplicating a flat thread list", async () => {
   const { user, router } = await setup();
-  const links = within(screen.getByRole("region", { name: "Threads" })).getAllByRole("link");
-  expect(links[0]).toHaveTextContent("Review changes");
-  expect(links[0]).toHaveAttribute("href", "/pane/w1%3Ap2?s=work");
-  expect(screen.queryByText("Nothing needs you")).not.toBeInTheDocument();
-  await user.selectOptions(screen.getByRole("combobox", { name: "Open project" }), "w1");
+  expect(screen.queryByRole("region", { name: "Threads" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Open workspace Nenu" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Collapse tab Other panes" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Open workspace Nenu" }));
   expect(router.state.location.pathname).toBe("/space/w1");
   expect(router.state.location.search).toBe("?s=work");
 });
@@ -58,14 +58,12 @@ it("keeps existing threads navigable while workspace creation is read-only", asy
   await setup({ ...data, device: { enforced: true, device: "phone", authorized: false } });
   expect(screen.getByRole("button", { name: "New workspace" })).toBeDisabled();
   expect(screen.getByRole("status")).toHaveTextContent("Read-only");
-  expect(within(screen.getByRole("region", { name: "Threads" })).getAllByRole("link")).toHaveLength(2);
+  expect(screen.getByRole("button", { name: "Open pane Earlier thread" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Open pane Review changes" })).toBeInTheDocument();
 });
 
-it("bounds the initial list while allowing every thread to be opened", async () => {
+it("keeps every pane available inside its project tab", async () => {
   const agents = Array.from({ length: 11 }, (_, index) => ({ ...data.agents[0]!, paneId: `pane${index}`, paneLabel: `Thread ${index}` }));
-  const { user } = await setup({ ...data, agents });
-  const threads = within(screen.getByRole("region", { name: "Threads" }));
-  expect(threads.getAllByRole("link")).toHaveLength(8);
-  await user.click(threads.getByRole("button", { name: "Show all 11 threads" }));
-  expect(threads.getAllByRole("link")).toHaveLength(11);
+  await setup({ ...data, agents });
+  expect(screen.getAllByRole("button", { name: /^Open pane Thread / })).toHaveLength(11);
 });
