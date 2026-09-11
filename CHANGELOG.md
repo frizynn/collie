@@ -13,6 +13,7 @@ All notable changes to Nenu are recorded here. The format follows
 ### Fixed
 
 - Mobile sends now expose queue/Herdr acknowledgement state and retry with phase-scoped idempotency, so double taps and recoverable verification failures never append the same draft twice. (3c107d5)
+- Codex's working-state `tab to queue message` composer is detected from its renderer-owned footer, including its narrow mobile wrap, while plain-text lookalikes stay fail-closed. (8c2bb6e)
 - The mobile composer, telemetry row, and multiline input use less vertical space while preserving 44px touch targets, safe areas, and bounded internal scrolling. (3c107d5)
 
 ## [0.38.0] - 2026-09-11
