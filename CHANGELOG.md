@@ -8,6 +8,16 @@ All notable changes to Nenu are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-09-11
+
+### Added
+
+- Home and the workspace drawer now expose a collapsible Workspace → Tab → Pane tree with direct navigation and accessible disclosure controls. (5a01453, 2d5edb7)
+
+### Fixed
+
+- Mobile drafts enter a reversible focus mode that hides navigation chrome while keeping a compact, internally scrolling composer and all message actions visible above the keyboard. (d63656b)
+
 ## [0.39.1] - 2026-09-11
 
 ### Fixed
