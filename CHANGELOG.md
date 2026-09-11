@@ -8,6 +8,12 @@ All notable changes to Nenu are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.39.1] - 2026-09-11
+
+### Fixed
+
+- Mobile navigation chrome is denser across the global header, pane identity, tabs, and pane switcher, removing the duplicate in-pane Nenu mark and returning more height to the conversation. (6b60792)
+
 ## [0.39.0] - 2026-09-11
 
 ### Fixed
