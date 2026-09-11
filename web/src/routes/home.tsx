@@ -4,7 +4,9 @@ import { ArrowUpRight, Folder, Plus } from "lucide-react";
 
 import { AgentIcon } from "@/components/agent-icon";
 import { ReadOnlyBanner } from "@/components/read-only-banner";
+import { SpaceOverview } from "@/components/space-overview";
 import { NewSpaceSheet } from "@/components/new-space-sheet";
+import { openForCount, useDashPrefs } from "@/hooks/use-dash-prefs";
 import { useSpaceActions } from "@/hooks/use-spaces";
 import { ROOT_ROUTE_ID, type HomeData } from "@/lib/loaders";
 import { panePath, spacePath } from "@/lib/nav";
@@ -19,9 +21,11 @@ export function HomeRoute() {
   const { newSpace } = useSpaceActions();
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const { prefs, setSpacesOpen } = useDashPrefs();
   const ordered = triage(data.agents).flatMap((section) => section.agents);
   const visible = showAll ? ordered : ordered.slice(0, 8);
   const canCreate = !isReadOnly(data.device) && !data.error && data.bridge === "connected";
+  const spacesOpen = openForCount(prefs.spacesOpen, data.workspaces.length);
 
   return <div className="workbench-home flex min-h-0 min-w-0 flex-1 flex-col">
     <header className="flex h-13 shrink-0 items-center justify-between border-b border-border px-5 text-xs text-muted-foreground">
@@ -69,6 +73,18 @@ export function HomeRoute() {
           </div>
           {ordered.length > 8 && <button type="button" className="mt-2 min-h-11 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent/40 hover:text-foreground" onClick={() => setShowAll((value) => !value)}>{showAll ? "Show fewer threads" : `Show all ${ordered.length} threads`}</button>}
         </section>}
+
+        <SpaceOverview
+          workspaces={data.workspaces}
+          tabs={data.tabs}
+          agents={data.agents}
+          shellPanes={data.shellPanes}
+          onOpen={(workspaceId) => navigate(spacePath(workspaceId, data.session))}
+          onOpenPane={(paneId) => navigate(panePath(paneId, data.session))}
+          onNewSpace={() => setNewSpaceOpen(true)}
+          open={spacesOpen}
+          onOpenChange={setSpacesOpen}
+        />
       </div>
     </main>
     <NewSpaceSheet open={newSpaceOpen} onClose={() => setNewSpaceOpen(false)} onCreate={newSpace} />

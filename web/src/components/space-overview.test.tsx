@@ -34,8 +34,10 @@ function view(props: Partial<Parameters<typeof SpaceOverview>[0]> = {}) {
   return (
     <SpaceOverview
       workspaces={[]}
+      tabs={[]}
       agents={[]}
       onOpen={vi.fn()}
+      onOpenPane={vi.fn()}
       onNewSpace={vi.fn()}
       open
       onOpenChange={vi.fn()}
@@ -61,7 +63,7 @@ describe("SpaceOverview", () => {
     const user = userEvent.setup();
     const onOpen = vi.fn();
     render(view({ workspaces: [ws("w1", "anchorgenius", 2, 3)], onOpen }));
-    await user.click(screen.getByRole("button", { name: /anchorgenius/ }));
+    await user.click(screen.getByRole("button", { name: "Open workspace anchorgenius" }));
     expect(onOpen).toHaveBeenCalledExactlyOnceWith("w1");
   });
 
@@ -115,6 +117,49 @@ describe("SpaceOverview — folding", () => {
   });
 });
 
+describe("SpaceOverview — hierarchy", () => {
+  const workspace = ws("w1", "anchorgenius", 2, 3);
+  const tabs = [
+    { tabId: "w1:t1", workspaceId: "w1", number: 1, label: "Build", focused: true, paneCount: 2 },
+    { tabId: "w1:t2", workspaceId: "w1", number: 2, label: "Review", focused: false, paneCount: 1 },
+  ];
+  const agents = [
+    pane({ paneId: "w1:p1", workspaceId: "w1", tabId: "w1:t1", paneLabel: "Frontend" }),
+    pane({ paneId: "w1:p2", workspaceId: "w1", tabId: "w1:t1", paneLabel: "Backend" }),
+    pane({ paneId: "w1:p3", workspaceId: "w1", tabId: "w1:t2", paneLabel: "Review changes" }),
+  ];
+
+  it("expands workspace, tab and pane navigation with labelled disclosures", async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    const onOpenPane = vi.fn();
+    render(view({ workspaces: [workspace], tabs, agents, onOpen, onOpenPane }));
+
+    const workspaceToggle = screen.getByRole("button", { name: "Collapse workspace anchorgenius" });
+    const tabToggle = screen.getByRole("button", { name: "Collapse tab Build" });
+    expect(workspaceToggle).toHaveAttribute("aria-expanded", "true");
+    expect(workspaceToggle).toHaveAttribute("aria-controls", "spaces-workspace-w1");
+    expect(tabToggle).toHaveAttribute("aria-expanded", "true");
+    expect(tabToggle).toHaveAttribute("aria-controls", "spaces-tab-w1%2Fw1%3At1");
+    expect(screen.getByRole("button", { name: "Open pane Frontend" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open pane Review changes" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Open workspace anchorgenius" }));
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith("w1");
+    await user.click(screen.getByRole("button", { name: "Open pane Review changes" }));
+    expect(onOpenPane).toHaveBeenCalledExactlyOnceWith("w1:p3");
+
+    tabToggle.focus();
+    await user.keyboard("{Enter}");
+    expect(tabToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "Open pane Frontend" })).not.toBeInTheDocument();
+
+    await user.click(workspaceToggle);
+    expect(workspaceToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "Collapse tab Review" })).not.toBeInTheDocument();
+  });
+});
+
 describe("SpaceOverview — filtering", () => {
   const spaces = [ws("w1", "moonward_os", 1, 1), ws("w2", "trader", 1, 1), ws("w3", "moon_probe", 1, 1)];
 
@@ -152,7 +197,7 @@ describe("SpaceOverview — recency", () => {
         ],
       }),
     );
-    const labels = screen.getAllByRole("button", { name: /alpha|beta/ }).map((b) => b.textContent);
+    const labels = screen.getAllByRole("button", { name: /^Open workspace (alpha|beta)$/ }).map((b) => b.textContent);
     expect(labels[0]).toContain("beta");
     expect(labels[1]).toContain("alpha");
   });
@@ -166,7 +211,7 @@ describe("SpaceOverview — recency", () => {
         shellPanes: [pane({ paneId: "w2:p1", workspaceId: "w2", kind: "shell", lastSeenAt: 900 })],
       }),
     );
-    const labels = screen.getAllByRole("button", { name: /alpha|beta/ }).map((b) => b.textContent);
+    const labels = screen.getAllByRole("button", { name: /^Open workspace (alpha|beta)$/ }).map((b) => b.textContent);
     expect(labels[0]).toContain("beta");
   });
 
