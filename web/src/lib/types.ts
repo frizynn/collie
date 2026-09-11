@@ -287,12 +287,13 @@ export type PaneHistoryResponse =
     };
 
 export type ActionResponse =
-  | { ok: true }
+  | { ok: true; requestId?: string; ack?: "typed" | "submitted"; replayed?: boolean }
   | {
       ok: false;
       error: string;
       textDelivered?: boolean;
       code?: "prompt_changed";
+      requestId?: string;
     };
 
 export type UploadResponse = { ok: true; path: string } | { ok: false; error: string };

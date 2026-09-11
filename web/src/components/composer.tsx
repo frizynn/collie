@@ -213,6 +213,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     noticeNoEcho(null); // it described the pane we just left
   }, [session, paneId]);
   const [sending, setSending] = useState(false);
+  const pendingDeliveryRef = useRef<{ paneId: string; text: string; id: string } | null>(null);
+  const [deliveryPhase, setDeliveryPhase] = useState<"queued" | "typed" | "retry" | null>(null);
   const [uploading, setUploading] = useState(false);
   // Pending-send preview: set on a successful send, cleared when the mirror catches up (next text
   // update) or after a 6s safety timeout. Shows "You sent: …" so the user knows the message landed.
@@ -337,6 +339,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   // lapses on its own once the grace expires or the echo resolves; a genuinely stranded draft (never
   // matches a recent send) is untouched.
   const suppressEcho = (draft: string | null): string | null => {
+    const pending = pendingDeliveryRef.current;
+    if (draft !== null && pending !== null && pending.paneId === paneId && isSelfEcho(draft, pending.text, adapter?.draftCarriesSend)) return null;
     if (
       draft !== null &&
       lastSentRef.current !== null &&
@@ -490,6 +494,12 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       return false;
     }
     setSending(true);
+    const previous = pendingDeliveryRef.current;
+    const delivery = previous?.paneId === paneId && previous.text === t
+      ? previous
+      : { paneId, text: t, id: crypto.randomUUID() };
+    pendingDeliveryRef.current = delivery;
+    if (!action) setDeliveryPhase("queued");
     try {
       if (action !== "model" && prepareSend && !(await prepareSend())) return false;
       if (lockedRef.current) return false;
@@ -501,6 +511,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         agent,
         session,
         force,
+        requestId: delivery.id,
+        onAck: (ack) => { if (!action) setDeliveryPhase(ack === "typed" ? "typed" : null); },
         // Clear a stranded draft on the terminal's "❯" line before pane.send_text appends at cursor —
         // ctrl+k kills cursor→end, Backspace sweep kills the head (preview-action.ts pattern). Skip
         // when there's no draft: a blind sweep races the TUI and Enter can fire before the PTY
@@ -570,6 +582,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         },
       });
       if (res.status === "sent") {
+        pendingDeliveryRef.current = null;
+        setDeliveryPhase(null);
         // Phone-owned input — cleared once the reply is on its way. Via updateInput, so the stored
         // draft goes with it (an empty value removes the key).
         if (isDraft) updateInput((current) => current === value ? "" : current);
@@ -614,6 +628,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         // the same two-tap shape as the destructive-send confirm. The second tap skips the pre-flight
         // ONLY; the type-then-verify guard still runs, so Enter is never fired blind either way.
         forceConfirm.confirm("force");
+        setDeliveryPhase("retry");
         // A password prompt gets the notice AND keeps the override: the notice explains the screen and
         // offers the control that works, the override stays for the case where the detection is wrong.
         noticeNoEcho(res.noEcho !== undefined ? { prompt: res.noEcho, typed: false } : null);
@@ -634,10 +649,12 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             ? { prompt: res.noEcho, typed: true }
             : null,
         );
+        setDeliveryPhase("retry");
         setStatus(res.error, "error");
         return false;
       }
     } catch (e) {
+      setDeliveryPhase("retry");
       setStatus(e instanceof Error ? e.message : String(e), "error");
       return false;
     } finally {
@@ -770,7 +787,13 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
   return (
     <>
-      <div className="workbench-composer-surface border-t border-border/60 bg-muted px-3 pb-[calc(env(safe-area-inset-bottom)_+_0.5rem)] pt-2.5">
+      <div className="workbench-composer-surface border-t border-border/60 bg-muted px-2 pb-[max(env(safe-area-inset-bottom),0.35rem)] pt-1.5 sm:px-3 sm:pt-2.5">
+        {deliveryPhase && !lastSent && (
+          <div className="mb-1 flex min-h-7 items-center gap-1.5 px-1 text-xs text-muted-foreground" role="status" aria-live="polite">
+            {deliveryPhase !== "retry" && <Loader2 className="size-3 shrink-0 animate-spin" />}
+            <span>{deliveryPhase === "queued" ? "Queued — waiting for Herdr…" : deliveryPhase === "typed" ? "Herdr acknowledged typing — verifying…" : "Not sent — tap Send to retry safely."}</span>
+          </div>
+        )}
         {/* Pending-send preview: visible from send until the mirror echoes back (or 6s). Shows the
             user what landed so they don't double-tap while waiting for the terminal to update. */}
         {lastSent && (

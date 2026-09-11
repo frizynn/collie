@@ -472,6 +472,26 @@ describe("pane write prompt binding", () => {
     expect(client.texts).toEqual([["w1:p1", "hello"]]);
   });
 
+  test("same request_id is acknowledged twice but types only once", async () => {
+    const client = new FakePaneClient();
+    const { audit } = auditEntries();
+    const body = { text: "one durable message", submit: false, request_id: "delivery-test:type" };
+    const first = await replyPane(client as unknown as HerdrClient, cfg(), "w1:p-idempotent", request(body), audit, null, "default");
+    const retry = await replyPane(client as unknown as HerdrClient, cfg(), "w1:p-idempotent", request(body), audit, null, "default");
+    expect(await first.json()).toMatchObject({ ok: true, ack: "typed", replayed: false });
+    expect(await retry.json()).toMatchObject({ ok: true, ack: "typed", replayed: true });
+    expect(client.texts).toEqual([["w1:p-idempotent", "one durable message"]]);
+  });
+
+  test("request_id cannot be reused with a different payload", async () => {
+    const client = new FakePaneClient();
+    const { audit } = auditEntries();
+    await replyPane(client as unknown as HerdrClient, cfg(), "w1:p-conflict", request({ text: "first", submit: false, request_id: "delivery-test:conflict" }), audit, null, "default");
+    const conflict = await replyPane(client as unknown as HerdrClient, cfg(), "w1:p-conflict", request({ text: "second", submit: false, request_id: "delivery-test:conflict" }), audit, null, "default");
+    expect(conflict.status).toBe(409);
+    expect(client.texts).toEqual([["w1:p-conflict", "first"]]);
+  });
+
   test("matching expected_prompt reads the GET window then sends keys", async () => {
     const client = new FakePaneClient();
     const { audit, entries } = auditEntries();

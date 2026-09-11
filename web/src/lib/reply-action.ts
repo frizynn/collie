@@ -230,6 +230,9 @@ export interface GuardedReplyArgs {
    * every dialog tap already gets through lib/dialog-guard.ts.
    */
   onComposerSeen?: (seen: ComposerSeen) => Promise<ComposerPrepResult>;
+  /** Stable across retries. The bridge deduplicates type and submit as separate phases. */
+  requestId?: string;
+  onAck?: (ack: "typed" | "submitted") => void;
 }
 
 /** What the pre-flight's live read saw, handed to the caller's pre-type work. */
@@ -277,11 +280,12 @@ export async function sendGuardedReply(args: GuardedReplyArgs): Promise<ReplyOut
 
   let typed;
   try {
-    typed = await sendReply(args.paneId, args.text, false, args.session);
+    typed = await sendReply(args.paneId, args.text, false, args.session, undefined, args.requestId ? `${args.requestId}:type` : undefined);
   } catch (e) {
     return { status: "error", error: message(e) };
   }
   if (!typed.ok) return { status: "error", error: typed.error };
+  args.onAck?.("typed");
 
   const sleep = args.sleep ?? defaultSleep;
   // The last screen a verification read actually saw, kept only so the stall below can be named. The
@@ -460,7 +464,7 @@ async function oneShot(args: GuardedReplyArgs): Promise<ReplyOutcome> {
   // `adapterFor(agent)?.extractInputDraft`, so a pane with no adapter has no draft to sweep and the
   // composer's callback was already a no-op here.
   try {
-    const res = await sendReply(args.paneId, args.text, true, args.session);
+    const res = await sendReply(args.paneId, args.text, true, args.session, undefined, args.requestId ? `${args.requestId}:oneshot` : undefined);
     return res.ok ? { status: "sent" } : { status: "error", error: res.error };
   } catch (e) {
     return { status: "error", error: message(e) };
@@ -474,8 +478,8 @@ async function oneShot(args: GuardedReplyArgs): Promise<ReplyOutcome> {
  */
 async function submitOnly(args: GuardedReplyArgs): Promise<ReplyOutcome> {
   try {
-    const res = await sendReply(args.paneId, "", true, args.session);
-    if (res.ok) return { status: "sent" };
+    const res = await sendReply(args.paneId, "", true, args.session, undefined, args.requestId ? `${args.requestId}:submit` : undefined);
+    if (res.ok) { args.onAck?.("submitted"); return { status: "sent" }; }
     // The text is verifiably sitting in the input box and only the submit key failed — same shape as
     // the bridge's own partial-failure case. Tell the caller not to resend.
     return {

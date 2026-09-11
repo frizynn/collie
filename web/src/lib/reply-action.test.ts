@@ -16,13 +16,13 @@ const paneWithDialog = "Do you want to proceed?\n ❯ 1. Yes\n   2. No\n\n Esc t
 
 /** Record every reply POST, and let the fake pane's screen be swapped per test. */
 function harness(screen: () => string) {
-  const calls: Array<{ text: string; submit: boolean }> = [];
+  const calls: Array<{ text: string; submit: boolean; request_id?: string }> = [];
   server.use(
     http.get(/\/api\/pane\/[^/]+$/, () =>
       HttpResponse.json({ paneId: "w1:p1", text: screen(), truncated: false, revision: 1 }),
     ),
     http.post(/\/api\/pane\/[^/]+\/reply$/, async ({ request }) => {
-      const body = (await request.json()) as { text: string; submit: boolean };
+      const body = (await request.json()) as { text: string; submit: boolean; request_id?: string };
       calls.push(body);
       return HttpResponse.json({ ok: true });
     }),
@@ -200,6 +200,25 @@ describe("sendGuardedReply", () => {
       { text: "ship it please", submit: false },
       { text: "", submit: true },
     ]);
+  });
+
+  it("uses stable, phase-specific idempotency keys and exposes Herdr acks", async () => {
+    const calls = harness(() => paneWithDraft("long multiline message that is visible"));
+    const acks: string[] = [];
+    const out = await sendGuardedReply({
+      paneId: "w1:p1",
+      text: "long\nmultiline message that is visible",
+      agent: "claude",
+      requestId: "delivery-42",
+      onAck: (ack) => acks.push(ack),
+      ...instant,
+    });
+    expect(out).toEqual({ status: "sent" });
+    expect(calls).toEqual([
+      { text: "long\nmultiline message that is visible", submit: false, request_id: "delivery-42:type" },
+      { text: "", submit: true, request_id: "delivery-42:submit" },
+    ]);
+    expect(acks).toEqual(["typed", "submitted"]);
   });
 
   // omp paints an inline completion suggestion after the operator's text, in its own colour. It is
