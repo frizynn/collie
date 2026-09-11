@@ -8,6 +8,12 @@ All notable changes to Nenu are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-09-11
+
+### Added
+
+- Render local HTML previews in an opaque, no-network sandbox with Render/Código modes. (6c4a7a2)
+
 ## [0.37.3] - 2026-09-09
 
 ### Fixed
