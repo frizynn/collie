@@ -67,6 +67,7 @@ describe("pane project files", () => {
       expect(response.headers.get("content-type")).toBe("text/plain; charset=utf-8");
       expect(response.headers.get("x-content-type-options")).toBe("nosniff");
       expect(response.headers.get("content-security-policy")).toContain("sandbox");
+      expect(response.headers.get("content-security-policy")).toContain("default-src 'none'");
       expect(await response.text()).toBe(content);
     }
   });

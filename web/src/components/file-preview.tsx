@@ -1,20 +1,23 @@
 import { lazy, Suspense, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Download, FileText, Loader2, X } from "lucide-react";
+import { Code2, Download, Eye, FileText, Loader2, X } from "lucide-react";
 import { fetchPaneFile } from "@/lib/api";
 import { FilePreviewContext } from "@/lib/file-preview-context";
+import { htmlPreviewDocument } from "@/lib/html-preview";
 import { useHoldReload } from "@/lib/reload-guard";
 import { MarkdownText } from "./markdown-text";
 import "./file-preview.css";
 
 const PdfPreview = lazy(() => import("./pdf-preview"));
 type DocumentData = { kind: "pdf"; bytes: ArrayBuffer; url: string } | { kind: "image"; url: string } | { kind: "text"; text: string; markdown: boolean; url: string };
+type HtmlView = "render" | "code";
 
 export default function FilePreview({ paneId, session, path, onClose }: { paneId: string; session?: string; path: string; onClose: () => void }) {
   useHoldReload("document-preview", true);
   const [data, setData] = useState<DocumentData | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [htmlView, setHtmlView] = useState<HtmlView>("render");
   const panel = useRef<HTMLDivElement>(null);
   const openFile = useContext(FilePreviewContext);
   const openRelated = openFile ? (target: string) => openFile(target.startsWith("/") ? target : path.slice(0, path.lastIndexOf("/") + 1) + target) : null;
@@ -22,7 +25,7 @@ export default function FilePreview({ paneId, session, path, onClose }: { paneId
   useEffect(() => {
     const controller = new AbortController();
     let url: string | undefined;
-    setError(""); setData(null);
+    setError(""); setData(null); setHtmlView("render");
     void (async () => {
       const response = await fetchPaneFile(paneId, path, session, controller.signal);
       const blob = await response.blob();
@@ -63,17 +66,26 @@ export default function FilePreview({ paneId, session, path, onClose }: { paneId
         {data && <a href={data.url} download={name} aria-label="Download file" className="file-preview-action"><Download className="size-4" /></a>}
         <button type="button" aria-label="Close document" onClick={onClose} className="file-preview-action"><X className="size-5" /></button>
       </header>
+      {data?.kind === "text" && /\.html?$/i.test(path) && <div className="file-preview-tabs" role="tablist" aria-label="HTML preview mode">
+        {(["render", "code"] as const).map((view) => <button key={view} type="button" role="tab" aria-selected={htmlView === view} tabIndex={htmlView === view ? 0 : -1} className="file-preview-tab" onClick={() => setHtmlView(view)} onKeyDown={(event) => {
+          if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+          event.preventDefault();
+          const next = view === "render" ? "code" : "render";
+          setHtmlView(next);
+          panel.current?.querySelector<HTMLElement>(`[role="tab"][aria-selected="${next === view}"]`)?.focus();
+        }}>{view === "render" ? <><Eye className="size-4" aria-hidden="true" />Render</> : <><Code2 className="size-4" aria-hidden="true" />Código</>}</button>)}
+      </div>}
       <div className="file-preview-content">
         {error ? <div role="alert" className="p-6 text-sm">
           <p>{error}</p>
           <button type="button" className="mt-3 min-h-11 rounded-md border px-4" onClick={() => setAttempt((value) => value + 1)}>Retry</button>
-        </div> : <DocumentContent data={data} name={name} openRelated={openRelated} />}
+        </div> : <DocumentContent data={data} name={name} openRelated={openRelated} html={/\.html?$/i.test(path) ? htmlView : null} onError={setError} />}
       </div>
     </div>
   </div>, document.body);
 }
 
-function DocumentContent({ data, name, openRelated }: { data: DocumentData | null; name: string; openRelated: ((path: string) => void) | null }) {
+function DocumentContent({ data, name, openRelated, html, onError }: { data: DocumentData | null; name: string; openRelated: ((path: string) => void) | null; html: HtmlView | null; onError: (message: string) => void }) {
   if (!data) return <Loading />;
   switch (data.kind) {
     case "pdf":
@@ -81,6 +93,14 @@ function DocumentContent({ data, name, openRelated }: { data: DocumentData | nul
     case "image":
       return <img src={data.url} alt={name} className="mx-auto h-auto max-w-full" />;
     case "text":
+      if (html === "render") return <iframe
+        title={`Rendered preview of ${name}`}
+        sandbox="allow-scripts"
+        referrerPolicy="no-referrer"
+        srcDoc={htmlPreviewDocument(data.text)}
+        className="file-preview-html"
+        onError={() => onError("Could not render this HTML file.")}
+      />;
       if (!data.markdown) return <pre className="overflow-x-auto p-5 font-mono text-sm whitespace-pre">{data.text}</pre>;
       return <FilePreviewContext.Provider value={openRelated}>
         <MarkdownText text={data.text} className="mx-auto max-w-3xl p-5 sm:p-8" />

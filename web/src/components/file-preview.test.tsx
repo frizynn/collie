@@ -70,3 +70,25 @@ it("loads the PDF renderer only for PDF responses", async () => {
   await waitFor(() => expect(screen.getByText("PDF canvas")).toBeInTheDocument());
   expect(screen.getByRole("link", { name: "Download file" })).toHaveAttribute("download", "report.pdf");
 });
+
+it("renders HTML only in an opaque-origin script sandbox and keeps a literal code view", async () => {
+  const attack = '<script>top.location="https://attacker.invalid";fetch("/api/snapshot");</script><form action="/api/pane/x/reply"><button>Attack</button></form>';
+  fetchFile.mockResolvedValue(new Response(attack, { headers: { "content-type": "text/plain" } }));
+  render(<FilePreview paneId="w1:p1" path="attack.html" onClose={() => {}} />);
+
+  const frame = await screen.findByTitle("Rendered preview of attack.html");
+  expect(frame).toHaveAttribute("sandbox", "allow-scripts");
+  expect(frame).not.toHaveAttribute("allow");
+  for (const forbidden of ["allow-same-origin", "allow-forms", "allow-popups", "allow-top-navigation", "allow-downloads"]) {
+    expect(frame.getAttribute("sandbox")).not.toContain(forbidden);
+  }
+  const srcdoc = frame.getAttribute("srcdoc") ?? "";
+  expect(srcdoc).toContain("connect-src 'none'");
+  expect(srcdoc).toContain("form-action 'none'");
+  expect(srcdoc).toContain("object-src 'none'");
+  expect(srcdoc.indexOf("Content-Security-Policy")).toBeLessThan(srcdoc.indexOf("top.location"));
+
+  fireEvent.click(screen.getByRole("tab", { name: "Código" }));
+  expect(screen.getByText(attack)).toBeInTheDocument();
+  expect(screen.queryByTitle("Rendered preview of attack.html")).not.toBeInTheDocument();
+});
