@@ -37,14 +37,14 @@ export function CollieHome({ onHome, trouble, lost = false, wordmark = false, cl
       // so screen-reader and reduced-motion users get it (inside a pane there's no other cue).
       aria-label={!trouble ? "Nenu home" : lost ? "Nenu home — not connected" : "Nenu home — reconnecting"}
       className={cn(
-        "-mx-1 flex items-center gap-2 rounded px-1 transition-opacity active:opacity-70",
+        "-mx-1 flex min-h-11 items-center gap-1.5 rounded px-1 transition-opacity active:opacity-70 sm:gap-2",
         className,
       )}
     >
       {/* A whitesmoke ring frames the mark so it reads as a deliberate badge against the dark header
           (the Nenu art is transparent, so it otherwise floats). The ring wraps every state so the
           frame doesn't pop in/out as the connection settles out of the gallop. */}
-      <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-zinc-500/40 ring-1 ring-[whitesmoke]/60">
+      <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-zinc-500/40 ring-1 ring-[whitesmoke]/60 sm:size-10">
         {gallop ? (
           <DogGallop running size="2rem" />
         ) : lost ? (
@@ -52,14 +52,14 @@ export function CollieHome({ onHome, trouble, lost = false, wordmark = false, cl
           // muted (grayscale + dimmed) to read asleep/inactive, in the same box (no gallop). NOT a
           // paused sprite: a gallop rest-frame is a full-stretch mid-stride pose that looks frozen
           // mid-run — the "stuck mid-run" bug. Mirrors the boot splash's not-connected state.
-          <img src="/nenu-mark.png" alt="" className="nenu-mark size-8 opacity-40 grayscale" />
+          <img src="/nenu-mark.png" alt="" className="nenu-mark size-6 opacity-40 grayscale sm:size-8" />
         ) : (
           // Live rest state = the crisp Nenu mark, in the same box as the sprite so it doesn't resize
           // when the connection settles. Larger than the agent logo.
-          <img src="/nenu-mark.png" alt="" className="nenu-mark size-8" />
+          <img src="/nenu-mark.png" alt="" className="nenu-mark size-6 sm:size-8" />
         )}
       </span>
-      {wordmark && <span className="text-lg font-semibold tracking-tight">Nenu</span>}
+      {wordmark && <span className="text-sm font-semibold tracking-tight sm:text-lg">Nenu</span>}
     </button>
   );
 }

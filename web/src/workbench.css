@@ -55,7 +55,7 @@ body { font-family: var(--font-sans); }
 .workbench-shell { display: flex; min-height: 0; min-width: 0; flex: 1; }
 .workbench-main { position: relative; display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
 .workbench-sidebar { display: none; }
-.workbench-mobile-bar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; min-height: 44px; padding: 0 12px 0 8px; border-bottom: 1px solid var(--border); background: var(--workbench-sidebar); }
+.workbench-mobile-bar { display: flex; align-items: center; gap: 6px; flex-shrink: 0; min-height: 40px; padding: 0 8px 0 4px; border-bottom: 1px solid var(--border); background: var(--workbench-sidebar); }
 .workbench-mobile-bar > .workbench-brand { flex: 1; }
 .workbench-brand { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--foreground); text-decoration: none; font-size: 14px; font-weight: 600; letter-spacing: -0.025em; border-radius: 6px; }
 .workbench-brand-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 52px; padding: 0 12px; flex-shrink: 0; }
@@ -115,4 +115,11 @@ body { font-family: var(--font-sans); }
 @media (max-width: 1023px), (pointer: coarse) {
   .workbench-thread, .workbench-project-title, .workbench-nav-action, .workbench-context-trigger { min-height: 44px; }
   .workbench-icon-button { width: 44px; height: 44px; }
+}
+
+@media (max-width: 639px) {
+  .workbench-mobile-bar .workbench-icon-button { width: 36px; height: 40px; }
+  .workbench-mobile-bar .workbench-brand { gap: 5px; font-size: 13px; }
+  .workbench-mobile-bar .workbench-brand img { width: 18px; height: 18px; }
+  .workbench-chat > header { min-height: 44px; }
 }

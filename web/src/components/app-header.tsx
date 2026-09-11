@@ -63,10 +63,16 @@ export function AppHeader({
   const trouble = useConnectionTrouble(connecting);
   const lost = useConnectionLost(connecting);
   return (
-    <header className="sticky top-0 z-20 flex shrink-0 items-center gap-2 border-b border-border/60 bg-muted pl-4 pr-2 py-2">
+    <header className="sticky top-0 z-20 flex min-h-11 shrink-0 items-center gap-1.5 border-b border-border/60 bg-muted px-2 py-0 sm:gap-2 sm:pl-4 sm:pr-2 sm:py-2">
       {override ?? (
         <>
-          <CollieHome onHome={onHome} trouble={trouble} lost={lost} wordmark={wordmark} />
+          <CollieHome
+            onHome={onHome}
+            trouble={trouble}
+            lost={lost}
+            wordmark={wordmark}
+            className={!wordmark ? "max-sm:hidden" : undefined}
+          />
           {/* Center region: the breadcrumb (or, on the dashboard/space, an empty flex-1 spacer that
               pushes the right cluster to the edge). min-w-0 so the breadcrumb truncates when tight. */}
           <div className="flex min-w-0 flex-1 items-center">{children}</div>

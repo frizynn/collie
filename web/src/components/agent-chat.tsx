@@ -674,9 +674,9 @@ export function AgentChat({
                   type="button"
                   onClick={openFind}
                   aria-label="Find in output"
-                  className="-mr-1 flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60"
+                  className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60 sm:-mr-1 sm:size-8"
                 >
-                  <Search className="size-4" />
+                  <Search className="size-3.5 sm:size-4" />
                 </button>
               )}
               {agent.hasSession && (
@@ -684,9 +684,9 @@ export function AgentChat({
                   type="button"
                   onClick={() => showConversation ? setHistoryRequest((key) => key + 1) : navigate(historyPath(paneId, session))}
                   aria-label="Conversation history"
-                  className="-mr-1 flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60"
+                  className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60 sm:-mr-1 sm:size-8"
                 >
-                  <ScrollText className="size-4" />
+                  <ScrollText className="size-3.5 sm:size-4" />
                 </button>
               )}
               {conversationCapable && (
@@ -696,7 +696,7 @@ export function AgentChat({
                   aria-label={prefs.rawTerminal ? "Show conversation" : "Show raw terminal"}
                   aria-pressed={prefs.rawTerminal}
                   title={prefs.rawTerminal ? "Show conversation" : "Show raw terminal"}
-                  className="-mr-1 flex size-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground active:bg-muted md:size-8"
+                  className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground active:bg-muted sm:-mr-1 md:size-8"
                 >
                   {prefs.rawTerminal ? <MessageSquareText aria-hidden="true" className="size-4" /> : <TerminalSquare aria-hidden="true" className="size-4" />}
                 </button>
@@ -704,7 +704,7 @@ export function AgentChat({
               {isShell ? (
                 <ShellBadge stale={connecting} />
               ) : (
-                <StatusBadge status={agent.status} stale={connecting} />
+                <StatusBadge status={agent.status} stale={connecting} className="max-sm:px-1.5 max-sm:py-0 max-sm:text-[10px]" />
               )}
             </>
           ) : undefined
@@ -718,27 +718,27 @@ export function AgentChat({
             type="button"
             onClick={() => openSpace(agent.workspaceId)}
             aria-label={`Open ${agent.workspaceLabel} overview`}
-            className="-mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1 py-0.5 text-left transition-colors active:bg-muted/60"
+            className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg text-left transition-colors active:bg-muted/60 sm:-mx-1 sm:gap-2.5 sm:px-1 sm:py-0.5"
           >
             {isShell ? (
-              <div className="flex size-6 shrink-0 items-center justify-center rounded-full border bg-muted">
+              <div className="flex size-5 shrink-0 items-center justify-center rounded-full border bg-muted sm:size-6">
                 <TerminalSquare className="size-3 text-muted-foreground" />
               </div>
             ) : (
               // Deliberately smaller than the size-8 Nenu mark beside it — the agent logo is the
               // pane's subject, not a second brand competing with Nenu's for the header.
-              <AgentIcon agent={agent.agent} className="size-6" />
+              <AgentIcon agent={agent.agent} className="size-5 sm:size-6" />
             )}
             <div className="min-w-0 flex-1">
               {/* A user-set pane label leads when present (the identifier they chose), then Claude's
                   own /rename session name, otherwise the default space › tab. The cwd subline keeps
                   context either way. */}
-              <div className="truncate font-semibold leading-tight">
+              <div className="truncate text-sm font-semibold leading-tight sm:text-base">
                 {agent.paneLabel ??
                   agent.sessionName ??
                   `${agent.workspaceLabel}${tabLabel ? ` › ${tabLabel}` : ""}`}
               </div>
-              <div className="truncate font-mono text-xs leading-tight text-muted-foreground">
+              <div className="truncate font-mono text-[10px] leading-tight text-muted-foreground sm:text-xs">
                 {shortCwd(agent.cwd)}
               </div>
             </div>
