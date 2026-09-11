@@ -58,7 +58,7 @@ export function TabStrip({
   return (
     <>
       {/* shrink-0 for the same reason as SpaceStrip — see the note there. */}
-      <div className="flex min-h-9 shrink-0 items-center gap-1 overflow-x-auto border-t border-border/40 px-2 py-0.5 [scrollbar-width:none] sm:gap-2 sm:px-3 sm:py-2 [&::-webkit-scrollbar]:hidden">
+      <div data-workbench-navigation-band="tabs" className="flex min-h-9 shrink-0 items-center gap-1 overflow-x-auto border-t border-border/40 px-2 py-0.5 [scrollbar-width:none] sm:gap-2 sm:px-3 sm:py-2 [&::-webkit-scrollbar]:hidden">
         <span className="hidden sm:inline"><SectionLabel>Tabs</SectionLabel></span>
         {allowAll && <Chip label="All" active={selected === null} onClick={() => onSelect(null)} />}
         {wsTabs.map((t) => (

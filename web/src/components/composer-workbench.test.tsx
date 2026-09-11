@@ -83,6 +83,18 @@ it("keeps composing available while disconnected or a dialog is open", async () 
   expect(sendGuardedReply).not.toHaveBeenCalled();
 });
 
+it("reports draft presence independently of textarea focus", async () => {
+  const onDraftStateChange = vi.fn();
+  const { user } = setup({ onDraftStateChange });
+  const input = screen.getByRole("textbox");
+
+  expect(onDraftStateChange).toHaveBeenLastCalledWith(false);
+  await user.type(input, "draft survives keyboard changes");
+  expect(onDraftStateChange).toHaveBeenLastCalledWith(true);
+  await user.clear(input);
+  expect(onDraftStateChange).toHaveBeenLastCalledWith(false);
+});
+
 it("does not convert a rejected picker command into a forced send on retry", async () => {
   vi.mocked(sendGuardedReply).mockResolvedValue({ status: "blocked", error: "Input changed" });
   const { ref, onSent, user } = setup();

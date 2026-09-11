@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useNavigate, useRevalidator } from "react-router";
-import { ArrowUpToLine, Loader2, MessageSquareText, ScrollText, Search, TerminalSquare } from "lucide-react";
+import { ArrowUpToLine, ChevronDown, ChevronUp, Loader2, MessageSquareText, ScrollText, Search, TerminalSquare } from "lucide-react";
 import { useSwipeUp } from "@/hooks/use-swipe";
 import { useSpaceActions } from "@/hooks/use-spaces";
 import { useDashPrefs, openForCount } from "@/hooks/use-dash-prefs";
@@ -144,6 +144,36 @@ export function AgentChat({
   const composerRef = useRef<ComposerHandle>(null);
   const [followKey, setFollowKey] = useState(0);
   const [historyRequest, setHistoryRequest] = useState(0);
+  // Mobile focus mode is driven by the phone-owned draft, not by textarea focus: iOS can keep focus
+  // after the keyboard closes, and a draft restored from storage has no focus event at all. The
+  // dismiss latch lets the operator bring the navigation back without it immediately disappearing
+  // again on the next keystroke; clearing/sending the draft resets that choice for the next draft.
+  const [hasDraft, setHasDraft] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [focusModeDismissed, setFocusModeDismissed] = useState(false);
+  const handleDraftStateChange = useCallback((next: boolean) => {
+    setHasDraft(next);
+    if (!next) {
+      setFocusMode(false);
+      setFocusModeDismissed(false);
+      return;
+    }
+    setFocusMode((current) => focusModeDismissed ? current : true);
+  }, [focusModeDismissed]);
+  const toggleFocusMode = useCallback(() => {
+    if (!hasDraft) return;
+    setFocusMode((current) => !current);
+    setFocusModeDismissed(true);
+  }, [hasDraft]);
+  // The global mobile bar belongs to WorkbenchShell, outside this pane component. A document state
+  // attribute keeps the focus-mode contract local to the active pane while allowing CSS to collapse
+  // that sibling bar; cleanup prevents a stale hidden header after navigation/unmount.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (focusMode) root.dataset.collieComposerFocus = "true";
+    else delete root.dataset.collieComposerFocus;
+    return () => { delete root.dataset.collieComposerFocus; };
+  }, [focusMode]);
   const conversation = useLiveConversation({
     paneId, session, enabled: Boolean(agent?.hasSession), busy: agent?.status === "working",
   });
@@ -626,7 +656,10 @@ export function AgentChat({
   }
 
   return (
-    <div className="workbench-chat flex min-h-0 w-full min-w-0 max-w-[100dvw] flex-1 flex-col overflow-x-hidden">
+    <div
+      className="workbench-chat flex min-h-0 w-full min-w-0 max-w-[100dvw] flex-1 flex-col overflow-x-hidden"
+      data-composer-focus={focusMode ? "true" : "false"}
+    >
       {/* Header — the SAME AppHeader shell the dashboard and space mount, so the Nenu mark is
           identical on every screen (no hand-rolled bar to drift). The pane's own bits ride in via
           slots: the `space › tab` breadcrumb as the center, the agent StatusBadge as the right-cluster
@@ -749,6 +782,23 @@ export function AgentChat({
           </div>
         )}
       </AppHeader>
+
+      {/* Draft-driven, fixed mobile control. It survives while the four navigation bands collapse so
+          the user can always restore context; once the draft is empty the normal layout returns and
+          this control disappears. */}
+      {hasDraft && (
+        <button
+          type="button"
+          className="workbench-focus-toggle"
+          onClick={toggleFocusMode}
+          aria-expanded={!focusMode}
+          aria-label={focusMode ? "Show navigation" : "Hide navigation"}
+          title={focusMode ? "Show navigation" : "Hide navigation"}
+        >
+          {focusMode ? <ChevronDown aria-hidden="true" className="size-4" /> : <ChevronUp aria-hidden="true" className="size-4" />}
+          <span>{focusMode ? "Show navigation" : "Hide navigation"}</span>
+        </button>
+      )}
 
       {/* Content region below the header — the mirror inside is the scroller. */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -974,6 +1024,7 @@ export function AgentChat({
             gone={gone}
             readOnly={readOnly}
             disconnected={connecting}
+            onDraftStateChange={handleDraftStateChange}
             nativeWorkbench={showConversation}
             prepareSend={showConversation ? panels.prepareSend : undefined}
             onInputFocus={() => { void panels.changePanel(null); }}

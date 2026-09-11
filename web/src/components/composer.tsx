@@ -53,6 +53,8 @@ interface ComposerProps {
   readOnly: boolean;
   /** Transport unavailable: stop terminal writes while keeping the local draft editable. */
   disconnected?: boolean;
+  /** Announces whether the phone-owned composer contains a draft so mobile chrome can enter focus mode. */
+  onDraftStateChange?: (hasDraft: boolean) => void;
   nativeWorkbench?: boolean;
   prepareSend?: () => Promise<boolean>;
   onInputFocus?: () => void;
@@ -148,7 +150,7 @@ function ComposerDock({
 }
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  { paneId, session, agent, isShell, gone, readOnly, disconnected = false, nativeWorkbench = false, prepareSend, onInputFocus, dialogPresent, text, terminalDraft, rawTerminalDraft, prefs, setWrap, stepFontSize, setTapToFocus, onSent },
+  { paneId, session, agent, isShell, gone, readOnly, disconnected = false, onDraftStateChange, nativeWorkbench = false, prepareSend, onInputFocus, dialogPresent, text, terminalDraft, rawTerminalDraft, prefs, setWrap, stepFontSize, setTapToFocus, onSent },
   ref,
 ) {
   const revalidator = useRevalidator();
@@ -170,6 +172,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   // functional update AND to persist the result, without either reading stale state or doing the
   // save inside a (double-invoked) state updater.
   const inputValueRef = useRef(input);
+  const hasDraft = input.trim().length > 0;
+
+  // Draft presence, rather than focus, is the stable signal for mobile reading mode. The keyboard
+  // can keep a textarea focused after it collapses, and a restored draft may be present before the
+  // user focuses anything; both cases still deserve the same compact navigation chrome.
+  useEffect(() => {
+    onDraftStateChange?.(hasDraft);
+  }, [hasDraft, onDraftStateChange]);
   // Which pane the current `input` belongs to. DetailRoute keys AgentChat by paneId, so in the app a
   // pane→pane navigation remounts this component and the lazy initialiser above does the work — but
   // the component must not depend on that: if it is ever rendered with a changed paneId/session in
@@ -867,7 +877,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           {!nativeWorkbench && <Button
             variant="ghost"
             size="sm"
-            className={cn("h-8 flex-1 gap-1.5", drawer === "keys" ? CONTROL_ON : CONTROL_OFF)}
+            className={cn("h-11 min-w-0 flex-1 gap-1.5 sm:h-8", drawer === "keys" ? CONTROL_ON : CONTROL_OFF)}
             disabled={locked}
             aria-expanded={drawer === "keys"}
             onClick={() => requestDrawer(drawer === "keys" ? null : "keys")}
@@ -889,7 +899,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           {!nativeWorkbench && <Button
             variant="ghost"
             size="sm"
-            className={cn("h-8 flex-1 gap-1.5", direct.active ? CONTROL_ON : CONTROL_OFF)}
+            className={cn("h-11 min-w-0 flex-1 gap-1.5 sm:h-8", direct.active ? CONTROL_ON : CONTROL_OFF)}
             disabled={locked || sending}
             aria-pressed={direct.active}
             aria-label="Type into terminal"
@@ -911,7 +921,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           <Button
             variant="ghost"
             size="sm"
-            className={cn("h-8 flex-1 gap-1.5", drawer === "quick" ? CONTROL_ON : CONTROL_OFF)}
+            className={cn("h-11 min-w-0 flex-1 gap-1.5 sm:h-8", drawer === "quick" ? CONTROL_ON : CONTROL_OFF)}
             disabled={locked}
             aria-expanded={drawer === "quick"}
             onClick={() => requestDrawer(drawer === "quick" ? null : "quick")}
@@ -923,7 +933,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 flex-1 gap-1.5 text-muted-foreground"
+              className="h-11 min-w-0 flex-1 gap-1.5 text-muted-foreground sm:h-8"
               disabled={locked}
               onClick={() => requestDrawer("cmd")}
             >
@@ -936,7 +946,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           <Button
             variant="ghost"
             size="icon"
-            className={cn("size-8 shrink-0", drawer === "display" ? CONTROL_ON : CONTROL_OFF)}
+            className={cn("size-11 shrink-0 sm:size-8", drawer === "display" ? CONTROL_ON : CONTROL_OFF)}
             aria-label="Display settings"
             aria-expanded={drawer === "display"}
             onClick={() => requestDrawer(drawer === "display" ? null : "display")}
@@ -1059,7 +1069,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               // matters: a textarea is inline-level by default, so the wrapper inherits a few px of
               // baseline gap beneath it and the absolutely-positioned button hangs past the field's
               // bottom edge.
-              nativeWorkbench ? "block min-h-10 px-2 py-2" : "block pr-11",
+              nativeWorkbench ? "workbench-chat-input block min-h-11 px-2 py-2" : "workbench-chat-input block pr-11",
               direct.active &&
                 "border-primary focus-visible:border-primary focus-visible:ring-primary/30",
             )}
@@ -1073,7 +1083,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               // bottom-1, not centred: the field grows upward as the draft wraps, and a vertically
               // centred button would drift up with it, away from the thumb and away from the send
               // button it pairs with. Pinned to the bottom it stays put at any height.
-              className="absolute bottom-1 right-1 size-9 rounded-full text-muted-foreground"
+              className="absolute bottom-1 right-1 size-11 rounded-full text-muted-foreground sm:size-9"
               disabled={uploading || locked || direct.active}
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => fileRef.current?.click()}
@@ -1087,17 +1097,17 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             </Button>}
           </div>
           {nativeWorkbench && <div className="flex min-w-0 items-center gap-0.5" role="toolbar" aria-label="Message actions">
-            <Button type="button" variant="ghost" size="icon" className="size-11 text-muted-foreground md:size-8" title="Attach image" aria-label="Attach image"
+            <Button type="button" variant="ghost" size="icon" className="size-11 shrink-0 text-muted-foreground md:size-8" title="Attach image" aria-label="Attach image"
               disabled={uploading || locked} onPointerDown={(e) => e.preventDefault()} onClick={() => fileRef.current?.click()}>
               {uploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
             </Button>
-            <Button type="button" variant="ghost" size="icon" className={cn("size-11 md:size-8", drawer === "quick" ? CONTROL_ON : CONTROL_OFF)}
+            <Button type="button" variant="ghost" size="icon" className={cn("size-11 shrink-0 md:size-8", drawer === "quick" ? CONTROL_ON : CONTROL_OFF)}
               title="Quick replies" aria-label="Quick replies" disabled={locked} aria-expanded={drawer === "quick"}
               onClick={() => requestDrawer(drawer === "quick" ? null : "quick")}><Zap className="size-4" /></Button>
-            {commands.length > 0 && <Button type="button" variant="ghost" size="icon" className="size-11 text-muted-foreground md:size-8"
+            {commands.length > 0 && <Button type="button" variant="ghost" size="icon" className="size-11 shrink-0 text-muted-foreground md:size-8"
               title="Commands" aria-label="Commands" disabled={locked} aria-expanded={drawer === "cmd"}
               onClick={() => requestDrawer(drawer === "cmd" ? null : "cmd")}><Slash className="size-4" /></Button>}
-            <Button type="button" variant="ghost" size="icon" className={cn("size-11 md:size-8", drawer === "display" ? CONTROL_ON : CONTROL_OFF)}
+            <Button type="button" variant="ghost" size="icon" className={cn("size-11 shrink-0 md:size-8", drawer === "display" ? CONTROL_ON : CONTROL_OFF)}
               title="Display settings" aria-label="Display settings" aria-expanded={drawer === "display"}
               onClick={() => requestDrawer(drawer === "display" ? null : "display")}><Settings2 className="size-4" /></Button>
           </div>}

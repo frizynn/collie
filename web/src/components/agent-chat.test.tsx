@@ -85,6 +85,32 @@ describe("AgentChat — reply flow", () => {
     expect(await screen.findByText("agent busy")).toBeInTheDocument();
     expect(box).toHaveValue("retry this"); // not cleared on failure
   });
+
+  it("enters draft focus mode, keeps an explicit navigation toggle, and resets when cleared", async () => {
+    const user = userEvent.setup();
+    renderChat();
+    const box = screen.getByPlaceholderText(/type a reply/i);
+
+    // No draft means normal navigation chrome and no focus-mode affordance.
+    expect(screen.queryByRole("button", { name: "Show navigation", hidden: true })).not.toBeInTheDocument();
+    expect(document.documentElement).not.toHaveAttribute("data-collie-composer-focus");
+
+    await user.type(box, "read this while I draft");
+    expect(await screen.findByRole("button", { name: "Show navigation", hidden: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show navigation", hidden: true })).toHaveAttribute("aria-expanded", "false");
+    expect(document.documentElement).toHaveAttribute("data-collie-composer-focus", "true");
+
+    // Restoring the chrome is an explicit choice and further typing must not immediately hide it.
+    await user.click(screen.getByRole("button", { name: "Show navigation", hidden: true }));
+    expect(screen.getByRole("button", { name: "Hide navigation", hidden: true })).toHaveAttribute("aria-expanded", "true");
+    expect(document.documentElement).not.toHaveAttribute("data-collie-composer-focus");
+    await user.type(box, " more");
+    expect(screen.getByRole("button", { name: "Hide navigation", hidden: true })).toBeInTheDocument();
+
+    await user.clear(box);
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Hide navigation", hidden: true })).not.toBeInTheDocument());
+    expect(document.documentElement).not.toHaveAttribute("data-collie-composer-focus");
+  });
 });
 
 // Echoes the space passed via navigation state, so a test can assert the header lands on the space
