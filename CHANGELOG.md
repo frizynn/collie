@@ -8,6 +8,12 @@ All notable changes to Nenu are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.40.1] - 2026-09-12
+
+### Fixed
+
+- Home now presents distinct project cards instead of duplicating the sidebar's flat thread list, and single-child workspaces or tabs navigate directly without false disclosure controls. (dd96b0d)
+
 ## [0.40.0] - 2026-09-11
 
 ### Added
