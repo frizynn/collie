@@ -8,6 +8,13 @@ All notable changes to Nenu are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-09-11
+
+### Fixed
+
+- Mobile sends now expose queue/Herdr acknowledgement state and retry with phase-scoped idempotency, so double taps and recoverable verification failures never append the same draft twice. (3c107d5)
+- The mobile composer, telemetry row, and multiline input use less vertical space while preserving 44px touch targets, safe areas, and bounded internal scrolling. (3c107d5)
+
 ## [0.38.0] - 2026-09-11
 
 ### Added
@@ -903,5 +910,7 @@ herd over Tailscale.
   authorisation via a trusted upstream header, a strict CSP, and terminal output rendered as React
   text nodes (the XSS boundary).
 
-[Unreleased]: https://github.com/frizynn/nenu/compare/v0.37.0...HEAD
+[Unreleased]: https://github.com/frizynn/nenu/compare/v0.39.0...HEAD
+[0.39.0]: https://github.com/frizynn/nenu/compare/v0.38.0...v0.39.0
+[0.38.0]: https://github.com/frizynn/nenu/compare/v0.37.3...v0.38.0
 [0.37.0]: https://github.com/frizynn/nenu/releases/tag/v0.37.0
