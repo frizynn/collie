@@ -48,3 +48,14 @@ describe("Codex model/effort menus", () => {
     ]) expect(detect(candidate)).toBeUndefined();
   });
 });
+
+it.each(["model-picker", "model-reasoning"])("recognizes aligned wrapped descriptions in %s without accepting hidden choices", (name) => {
+  const text = capture(name);
+  const original = name === "model-picker" ? "Our most capable model for complex, demanding work." : "Fast responses with lighter reasoning";
+  const column = splitLines(parseAnsi(text)).map((line) => line.segments.map((segment) => segment.text).join(""))
+    .find((line) => line.includes(original))!.indexOf(original);
+  const wrapped = text.replace(original, `A long description\n${" ".repeat(column)}continued here`);
+  expect(detect(wrapped)).toBeDefined();
+  expect(detect(wrapped.replace("continued here", "› Another choice"))).toBeUndefined();
+  expect(detect(wrapped.replace("continued here", "3. Another choice"))).toBeUndefined();
+});

@@ -31,6 +31,7 @@ import { WorkbenchModelPanel } from "@/components/workbench-model-panel";
 import { useWorkbenchPanels } from "@/hooks/use-workbench-panels";
 import { parseNativeModelMenu } from "@/lib/native-model-menu";
 import { dismissModelPicker } from "@/lib/dismiss-model-picker";
+import { waitForModelAction } from "@/lib/wait-for-model-action";
 import { commandsFor } from "@/lib/agent-commands";
 import { useOperatorCommands } from "@/lib/operator-config";
 import { ThreadSidebar } from "@/components/agent-sidebar";
@@ -266,11 +267,16 @@ export function AgentChat({
     writable: writableRef.current, modelPresent,
     openCommand: async () => await composerRef.current?.openModelPicker() ?? false,
     onLoaded: () => { void modelSource.refresh(); revalidator.revalidate(); },
-    onApplied: () => {
-      modelSource.clear();
+    onApplied: (pane) => {
+      modelSource.observe(pane);
+      setStatus("Model settings applied", "success");
       revalidator.revalidate();
-      if (agent?.agent === "claude") void panels.changePanel(null);
-      else void modelSource.refresh();
+      panels.modelCompleted();
+    },
+    onReasoning: (pane) => {
+      modelSource.observe(pane);
+      setStatus("Choose reasoning, then apply the change", "info");
+      revalidator.revalidate();
     },
   });
   const panels = useWorkbenchPanels({
@@ -590,8 +596,28 @@ export function AgentChat({
         menu,
         keys: action.keys,
         nav: action.nav,
+        canWrite: () => writableRef.current && modelSource.isCurrent(),
       });
       if (result.status === "sent") {
+        if (liveModelBlock?.menu.signature === menu.signature && modelPresent) {
+          const observed = await waitForModelAction({ paneId, session, agent: agent?.agent,
+            requestedLines, previous: menu });
+          if (!modelSource.isCurrent()) return;
+          if (!observed.ok) {
+            setStatus(observed.error, "warn");
+            revalidator.revalidate();
+            return;
+          }
+          modelSource.observe(observed.pane);
+          if (observed.kind === "closed") {
+            localModel.released();
+            panels.modelCompleted();
+            const confirmed = menu.actions.some((entry) => !entry.cancel && entry.keys.join() === action.keys.join());
+            setStatus(confirmed ? "Model settings applied" : "Model settings closed", confirmed ? "success" : "info");
+          } else setStatus(observed.menu.kind === "reasoning" ? "Choose reasoning, then apply the change" : "Selection updated — apply to save", "info");
+          revalidator.revalidate();
+          return;
+        }
         localModel.released();
         setStatus("Sent", "success");
         setFollowing(true);
@@ -604,7 +630,8 @@ export function AgentChat({
         setStatus(result.error || "Send failed", "error");
       }
     },
-    [readOnly, paneId, session, requestedLines, interactionRevision, agent?.agent, revalidator, localModel.released],
+    [readOnly, paneId, session, requestedLines, interactionRevision, agent?.agent, revalidator, localModel.released,
+      liveModelBlock, modelPresent, modelSource.observe, modelSource.isCurrent, panels.modelCompleted],
   );
 
   // NOTE: the composer is deliberately NOT auto-focused on open/switch — that would pop the Android

@@ -1,4 +1,5 @@
 import { defaultSleep } from "./harness/guard";
+import type { MenuModel } from "./blocks";
 import { menusSameIdentity, submitMenuKeys } from "./menu-action";
 import { modelRowKeys } from "./native-model-menu";
 import { waitForNativeModelMenu, type WaitForNativeModelMenuArgs, type WaitForNativeModelMenuResult } from "./wait-for-native-model-menu";
@@ -70,7 +71,12 @@ export async function selectNativeModel(args: SelectNativeModelArgs): Promise<Se
         const before = initial.menu.rows[index]!;
         return row.name === before.name && row.description === before.description && row.current === before.current;
       });
-      if (!sameRows || !menusSameIdentity(initial.block.menu, fresh.block.menu)) return changed();
+      // Claude removes ←/→ when Haiku is highlighted and restores them for reasoning models.
+      // That expected capability change is not a foreign picker. Titles, footer keys, rows and
+      // the exact target highlight still have to match; confirmation keeps its full fresh guard.
+      const identity = (menu: MenuModel) => args.agent === "claude"
+        ? { ...menu, nav: { ...menu.nav, leftRight: undefined } } : menu;
+      if (!sameRows || !menusSameIdentity(identity(initial.block.menu), identity(fresh.block.menu))) return changed();
       if (fresh.menu.selectedIndex === targetIndex) return { ...fresh, name };
       // An unchanged repaint may lag the write. Any other highlight is a concurrent action;
       // never compensate with more arrows or let the caller accept the wrong row.

@@ -1,4 +1,5 @@
 import type { MenuModel, StyledLine } from "../../blocks";
+import { parseNativeModelMenu } from "../../native-model-menu";
 import { isBlank, lastNonBlankIndex, lineText, regionSignature, rstrip, skipBlanksUp } from "./markers";
 
 const FOOTER = "  Press enter to confirm or esc to go back";
@@ -16,13 +17,12 @@ export function detectModelMenuRegion(lines: StyledLine[]): { model: MenuModel; 
 
   let cursor = skipBlanksUp(texts, footer - 1);
   const options: RegExpExecArray[] = [];
-  while (cursor >= 0 && options.length < MAX_OPTIONS) {
+  while (cursor >= 0 && !isBlank(texts[cursor]!) && options.length <= MAX_OPTIONS) {
     const option = OPTION.exec(texts[cursor]!);
-    if (!option) break;
-    options.unshift(option);
+    if (option) options.unshift(option);
     cursor--;
   }
-  if (options.length < 2 || options.filter((option) => option[1] === "›").length !== 1) return null;
+  if (options.length < 2 || options.length > MAX_OPTIONS || options.filter((option) => option[1] === "›").length !== 1) return null;
   if (!options.every((option, index) => Number(option[2]) === index + 1)) return null;
   if (cursor < 0 || !isBlank(texts[cursor]!)) return null;
 
@@ -33,16 +33,16 @@ export function detectModelMenuRegion(lines: StyledLine[]): { model: MenuModel; 
   // Model title/subtitle are a fixed pair. A foreign paragraph under a familiar title is no menu.
   if (title === MODEL_TITLE && texts[titleRow + 1] !== MODEL_SUBTITLE) return null;
 
-  return {
-    startLine: titleRow,
-    model: {
-      title: title.trim(),
-      actions: [
-        { label: "Confirm", keys: ["Enter"] },
-        { label: "Go back", keys: ["Escape"], cancel: true },
-      ],
-      nav: { upDown: true },
-      signature: regionSignature(lines, titleRow, footer + 1),
-    },
+  const model: MenuModel = {
+    title: title.trim(),
+    actions: [
+      { label: "Confirm", keys: ["Enter"] },
+      { label: "Go back", keys: ["Escape"], cancel: true },
+    ],
+    nav: { upDown: true },
+    signature: regionSignature(lines, titleRow, footer + 1),
   };
+  // Includes wrapped descriptions in the signature, while declining unrecognized row gaps.
+  if (!parseNativeModelMenu(model, lines.slice(titleRow, footer + 1))) return null;
+  return { startLine: titleRow, model };
 }

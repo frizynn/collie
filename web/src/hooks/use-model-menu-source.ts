@@ -55,8 +55,17 @@ export function useModelMenuSource(options: Options) {
     request.current = null;
     setObserved(null);
   }, []);
+  // A guarded action has already waited for this repaint. Publish its text and revision together
+  // so another tap cannot confirm the old highlight while ordinary route polling catches up.
+  const isCurrent = useCallback(() => mounted.current && route.current.scope === scope, [scope]);
+  const observe = useCallback((pane: PaneReadResponse) => {
+    if (!isCurrent() || pane.paneId !== latest.current.paneId) return;
+    request.current?.abort();
+    request.current = null;
+    setObserved({ scope, baseText: latest.current.text, pane });
+  }, [scope, isCurrent]);
   // Herdr may report revision=0. Text handoff also works on those versions: any route update
   // supersedes the short-lived read, especially an approval arriving from another client.
   const current = observed?.scope === scope && observed.baseText === options.text ? observed.pane : options;
-  return { text: current.text, revision: current.revision, refresh, clear, scope };
+  return { text: current.text, revision: current.revision, refresh, clear, observe, isCurrent, scope };
 }

@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef } from "react";
 import { selectNativeModel } from "@/lib/select-native-model";
 import { submitMenuKeys } from "@/lib/menu-action";
+import { waitForModelAction } from "@/lib/wait-for-model-action";
+import type { PaneReadResponse } from "@/lib/types";
 
 interface Options {
   paneId: string; session?: string; agent?: string; requestedLines: number;
   writable: boolean; modelPresent: boolean;
   openCommand: () => Promise<boolean>;
-  onApplied: () => void;
+  onApplied: (pane: PaneReadResponse) => void;
+  onReasoning?: (pane: PaneReadResponse) => void;
   onLoaded?: () => void;
 }
 
@@ -58,7 +61,16 @@ export function useLocalModelApply(options: Options) {
         menu: selected.block.menu, keys: action.keys, nav: false });
       check();
       if (result.status !== "sent") throw new Error(result.status === "error" ? result.error : "The picker changed. Review your selection and try again.");
-      initial.onApplied();
+      const observed = await waitForModelAction({ ...target, previous: selected.block.menu });
+      check();
+      if (!observed.ok) throw new Error(observed.error);
+      if (observed.kind === "closed") {
+        ownsInput.current = false;
+        initial.onApplied(observed.pane);
+      } else if (initial.agent === "codex" && observed.menu.kind === "reasoning" &&
+        observed.block.menu.title === `Select Reasoning Level for ${selected.name}`) {
+        initial.onReasoning?.(observed.pane);
+      } else throw new Error("The picker changed unexpectedly. Review it before applying the model.");
     })();
     pending.current = operation;
     void operation.finally(() => { if (pending.current === operation) pending.current = null; }).catch(() => {});

@@ -175,3 +175,13 @@ describe("selectNativeModel", () => {
     expect(send).toHaveBeenCalledTimes(2);
   });
 });
+
+it.each([false, true])("allows Claude effort controls to appear or disappear for the verified target model (reverse=%s)", async (reverse) => {
+  const sonnet = fixture("../fixtures/panes/claude--menu-model-picker-wrapped.txt");
+  const haiku = fixture("../fixtures/panes/claude--menu-model-picker-haiku.txt");
+  const before = reverse ? haiku : sonnet, after = reverse ? sonnet : haiku;
+  frames(before, before, after);
+  expect(await selectNativeModel({ ...args, agent: "claude", name: reverse ? "Sonnet" : "Haiku" }))
+    .toMatchObject({ ok: true, name: reverse ? "Sonnet" : "Haiku" });
+  expect(send).toHaveBeenCalledExactlyOnceWith("one", [reverse ? "Up" : "Down"], "qa", expect.any(String));
+});

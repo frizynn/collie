@@ -160,3 +160,24 @@ describe("useModelMenuSource", () => {
     expect(result.current.text).toBe(base.text);
   });
 });
+
+it("publishes an action's confirmed repaint before another tap and retires an older refresh", async () => {
+  const pending = pendingResult();
+  waitMock.mockReturnValueOnce(pending.promise);
+  const { result } = setup();
+  let refreshing!: Promise<void>;
+  act(() => { refreshing = result.current.refresh(); });
+  act(() => result.current.observe({ paneId: base.paneId, text: "confirmed reasoning", revision: 9, truncated: false }));
+  await act(async () => { pending.resolve(success("old picker", 8)); await refreshing; });
+  expect(result.current.text).toBe("confirmed reasoning");
+  expect(result.current.revision).toBe(9);
+});
+
+it("ignores action results belonging to a previous pane scope", () => {
+  const { result, update } = setup();
+  const previous = result.current;
+  act(() => update({ paneId: "other", text: "other composer" }));
+  expect(previous.isCurrent()).toBe(false);
+  act(() => previous.observe({ paneId: base.paneId, text: "old picker", revision: 9, truncated: false }));
+  expect(result.current.text).toBe("other composer");
+});

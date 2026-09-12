@@ -51,3 +51,20 @@ it("uses only relative arrows and refuses out-of-range positions", () => {
   expect(modelRowKeys(1, 1, 5)).toEqual([]);
   expect(modelRowKeys(0, 9, 5)).toEqual([]);
 });
+
+it("joins Claude's captured wrapped description without counting it as another selectable row", () => {
+  const lines = splitLines(parseAnsi(readFileSync(join(import.meta.dirname, "../fixtures/panes/claude--menu-model-picker-wrapped.txt"), "utf8")));
+  const result = parseNativeModelMenu(menu, lines)!;
+  expect(result.rows).toHaveLength(5);
+  expect(result.rows[2]).toMatchObject({ name: "Fable", description: "Fable 5.1 · Most capable for your hardest and longest-running tasks" });
+  expect(result.selectedIndex).toBe(3);
+  expect(modelRowKeys(result.selectedIndex, 4, result.rows.length)).toEqual(["Down"]);
+});
+
+it("only accepts continuation text at the description column", () => {
+  const parse = (text: string) => parseNativeModelMenu(menu, splitLines(parseAnsi(text)));
+  expect(parse("❯ 1. A  Description\n        continued\n  2. B  Other")?.rows[0]?.description).toBe("Description continued");
+  for (const gap of ["", "  Unnumbered option", "       wrong alignment", "        › Hidden", "        3. Hidden"]) {
+    expect(parse(`❯ 1. A  Description\n${gap}\n  2. B  Other`)).toBeNull();
+  }
+});
