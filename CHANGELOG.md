@@ -8,6 +8,12 @@ All notable changes to Nenu are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.40.2] - 2026-09-12
+
+### Fixed
+
+- Mobile chats use one compact header with workspace navigation, search, history, terminal toggle, and a color-only status indicator. (9f80c09)
+
 ## [0.40.1] - 2026-09-12
 
 ### Fixed
