@@ -51,26 +51,16 @@ export function StatusDot({
   className?: string;
 }) {
   const hollow = RESTING.has(status);
+  // One static node per status. Colour alone carries activity, avoiding a permanent compositor
+  // animation and the extra ping node for every working pane. `className` can still resize it.
   return (
-    <span className={cn("relative flex size-2.5 shrink-0", className)}>
-      {status === "working" && (
-        <span
-          className={cn(
-            "absolute inline-flex size-full animate-ping rounded-full opacity-75",
-            DOT[status],
-          )}
-        />
+    <span
+      className={cn(
+        "inline-flex size-2.5 shrink-0 rounded-full",
+        hollow ? cn("border-[1.5px]", surface, RING[status]) : DOT[status],
+        className,
       )}
-      {/* size-full, not a second size-2.5: the wrapper owns the size so `className` can change it
-          (the chips ask for size-2), and a hard-coded inner would overflow or get squashed by the
-          flex parent instead. The ping span above already works this way. */}
-      <span
-        className={cn(
-          "relative inline-flex size-full rounded-full",
-          hollow ? cn("border-[1.5px]", surface, RING[status]) : DOT[status],
-        )}
-      />
-    </span>
+    />
   );
 }
 
