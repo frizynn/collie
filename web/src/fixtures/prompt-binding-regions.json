@@ -183,5 +183,15 @@
     "fixture": "claude--wizard-submit.txt",
     "detector": "wizard",
     "region": "←  ☒ Focus area  ☒ Scope  ☒ Workflow  ✔ Submit  →\n\nReview your answers\n\n ● Which focus area should we work on?\n   → UI\n ● What scope should this work have?\n   → Medium\n ● How should we approach the work?\n   → Plan first\n  \nReady to submit your answers?\n\n❯ 1. Submit answers\n  2. Cancel"
+  },
+  {
+    "fixture": "claude--menu-model-picker-haiku.txt",
+    "detector": "menu",
+    "region": "▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔\n   Select model\n   Switch between Claude models. Your pick becomes the default for new sessions. For\n   other/previous model names, specify with --model.\n\n     1. Default (recommended)  Opus 5 with 1M context · Best for everyday, complex tasks\n     2. Opus (1M context)      Opus 5 with 1M context · Best for everyday, complex tasks\n     3. Fable                  Fable 5.1 · Most capable for your hardest and\n                               longest-running tasks\n     4. Sonnet ✔               Sonnet 5 · Efficient for routine tasks\n   ❯ 5. Haiku                  Haiku 4.5 · Fastest for quick answers\n\n   ○ Effort not supported for Haiku\n\n   Enter to set as default · s to use this session only · Esc to cancel"
+  },
+  {
+    "fixture": "claude--menu-model-picker-wrapped.txt",
+    "detector": "menu",
+    "region": "▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔\n   Select model\n   Switch between Claude models. Your pick becomes the default for new sessions. For\n   other/previous model names, specify with --model.\n\n     1. Default (recommended)  Opus 5 with 1M context · Best for everyday, complex tasks\n     2. Opus (1M context)      Opus 5 with 1M context · Best for everyday, complex tasks\n     3. Fable                  Fable 5.1 · Most capable for your hardest and\n                               longest-running tasks\n   ❯ 4. Sonnet ✔               Sonnet 5 · Efficient for routine tasks\n     5. Haiku                  Haiku 4.5 · Fastest for quick answers\n\n   ● High effort (default) ←/→ to adjust\n\n   Enter to set as default · s to use this session only · Esc to cancel"
   }
 ]

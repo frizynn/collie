@@ -2,10 +2,13 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { selectNativeModel, type SelectNativeModelResult } from "@/lib/select-native-model";
 import { submitMenuKeys } from "@/lib/menu-action";
+import { waitForModelAction } from "@/lib/wait-for-model-action";
 import { useLocalModelApply } from "./use-local-model-apply";
 
 vi.mock("@/lib/select-native-model", () => ({ selectNativeModel: vi.fn() }));
 vi.mock("@/lib/menu-action", () => ({ submitMenuKeys: vi.fn() }));
+vi.mock("@/lib/wait-for-model-action", () => ({ waitForModelAction: vi.fn() }));
+const observe = vi.mocked(waitForModelAction);
 const select = vi.mocked(selectNativeModel), submit = vi.mocked(submitMenuKeys);
 type Options = Parameters<typeof useLocalModelApply>[0];
 function deferred<T>() {
@@ -29,7 +32,7 @@ function setup(overrides: Partial<Options> = {}) {
   return { ...hook, openCommand, onApplied,
     update: (patch: Partial<Options>) => { options = { ...options, ...patch }; hook.rerender(options); } };
 }
-beforeEach(() => { select.mockReset(); submit.mockReset(); select.mockResolvedValue(selected()); submit.mockResolvedValue({ status: "sent" }); });
+beforeEach(() => { observe.mockReset(); observe.mockResolvedValue({ ok: true, kind: "closed", pane: selected().pane }); select.mockReset(); submit.mockReset(); select.mockResolvedValue(selected()); submit.mockResolvedValue({ status: "sent" }); });
 
 describe("useLocalModelApply", () => {
   it("owns no CLI input and performs no reads or writes before explicit Apply", () => {
@@ -90,18 +93,24 @@ describe("useLocalModelApply", () => {
     expect(submit).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ keys: ["s"], nav: false, detectedRevision: 47,
       menu: selected().block.menu }));
     expect(onApplied).toHaveBeenCalledOnce();
-    expect(result.current.inputActive()).toBe(true);
+    expect(result.current.inputActive()).toBe(false);
     result.current.released();
     expect(result.current.inputActive()).toBe(false);
   });
 
   it("Codex confirms the model once and leaves the following reasoning choice to the native flow", async () => {
-    select.mockResolvedValue(selected(["Enter"]));
-    const { result, openCommand, onApplied } = setup({ agent: "codex", modelPresent: true });
+    const next = selected(["Enter"]); next.name = "gpt-6-astra";
+    select.mockResolvedValue(next);
+    const reasoning = { ...next, kind: "menu" as const };
+    reasoning.menu.kind = "reasoning"; reasoning.block.menu.title = "Select Reasoning Level for gpt-6-astra";
+    observe.mockResolvedValue(reasoning);
+    const onReasoning = vi.fn();
+    const { result, openCommand, onApplied } = setup({ agent: "codex", modelPresent: true, onReasoning });
     await act(async () => result.current.apply("gpt-6-astra"));
     expect(openCommand).not.toHaveBeenCalled();
     expect(submit).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ keys: ["Enter"], agent: "codex", nav: false }));
-    expect(onApplied).toHaveBeenCalledOnce();
+    expect(onApplied).not.toHaveBeenCalled();
+    expect(onReasoning).toHaveBeenCalledWith(next.pane);
     expect(select).toHaveBeenCalledOnce();
   });
 
@@ -200,4 +209,29 @@ describe("useLocalModelApply", () => {
     await act(async () => { await expect(result.current.apply("Opus")).rejects.toThrow("picker changed"); });
     expect(onApplied).not.toHaveBeenCalled();
   });
+});
+
+
+it("does not report a key acknowledgement as a completed model change", async () => {
+  const repaint = deferred<Awaited<ReturnType<typeof waitForModelAction>>>();
+  observe.mockReturnValueOnce(repaint.promise);
+  const { result, onApplied } = setup({ modelPresent: true });
+  let applying!: Promise<void>;
+  await act(async () => { applying = result.current.apply("Opus"); });
+  expect(submit).toHaveBeenCalledOnce();
+  expect(onApplied).not.toHaveBeenCalled();
+  await act(async () => { repaint.resolve({ ok: false, reason: "timeout", error: "Not confirmed" }); await expect(applying).rejects.toThrow("Not confirmed"); });
+  expect(onApplied).not.toHaveBeenCalled();
+});
+
+it("ignores an acknowledgement arriving after cancellation", async () => {
+  const repaint = deferred<Awaited<ReturnType<typeof waitForModelAction>>>();
+  observe.mockReturnValueOnce(repaint.promise);
+  const { result, onApplied } = setup({ modelPresent: true });
+  let applying!: Promise<void>;
+  await act(async () => { applying = result.current.apply("Opus"); });
+  let cancelled!: Promise<void>;
+  act(() => { cancelled = result.current.cancel(); });
+  await act(async () => { repaint.resolve({ ok: true, kind: "closed", pane: selected().pane }); await expect(applying).rejects.toThrow("cancelled"); await cancelled; });
+  expect(onApplied).not.toHaveBeenCalled();
 });

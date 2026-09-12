@@ -141,5 +141,12 @@ export function useWorkbenchPanels(options: Options) {
     return !abort.current.signal.aborted && latest.current.writable;
   }, [releaseModel, show]);
 
-  return { panel, closing, openingModel, changePanel, toggleModel, prepareSend };
+  // The action observed the composer after confirmation. Closing this popover must not send
+  // Escape through the cancellation path (which can race a delayed terminal repaint).
+  const modelCompleted = useCallback(() => {
+    suppressed.current = true;
+    show(null);
+  }, [show]);
+
+  return { panel, closing, openingModel, changePanel, toggleModel, prepareSend, modelCompleted };
 }

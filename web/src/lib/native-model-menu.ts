@@ -25,22 +25,39 @@ export function parseNativeModelMenu(menu: MenuModel, lines: StyledLine[]): Nati
   if (matches.length < 2 || matches.length > 20) return null;
   if (!matches.every(({ match }, index) => Number(match[2]) === index + 1)) return null;
   if (matches.filter(({ match }) => Boolean(match[1])).length !== 1) return null;
-  // Gaps may be a wrapped description, an unnumbered selectable row, or a different layout.
-  // Relative row movement is safe only when every intervening row is understood.
-  if (!matches.every((row, index) => index === 0 || row.index === matches[index - 1]!.index + 1)) return null;
-  const rows = matches.map(({ match }) => {
+  const rows: NativeModelRow[] = [];
+  for (const [index, { match, index: lineIndex }] of matches.entries()) {
     const [label = "", ...description] = match[3]!.split(/\s{2,}/);
+    const raw = text[lineIndex]!;
+    const separator = /\s{2,}(?=\S)/.exec(match[3]!);
+    const prefix = /^\s*[❯›]?\s*[1-9]\d*\.\s+/.exec(raw)![0].length;
+    const descriptionColumn = separator ? prefix + separator.index + separator[0].length : -1;
+    const nextRow = matches[index + 1]?.index;
+    // Only text aligned exactly with this row's description may wrap. Blank gaps, extra
+    // selectable rows and marker-column text still make relative arrow movement ambiguous.
+    let cursor = lineIndex + 1;
+    while (cursor < (nextRow ?? text.length)) {
+      const continuation = text[cursor]!;
+      const aligned = descriptionColumn >= 0 && continuation.search(/\S/) === descriptionColumn &&
+        !/^(?:[❯›]|[1-9]\d*\.)/.test(continuation.trimStart());
+      if (!aligned) {
+        if (nextRow !== undefined || continuation.trim() !== "") return null;
+        break;
+      }
+      description.push(continuation.trim());
+      cursor++;
+    }
     // Codex decorates its default model only while another model is current. It is not part of
     // the slug: keeping it makes the cached gpt-6-astra candidate fail exact live-row matching.
     // Reasoning labels and Claude's "Default (recommended)" belong to different grammars.
     const name = label.replace(/[✔✓]/g, "").replace(/\s*\(current\)/gi, "").trim();
-    return {
+    rows.push({
       name: codexModel ? name.replace(/\s+\(default\)$/i, "") : name,
       description: description.join(" ").trim(),
       selected: Boolean(match[1]),
       current: /[✔✓]|\(current\)/i.test(label),
-    };
-  });
+    });
+  }
   if (rows.some((row) => !row.name)) return null;
   return { kind: reasoning ? "reasoning" : "model", rows, selectedIndex: rows.findIndex((row) => row.selected) };
 }

@@ -697,3 +697,37 @@ it("preloads once and opens, selects and closes models without terminal requests
   expect(writes).not.toHaveBeenCalled();
   expect(dismissModelPicker).not.toHaveBeenCalled();
 });
+
+it("waits for reasoning selection and confirmation repaints before enabling the next tap or reporting success", async () => {
+  const initial = readFileSync("src/lib/harness/codex/fixtures/model-reasoning.txt", "utf8");
+  const moved = initial.replace("› 1.", "  1.").replace("  3.", "› 3.");
+  const idle = readFileSync("src/fixtures/panes/codex--v0150-idle.txt", "utf8");
+  const agent = { ...fixtureAgents[1]!, paneId: "reasoning-confirm-qa", hasSession: true };
+  let text = initial;
+  const writes: string[][] = [];
+  server.use(
+    http.get(/\/api\/pane\/[^/]+$/, () => HttpResponse.json({ paneId: agent.paneId, text, revision: 0, truncated: false })),
+    http.post(/\/api\/pane\/[^/]+\/keys$/, async ({ request }) => {
+      const body = await request.json() as { keys: string[] };
+      writes.push(body.keys);
+      return HttpResponse.json({ ok: true });
+    }),
+  );
+  renderChat({ paneId: agent.paneId, agent, agents: [agent], text: initial });
+  fireEvent.click(screen.getByRole("radio", { name: "High" }));
+  await waitFor(() => expect(writes).toEqual([["Down", "Down"]]));
+  expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
+  expect(screen.queryByText("Model settings applied")).not.toBeInTheDocument();
+  text = moved;
+  await waitFor(() => expect(screen.getByRole("radio", { name: "High" })).toHaveAttribute("aria-checked", "true"));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Confirm" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+  await waitFor(() => expect(writes).toEqual([["Down", "Down"], ["Enter"]]));
+  expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
+  expect(screen.queryByText("Model settings applied")).not.toBeInTheDocument();
+  text = idle;
+  await screen.findByText("Model settings applied");
+  expect(screen.queryByRole("dialog", { name: "Model picker" })).not.toBeInTheDocument();
+  expect(dismissModelPicker).not.toHaveBeenCalled();
+  expect(writes).toEqual([["Down", "Down"], ["Enter"]]);
+});
