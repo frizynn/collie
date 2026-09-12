@@ -8,6 +8,12 @@ All notable changes to Nenu are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.40.5] - 2026-09-12
+
+### Changed
+
+- Keep pane status indicators static and communicate activity through colour alone (`fa8ebbf`).
+
 ## [0.40.4] - 2026-09-12
 
 ### Fixed
