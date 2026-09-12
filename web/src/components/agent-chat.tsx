@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useNavigate, useRevalidator } from "react-router";
 import { ArrowUpToLine, ChevronDown, ChevronUp, Loader2, MessageSquareText, ScrollText, Search, TerminalSquare } from "lucide-react";
@@ -8,6 +8,7 @@ import { useDashPrefs, openForCount } from "@/hooks/use-dash-prefs";
 import { useDisplayPrefs } from "@/hooks/use-display-prefs";
 import { useStableTerminalDraft } from "@/hooks/use-terminal-draft";
 import { isConnecting } from "@/lib/connection";
+import { WorkbenchNavigationContext } from "@/lib/workbench-navigation";
 import { setStatus } from "@/lib/status";
 import { ChatMessageList, type ChatMessageListHandle } from "@/components/ui/chat/chat-message-list";
 import { BottomSheet } from "@/components/ui/sheet";
@@ -120,6 +121,7 @@ export function AgentChat({
 }: AgentChatProps) {
   const revalidator = useRevalidator();
   const navigate = useNavigate();
+  const mobileNavigation = useContext(WorkbenchNavigationContext);
   // Poll-truth "is the data on screen not live". The header (AppHeader) reads the same inputs to drive
   // the Nenu mark + pill; here we use it to dim the StatusBadge, so the badge stops presenting the
   // last snapshot's status as current while we're reconnecting/lost, and restores instantly on recovery.
@@ -669,6 +671,7 @@ export function AgentChat({
         error={error}
         stalled={stalled}
         onHome={onBack}
+        mobileNavigation={mobileNavigation}
         override={
           findOpen ? (
             <FindBar
@@ -707,7 +710,7 @@ export function AgentChat({
                   type="button"
                   onClick={openFind}
                   aria-label="Find in output"
-                  className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60 sm:-mr-1 sm:size-8"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60 lg:-mr-1 lg:size-8"
                 >
                   <Search className="size-3.5 sm:size-4" />
                 </button>
@@ -717,7 +720,7 @@ export function AgentChat({
                   type="button"
                   onClick={() => showConversation ? setHistoryRequest((key) => key + 1) : navigate(historyPath(paneId, session))}
                   aria-label="Conversation history"
-                  className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60 sm:-mr-1 sm:size-8"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60 lg:-mr-1 lg:size-8"
                 >
                   <ScrollText className="size-3.5 sm:size-4" />
                 </button>
@@ -729,7 +732,7 @@ export function AgentChat({
                   aria-label={prefs.rawTerminal ? "Show conversation" : "Show raw terminal"}
                   aria-pressed={prefs.rawTerminal}
                   title={prefs.rawTerminal ? "Show conversation" : "Show raw terminal"}
-                  className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground active:bg-muted sm:-mr-1 md:size-8"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground active:bg-muted lg:-mr-1 lg:size-8"
                 >
                   {prefs.rawTerminal ? <MessageSquareText aria-hidden="true" className="size-4" /> : <TerminalSquare aria-hidden="true" className="size-4" />}
                 </button>
@@ -737,30 +740,29 @@ export function AgentChat({
               {isShell ? (
                 <ShellBadge stale={connecting} />
               ) : (
-                <StatusBadge status={agent.status} stale={connecting} className="max-sm:px-1.5 max-sm:py-0 max-sm:text-[10px]" />
+                <StatusBadge status={agent.status} stale={connecting} compactOnMobile />
               )}
             </>
           ) : undefined
         }
       >
-        {/* Title block: the space › tab leads, with the agent's brand logo to its left (the agent
-            name would just repeat the icon, so it's dropped), and the working directory on the
-            subline. Tapping it leaves the pane for the space overview (all its tabs + panes). */}
+        {/* Mobile keeps only the title; desktop adds the harness logo and cwd. Tapping either
+            opens the workspace overview (all its tabs + panes). */}
         {agent ? (
           <button
             type="button"
             onClick={() => openSpace(agent.workspaceId)}
             aria-label={`Open ${agent.workspaceLabel} overview`}
-            className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg text-left transition-colors active:bg-muted/60 sm:-mx-1 sm:gap-2.5 sm:px-1 sm:py-0.5"
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 rounded-lg text-left transition-colors active:bg-muted/60 lg:-mx-1 lg:gap-2.5 lg:px-1 lg:py-0.5"
           >
             {isShell ? (
-              <div className="flex size-5 shrink-0 items-center justify-center rounded-full border bg-muted sm:size-6">
+              <div className="hidden size-6 shrink-0 items-center justify-center rounded-full border bg-muted lg:flex">
                 <TerminalSquare className="size-3 text-muted-foreground" />
               </div>
             ) : (
               // Deliberately smaller than the size-8 Nenu mark beside it — the agent logo is the
               // pane's subject, not a second brand competing with Nenu's for the header.
-              <AgentIcon agent={agent.agent} className="size-5 sm:size-6" />
+              <AgentIcon agent={agent.agent} className="hidden size-6 lg:flex" />
             )}
             <div className="min-w-0 flex-1">
               {/* A user-set pane label leads when present (the identifier they chose), then Claude's
@@ -771,7 +773,7 @@ export function AgentChat({
                   agent.sessionName ??
                   `${agent.workspaceLabel}${tabLabel ? ` › ${tabLabel}` : ""}`}
               </div>
-              <div className="truncate font-mono text-[10px] leading-tight text-muted-foreground sm:text-xs">
+              <div className="hidden truncate font-mono text-xs leading-tight text-muted-foreground lg:block">
                 {shortCwd(agent.cwd)}
               </div>
             </div>

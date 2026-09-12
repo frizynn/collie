@@ -7,6 +7,7 @@ import { BottomSheet } from "@/components/ui/sheet";
 import type { HomeData } from "@/lib/loaders";
 import { homePath, panePath, settingsPath, spacePath } from "@/lib/nav";
 import { paneDisplayName, STATUS_LABEL } from "@/lib/types";
+import { WorkbenchNavigationContext } from "@/lib/workbench-navigation";
 import type { AgentView, TabView, WorkspaceView } from "@/lib/types";
 
 function threadLabel(pane: AgentView): string {
@@ -83,7 +84,9 @@ export function WorkbenchShell({ data, children }: { data: HomeData; children: R
           </Link>
           <SessionSwitcher sessions={data.sessions ?? []} current={data.session} />
         </div>
-        {children}
+        <WorkbenchNavigationContext value={{ open: mobileOpen, onOpen: () => setMobileOpen(true) }}>
+          {children}
+        </WorkbenchNavigationContext>
       </div>
 
       <BottomSheet open={mobileOpen} onClose={() => setMobileOpen(false)} title="Workspaces">

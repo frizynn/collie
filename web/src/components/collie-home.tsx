@@ -4,6 +4,9 @@ import { DogGallop } from "@/components/dog-gallop";
 interface CollieHomeProps {
   /** Return to the dashboard. */
   onHome?: () => void;
+  /** Mobile chat uses the mark to open workspace navigation in the same header row. */
+  label?: string;
+  expanded?: boolean;
   /** The connection has been not-live for a sustained beat (useConnectionTrouble, ≥4s) — run the
    *  gallop sprite. Below that (healthy, or a single slow poll) the static app icon shows: the 4s
    *  delay is the flicker fix, so a normal polling hiccup never kicks the dog into a run. */
@@ -27,7 +30,7 @@ interface CollieHomeProps {
 // frozen mid-run. Tapping it returns to the dashboard. The dashboard shows the "Nenu" wordmark too;
 // inside a pane the mark stands alone (the breadcrumb carries the context). Both headers render THIS
 // component — the consistency is structural, not a convention two files have to keep agreeing on.
-export function CollieHome({ onHome, trouble, lost = false, wordmark = false, className }: CollieHomeProps) {
+export function CollieHome({ onHome, label = "Nenu home", expanded, trouble, lost = false, wordmark = false, className }: CollieHomeProps) {
   const gallop = trouble && !lost;
   return (
     <button
@@ -35,7 +38,9 @@ export function CollieHome({ onHome, trouble, lost = false, wordmark = false, cl
       onClick={onHome}
       // The gallop conveys connection state visually; fold it into the button's accessible name too,
       // so screen-reader and reduced-motion users get it (inside a pane there's no other cue).
-      aria-label={!trouble ? "Nenu home" : lost ? "Nenu home — not connected" : "Nenu home — reconnecting"}
+      aria-label={!trouble ? label : lost ? `${label} — not connected` : `${label} — reconnecting`}
+      aria-expanded={expanded}
+      title={label}
       className={cn(
         "-mx-1 flex min-h-11 items-center gap-1.5 rounded px-1 transition-opacity active:opacity-70 sm:gap-2",
         className,

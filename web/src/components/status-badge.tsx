@@ -78,6 +78,7 @@ export function StatusBadge({
   status,
   stale,
   className,
+  compactOnMobile = false,
 }: {
   status: AgentStatus;
   /** The badge is showing the LAST snapshot's status while the connection is not live — dim it so
@@ -85,14 +86,22 @@ export function StatusBadge({
    *  so opacity alone carries it; the transition restores it instantly on recovery. */
   stale?: boolean;
   className?: string;
+  compactOnMobile?: boolean;
 }) {
   return (
     <Badge
       variant="outline"
-      className={cn("gap-1.5 transition-opacity", CHIP[status], stale && "opacity-40", className)}
+      title={compactOnMobile ? `${STATUS_LABEL[status]}${stale ? " (last known)" : ""}` : undefined}
+      className={cn(
+        "gap-1.5 transition-opacity",
+        CHIP[status],
+        stale && "opacity-40",
+        compactOnMobile && "max-lg:size-6 max-lg:justify-center max-lg:gap-0 max-lg:rounded-full max-lg:p-0",
+        className,
+      )}
     >
       <span className={cn("size-1.5 rounded-full", DOT[status])} />
-      {STATUS_LABEL[status]}
+      {compactOnMobile ? <span className="max-lg:sr-only">{STATUS_LABEL[status]}</span> : STATUS_LABEL[status]}
     </Badge>
   );
 }

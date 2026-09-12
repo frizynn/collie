@@ -553,7 +553,7 @@ describe("AgentChat — shared header: stale-status dimming", () => {
     const router = createMemoryRouter([{ path: "/", element: <Harness /> }]);
     render(<RouterProvider router={router} />);
 
-    const badge = screen.getByText("needs you");
+    const badge = screen.getByText("needs you").closest('[data-slot="badge"]');
     expect(badge).toHaveClass("opacity-40"); // not live → frozen status dimmed
     act(() => setError(false)); // snapshot recovers → live
     expect(badge).not.toHaveClass("opacity-40"); // undimmed instantly

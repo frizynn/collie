@@ -107,6 +107,12 @@ body { font-family: var(--font-sans); }
 .workbench-context-trigger:hover { background: var(--accent); }
 .workbench-shell :is(a, button):focus-visible, .workbench-context-trigger:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .workbench-chat > header { min-height: 52px; background: var(--background); }
+/* The pane's mark opens the shared drawer, so its header owns mobile navigation too.
+   :has keeps this tied to the mounted chat, including find mode, without duplicating route rules. */
+.workbench-main:has(.workbench-chat) > .workbench-mobile-bar { display: none; }
+.workbench-chat-menu { width: 44px; height: 44px; flex-shrink: 0; justify-content: center; margin-inline: 0; padding: 0; }
+.workbench-chat-menu > span { width: 28px; height: 28px; background: transparent; box-shadow: none; }
+.workbench-chat-menu .nenu-mark { width: 24px; height: 24px; }
 .workbench-composer { width: 100%; max-width: 960px; align-self: center; flex-shrink: 0; }
 .workbench-telemetry { border-top: 0; }
 .workbench-composer-surface { background: var(--card); border: 1px solid var(--border); border-radius: 16px; }
@@ -192,5 +198,8 @@ body { font-family: var(--font-sans); }
   .workbench-mobile-bar .workbench-icon-button { width: 36px; height: 40px; }
   .workbench-mobile-bar .workbench-brand { gap: 5px; font-size: 13px; }
   .workbench-mobile-bar .workbench-brand img { width: 18px; height: 18px; }
-  .workbench-chat > header { min-height: 44px; }
+}
+
+@media (max-width: 1023px) {
+  .workbench-chat > header { min-height: 48px; gap: 4px; padding: 0 8px 0 4px; }
 }

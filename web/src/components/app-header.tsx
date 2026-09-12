@@ -7,6 +7,7 @@ import { useConnectionLost, useConnectionTrouble } from "@/hooks/use-connection-
 import { settingsPath } from "@/lib/nav";
 import { CollieHome } from "@/components/collie-home";
 import type { BridgeStatus } from "@/lib/types";
+import type { WorkbenchNavigation } from "@/lib/workbench-navigation";
 
 interface AppHeaderProps {
   // Connection state — the inputs that drive the CollieHome dog. The dog gallops on sustained trouble
@@ -38,6 +39,8 @@ interface AppHeaderProps {
    *  content while it's up — the find bar owns the row one-handed, exactly as before — but it still
    *  lives inside this one shell so the sticky/safe-area/zinc bar is never copy-pasted. */
   override?: ReactNode;
+  /** Merge the mobile workspace trigger into this row instead of a second navigation bar. */
+  mobileNavigation?: WorkbenchNavigation;
 }
 
 // The single header shell every screen mounts: the sticky, safe-area-aware zinc bar with the Nenu
@@ -56,6 +59,7 @@ export function AppHeader({
   rightLead,
   rightTrail,
   override,
+  mobileNavigation,
 }: AppHeaderProps) {
   // The same two shared-clock signals the ConnectionBanner reads, so the dog and the bar agree by
   // construction: gallop while troubled (≥4s not-live), rest muted once lost (≥15s, latched).
@@ -66,12 +70,22 @@ export function AppHeader({
     <header className="sticky top-0 z-20 flex min-h-11 shrink-0 items-center gap-1.5 border-b border-border/60 bg-muted px-2 py-0 sm:gap-2 sm:pl-4 sm:pr-2 sm:py-2">
       {override ?? (
         <>
+          {mobileNavigation && (
+            <CollieHome
+              onHome={mobileNavigation.onOpen}
+              label="Open workspaces"
+              expanded={mobileNavigation.open}
+              trouble={trouble}
+              lost={lost}
+              className="workbench-chat-menu lg:hidden"
+            />
+          )}
           <CollieHome
             onHome={onHome}
             trouble={trouble}
             lost={lost}
             wordmark={wordmark}
-            className={!wordmark ? "max-sm:hidden" : undefined}
+            className={mobileNavigation ? "hidden lg:flex" : !wordmark ? "max-sm:hidden" : undefined}
           />
           {/* Center region: the breadcrumb (or, on the dashboard/space, an empty flex-1 spacer that
               pushes the right cluster to the edge). min-w-0 so the breadcrumb truncates when tight. */}
@@ -79,7 +93,7 @@ export function AppHeader({
           {/* gap-1, not gap-3: the icon buttons now carry their own 12px of padding to reach 44px,
               so a 12px gap on top of that reads as a gulf. 4px keeps the apparent spacing between
               icons close to what it was. */}
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
             {rightLead}
             {rightTrail}
           </div>
