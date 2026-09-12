@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Bell, Loader2 } from "lucide-react";
+import { Bell, Loader2 } from "lucide-react";
 import { useNavigate, useRouteLoaderData } from "react-router";
 
-import { Button } from "@/components/ui/button";
+import { AppHeader } from "@/components/app-header";
+import { useLoadingStalled } from "@/hooks/use-loading-stalled";
 import { BuildStamp } from "@/components/build-stamp";
 import { UpdateBanner } from "@/components/update-banner";
 import { ConnectionInfo } from "@/components/connection-info";
@@ -25,6 +26,7 @@ import type { PushAvailability } from "@/lib/push";
 export function SettingsRoute() {
   const navigate = useNavigate();
   const session = useSession();
+  const stalled = useLoadingStalled();
   const { state, busy, setEnabled } = usePushControl();
   const [error, setError] = useState<string | null>(null);
 
@@ -57,19 +59,10 @@ export function SettingsRoute() {
 
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-screen-sm flex-1 flex-col">
-      <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-border/60 bg-background/85 px-2 py-2 backdrop-blur-md [padding-top:calc(env(safe-area-inset-top)_+_0.5rem)]">
-        <Button
-          variant="ghost"
-          size="icon"
-          // size="icon" is 36px; the header's other controls are 44px since the tap-target pass.
-          className="size-11"
-          onClick={() => navigate(homePath(session))}
-          aria-label="Back"
-        >
-          <ArrowLeft className="size-5" />
-        </Button>
-        <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
-      </header>
+      <AppHeader bridge={root?.bridge} error={Boolean(root?.error)} stalled={stalled}
+        onHome={() => navigate(homePath(session))}>
+        <h1 className="truncate text-sm font-semibold tracking-tight">Settings</h1>
+      </AppHeader>
 
       <main className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto p-4">
         {/* First: it's the setting people come here to change, and below the notification stack it

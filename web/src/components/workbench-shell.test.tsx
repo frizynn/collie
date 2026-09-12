@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { WorkbenchShell } from "./workbench-shell";
+import { AppHeader } from "./app-header";
 import type { HomeData } from "@/lib/loaders";
 
 const data: HomeData = {
@@ -13,10 +14,20 @@ const data: HomeData = {
 };
 
 function setup(testData: HomeData = data) {
-  const router = createMemoryRouter([{ path: "*", element: <WorkbenchShell data={testData}><textarea aria-label="Draft" defaultValue="Keep this draft" /></WorkbenchShell> }], { initialEntries: ["/?s=work"] });
+  const router = createMemoryRouter([{ path: "*", element: <WorkbenchShell data={testData}><AppHeader bridge="connected" error={false}><span>Screen</span></AppHeader><textarea aria-label="Draft" defaultValue="Keep this draft" /></WorkbenchShell> }], { initialEntries: ["/?s=work"] });
   render(<RouterProvider router={router} />);
   return { router, user: userEvent.setup(), sidebar: within(screen.getByRole("complementary", { name: "Workspace sidebar" })) };
 }
+
+it("uses one shared mobile header without the old brand or session row", () => {
+  setup({ ...data, sessions: [{ name: "default", isPrimary: true, reachable: true, agents: 1, working: 1, blocked: 0 }, { name: "remote", isPrimary: false, reachable: true, agents: 0, working: 0, blocked: 0 }] });
+  const main = document.querySelector(".workbench-main")!;
+  expect(main.querySelectorAll(".workbench-app-header")).toHaveLength(1);
+  expect(main.querySelector(".workbench-mobile-bar")).toBeNull();
+  expect(within(main as HTMLElement).getByRole("button", { name: "Open workspaces" })).toBeInTheDocument();
+  expect(within(main as HTMLElement).queryByText("Nenu Code")).toBeNull();
+  expect(within(main as HTMLElement).queryByRole("button", { name: /Session:/ })).toBeNull();
+});
 
 it("keeps project, pane and settings links scoped to the active session", () => {
   const { sidebar } = setup();

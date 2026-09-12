@@ -55,8 +55,6 @@ body { font-family: var(--font-sans); }
 .workbench-shell { display: flex; min-height: 0; min-width: 0; flex: 1; }
 .workbench-main { position: relative; display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
 .workbench-sidebar { display: none; }
-.workbench-mobile-bar { display: flex; align-items: center; gap: 6px; flex-shrink: 0; min-height: 40px; padding: 0 8px 0 4px; border-bottom: 1px solid var(--border); background: var(--workbench-sidebar); }
-.workbench-mobile-bar > .workbench-brand { flex: 1; }
 .workbench-brand { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--foreground); text-decoration: none; font-size: 14px; font-weight: 600; letter-spacing: -0.025em; border-radius: 6px; }
 .workbench-brand-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 52px; padding: 0 12px; flex-shrink: 0; }
 .workbench-icon-button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 7px; color: var(--muted-foreground); cursor: pointer; }
@@ -107,9 +105,6 @@ body { font-family: var(--font-sans); }
 .workbench-context-trigger:hover { background: var(--accent); }
 .workbench-shell :is(a, button):focus-visible, .workbench-context-trigger:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .workbench-chat > header { min-height: 52px; background: var(--background); }
-/* The pane's mark opens the shared drawer, so its header owns mobile navigation too.
-   :has keeps this tied to the mounted chat, including find mode, without duplicating route rules. */
-.workbench-main:has(.workbench-chat) > .workbench-mobile-bar { display: none; }
 .workbench-chat-menu { width: 44px; height: 44px; flex-shrink: 0; justify-content: center; margin-inline: 0; padding: 0; }
 .workbench-chat-menu > span { width: 28px; height: 28px; background: transparent; box-shadow: none; }
 .workbench-chat-menu .nenu-mark { width: 24px; height: 24px; }
@@ -135,7 +130,6 @@ body { font-family: var(--font-sans); }
 @media (max-width: 1023px), (pointer: coarse) {
   /* Focus mode is intentionally an opt-in data state rather than :focus. A mobile browser can keep
      focus on a textarea after hiding its keyboard, and a restored draft has no focus event at all. */
-  html[data-collie-composer-focus="true"] .workbench-mobile-bar { display: none; }
   .workbench-chat[data-composer-focus="true"] > header,
   .workbench-chat[data-composer-focus="true"] [data-workbench-navigation-band] { display: none; }
 
@@ -178,7 +172,6 @@ body { font-family: var(--font-sans); }
 @media (min-width: 1024px) {
   .workbench-sidebar { display: flex; flex-direction: column; width: 272px; flex-shrink: 0; min-height: 0; border-right: 1px solid var(--border); background: var(--workbench-sidebar); }
   .workbench-shell[data-sidebar-collapsed="true"] > .workbench-sidebar { display: none; }
-  .workbench-mobile-bar { display: none; }
   .workbench-sidebar-rail { display: flex; flex: 0 0 44px; align-items: flex-start; padding-top: 4px; border-right: 1px solid var(--border); background: var(--workbench-sidebar); }
   .workbench-expand { width: 44px; height: 44px; }
   .workbench-composer { width: calc(100% - 48px); margin-bottom: 16px; }
@@ -194,12 +187,7 @@ body { font-family: var(--font-sans); }
   .workbench-icon-button { width: 44px; height: 44px; }
 }
 
-@media (max-width: 639px) {
-  .workbench-mobile-bar .workbench-icon-button { width: 36px; height: 40px; }
-  .workbench-mobile-bar .workbench-brand { gap: 5px; font-size: 13px; }
-  .workbench-mobile-bar .workbench-brand img { width: 18px; height: 18px; }
-}
-
 @media (max-width: 1023px) {
-  .workbench-chat > header { min-height: 48px; gap: 4px; padding: 0 8px 0 4px; }
+  .workbench-app-header,
+  .workbench-chat > .workbench-app-header { min-height: 48px; gap: 4px; padding: 0 8px 0 4px; }
 }

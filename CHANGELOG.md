@@ -8,6 +8,12 @@ All notable changes to Nenu are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.40.4] - 2026-09-12
+
+### Fixed
+
+- Use the same compact one-row mobile header on Home, projects, chats, history, and Settings (`3cf4ef7`).
+
 ## [0.40.3] - 2026-09-12
 
 ### Fixed

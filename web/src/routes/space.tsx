@@ -64,8 +64,8 @@ export function SpaceRoute() {
 
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-screen-sm flex-1 flex-col">
-      {/* The space header: same shell as the dashboard, minus the session switcher (you switch
-          sessions from home). Wordmark + shared pill + Settings gear. */}
+      {/* The space header uses the shared shell with its wordmark and Settings gear. Session
+          switching stays in the workspace drawer. */}
       <AppHeader
         bridge={data.bridge}
         error={data.error}

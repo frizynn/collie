@@ -7,6 +7,7 @@ import { AppHeader, SettingsGear } from "./app-header";
 import { StatusBadge } from "./status-badge";
 import { CONNECTION_LOST_MS, TROUBLE_MS } from "@/hooks/use-connection-lost";
 import { __resetConnectionHealth } from "@/lib/connection-health";
+import { WorkbenchNavigationContext } from "@/lib/workbench-navigation";
 
 // AppHeader mounts CollieHome (a button) and, via SettingsGear, useNavigate — so it needs a router.
 function renderHeader(ui: ReactElement) {
@@ -55,6 +56,20 @@ describe("AppHeader — the one shared header shell", () => {
     renderHeader(<AppHeader bridge="connected" error={false} onHome={onHome} wordmark />);
     await userEvent.click(screen.getByRole("button", { name: "Nenu home" }));
     expect(onHome).toHaveBeenCalledOnce();
+  });
+
+  it("uses the shell drawer as the single mobile navigation control", async () => {
+    const onOpen = vi.fn();
+    renderHeader(
+      <WorkbenchNavigationContext value={{ open: false, onOpen }}>
+        <AppHeader bridge="connected" error={false}><span>Overview</span></AppHeader>
+      </WorkbenchNavigationContext>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Open workspaces" }));
+    expect(onOpen).toHaveBeenCalledOnce();
+    expect(screen.getByText("Overview")).toBeInTheDocument();
+    expect(screen.queryByText("Nenu")).toBeNull();
+    expect(document.querySelectorAll("header")).toHaveLength(1);
   });
 
   it("navigates to a session-scoped /settings via the shared gear", async () => {
