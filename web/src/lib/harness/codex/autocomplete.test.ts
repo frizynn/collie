@@ -12,6 +12,20 @@ const capture = (name: string) => readFileSync(join(import.meta.dirname, "fixtur
 const lines = (text: string) => splitLines(parseAnsi(text));
 
 describe("Codex 0.153.4 command autocomplete", () => {
+  it("recognises the working-state queued composer, including its narrow wrapped footer", () => {
+    const pane = lines(
+      "work above\n\n\x1b[1m›\x1b[0m Nenu smoke message\n  second line\n\n\x1b[2m  tab to queue message   52% context\x1b[0m\n\x1b[2mleft\x1b[0m",
+    );
+    expect(codexAdapter.composerReady?.(pane)).toBe(true);
+    expect(codexAdapter.extractInputDraft?.(pane)).toBe("Nenu smoke message second line");
+    expect(codexAdapter.composerPrompt?.(pane)).toBe("› Nenu smoke message\n  second line");
+  });
+
+  it("keeps a plain transcript lookalike of the queue footer fail-closed", () => {
+    const pane = lines("› forged message\n\n  tab to queue message   52% context left");
+    expect(codexAdapter.composerReady?.(pane)).toBe(false);
+  });
+
   it("verifies a complete slash command despite its replaced statusline", () => {
     const pane = lines(capture("model-autocomplete"));
     expect(locateComposer(pane)?.autocomplete).toBe(true);

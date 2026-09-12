@@ -34,8 +34,10 @@ function view(props: Partial<Parameters<typeof SpaceOverview>[0]> = {}) {
   return (
     <SpaceOverview
       workspaces={[]}
+      tabs={[]}
       agents={[]}
       onOpen={vi.fn()}
+      onOpenPane={vi.fn()}
       onNewSpace={vi.fn()}
       open
       onOpenChange={vi.fn()}
@@ -61,7 +63,7 @@ describe("SpaceOverview", () => {
     const user = userEvent.setup();
     const onOpen = vi.fn();
     render(view({ workspaces: [ws("w1", "anchorgenius", 2, 3)], onOpen }));
-    await user.click(screen.getByRole("button", { name: /anchorgenius/ }));
+    await user.click(screen.getByRole("button", { name: "Open workspace anchorgenius" }));
     expect(onOpen).toHaveBeenCalledExactlyOnceWith("w1");
   });
 
@@ -80,7 +82,7 @@ describe("SpaceOverview — folding", () => {
   it("hides the list when folded, keeping the count on the header", () => {
     render(view({ workspaces: spaces, open: false }));
     expect(screen.queryByText("anchorgenius")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /spaces/i })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /projects/i })).toHaveAttribute(
       "aria-expanded",
       "false",
     );
@@ -99,7 +101,7 @@ describe("SpaceOverview — folding", () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
     render(view({ workspaces: spaces, open: true, onOpenChange }));
-    await user.click(screen.getByRole("button", { name: /spaces/i }));
+    await user.click(screen.getByRole("button", { name: /projects/i }));
     expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
   });
 
@@ -112,6 +114,61 @@ describe("SpaceOverview — folding", () => {
       }),
     );
     expect(screen.getByLabelText("1 space needs you")).toBeInTheDocument();
+  });
+});
+
+describe("SpaceOverview — hierarchy", () => {
+  const workspace = ws("w1", "anchorgenius", 2, 3);
+  const tabs = [
+    { tabId: "w1:t1", workspaceId: "w1", number: 1, label: "Build", focused: true, paneCount: 2 },
+    { tabId: "w1:t2", workspaceId: "w1", number: 2, label: "Review", focused: false, paneCount: 1 },
+  ];
+  const agents = [
+    pane({ paneId: "w1:p1", workspaceId: "w1", tabId: "w1:t1", paneLabel: "Frontend" }),
+    pane({ paneId: "w1:p2", workspaceId: "w1", tabId: "w1:t1", paneLabel: "Backend" }),
+    pane({ paneId: "w1:p3", workspaceId: "w1", tabId: "w1:t2", paneLabel: "Review changes" }),
+  ];
+
+  it("expands workspace, tab and pane navigation with labelled disclosures", async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    const onOpenPane = vi.fn();
+    render(view({ workspaces: [workspace], tabs, agents, onOpen, onOpenPane }));
+
+    const workspaceToggle = screen.getByRole("button", { name: "Collapse workspace anchorgenius" });
+    const tabToggle = screen.getByRole("button", { name: "Collapse tab Build" });
+    expect(workspaceToggle).toHaveAttribute("aria-expanded", "true");
+    expect(workspaceToggle).toHaveAttribute("aria-controls", "spaces-workspace-w1");
+    expect(tabToggle).toHaveAttribute("aria-expanded", "true");
+    expect(tabToggle).toHaveAttribute("aria-controls", "spaces-tab-w1%2Fw1%3At1");
+    expect(screen.getByRole("button", { name: "Open pane Frontend" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Collapse tab Review" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open tab Review, pane Review changes" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Open workspace anchorgenius" }));
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith("w1");
+    await user.click(screen.getByRole("button", { name: "Open tab Review, pane Review changes" }));
+    expect(onOpenPane).toHaveBeenCalledExactlyOnceWith("w1:p3");
+
+    tabToggle.focus();
+    await user.keyboard("{Enter}");
+    expect(tabToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "Open pane Frontend" })).not.toBeInTheDocument();
+
+    await user.click(workspaceToggle);
+    expect(workspaceToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "Open tab Review, pane Review changes" })).not.toBeInTheDocument();
+  });
+
+  it("does not render disclosure controls for a workspace and tab with one child", () => {
+    const singleWorkspace = ws("w1", "solo", 1, 1);
+    const singleTab = [{ tabId: "w1:t1", workspaceId: "w1", number: 1, label: "Main", focused: true, paneCount: 1 }];
+    const singlePane = [pane({ paneId: "w1:p1", workspaceId: "w1", tabId: "w1:t1", paneLabel: "Only pane" })];
+    render(view({ workspaces: [singleWorkspace], tabs: singleTab, agents: singlePane }));
+
+    expect(screen.queryByRole("button", { name: /^(collapse|expand) workspace solo$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /collapse tab main/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open tab Main, pane Only pane" })).toBeInTheDocument();
   });
 });
 
@@ -152,7 +209,7 @@ describe("SpaceOverview — recency", () => {
         ],
       }),
     );
-    const labels = screen.getAllByRole("button", { name: /alpha|beta/ }).map((b) => b.textContent);
+    const labels = screen.getAllByRole("button", { name: /^Open workspace (alpha|beta)$/ }).map((b) => b.textContent);
     expect(labels[0]).toContain("beta");
     expect(labels[1]).toContain("alpha");
   });
@@ -166,7 +223,7 @@ describe("SpaceOverview — recency", () => {
         shellPanes: [pane({ paneId: "w2:p1", workspaceId: "w2", kind: "shell", lastSeenAt: 900 })],
       }),
     );
-    const labels = screen.getAllByRole("button", { name: /alpha|beta/ }).map((b) => b.textContent);
+    const labels = screen.getAllByRole("button", { name: /^Open workspace (alpha|beta)$/ }).map((b) => b.textContent);
     expect(labels[0]).toContain("beta");
   });
 

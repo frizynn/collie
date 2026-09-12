@@ -14,7 +14,7 @@ function ChatInput({ className, ref, ...props }: React.ComponentProps<"textarea"
       autoComplete="off"
       autoCapitalize="none"
       className={cn(
-        "field-sizing-content max-h-40 min-h-11 w-full resize-none rounded-md border border-input bg-transparent px-3 py-2.5 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+        "field-sizing-content max-h-[min(28dvh,10rem)] min-h-11 w-full resize-none overflow-y-auto rounded-md border border-input bg-transparent px-3 py-2.5 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}

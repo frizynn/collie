@@ -55,6 +55,7 @@ const MAX_REQUEST_BODY_BYTES = 12 * 1024 * 1024; // 12 MB
 // Upper bound on the pane-read `lines` param — don't trust the client (or Herdr) to cap it.
 const MAX_READ_LINES = 10_000;
 const MAX_EXPECTED_PROMPT_CHARS = 8192;
+const MAX_REPLY_REQUEST_ID_CHARS = 160;
 const PROMPT_BINDING_BLANK_LINE_HEADROOM = 6;
 // Image type is sniffed from magic bytes in uploadPane — never from the client-supplied MIME.
 
@@ -693,7 +694,7 @@ export async function replyPane(
   device: string | null,
   session: string,
 ): Promise<Response> {
-  let body: { text?: string; submit?: boolean; expected_prompt?: unknown };
+  let body: { text?: string; submit?: boolean; expected_prompt?: unknown; request_id?: unknown };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -703,6 +704,10 @@ export async function replyPane(
   if (!expected.ok) return text("bad expected_prompt", 400);
   const txt = body.text ?? "";
   const submit = body.submit ?? true;
+  const requestId = body.request_id;
+  if (requestId !== undefined && (typeof requestId !== "string" || requestId.length < 1 || requestId.length > MAX_REPLY_REQUEST_ID_CHARS || !/^[A-Za-z0-9._:-]+$/.test(requestId))) {
+    return text("bad request_id", 400);
+  }
   const ae = req.headers.get("accept-encoding");
   const binding = expected.present
     ? await checkPromptBinding(herdr, cfg, paneId, expected.value)
@@ -723,7 +728,13 @@ export async function replyPane(
     });
     return promptBindingFailure(binding, ae);
   }
-  const outcome = await sendReplySteps(herdr, paneId, txt, submit, cfg.submitKeys);
+  const operation = () => sendReplySteps(herdr, paneId, txt, submit, cfg.submitKeys);
+  const fingerprint = JSON.stringify([session, paneId, txt, submit, expected.present ? expected.value : null]);
+  const deduped = requestId === undefined
+    ? { outcome: await operation(), replayed: false }
+    : await runReplyOnce(`${session}\0${paneId}\0${requestId}`, fingerprint, operation);
+  if ("conflict" in deduped) return text("request_id payload mismatch", 409);
+  const { outcome } = deduped;
   // Audit the attempt regardless of outcome — text may have landed even when the submit failed.
   audit.record({
     action: "reply",
@@ -738,11 +749,30 @@ export async function replyPane(
       ...(binding ? { promptBinding: binding.audit } : {}),
     },
   });
-  if (outcome.ok) return json({ ok: true } satisfies ActionResponse, ae);
+  if (outcome.ok) return json({ ok: true, ...(typeof requestId === "string" ? { requestId, ack: submit ? "submitted" as const : "typed" as const, replayed: deduped.replayed } : {}) } satisfies ActionResponse, ae);
   return json(
     { ok: false, error: outcome.error, textDelivered: outcome.textDelivered } satisfies ActionResponse,
     ae,
   );
+}
+
+type ReplyLedgerEntry = { fingerprint: string; promise: Promise<ReplyOutcome>; expires: number };
+const replyLedger = new Map<string, ReplyLedgerEntry>();
+const REPLY_LEDGER_TTL_MS = 10 * 60_000;
+const REPLY_LEDGER_MAX = 512;
+
+async function runReplyOnce(key: string, fingerprint: string, operation: () => Promise<ReplyOutcome>): Promise<{ outcome: ReplyOutcome; replayed: boolean } | { conflict: true }> {
+  const now = Date.now();
+  for (const [candidate, entry] of replyLedger) if (entry.expires <= now) replyLedger.delete(candidate);
+  const existing = replyLedger.get(key);
+  if (existing) {
+    if (existing.fingerprint !== fingerprint) return { conflict: true };
+    return { outcome: await existing.promise, replayed: true };
+  }
+  const promise = operation();
+  replyLedger.set(key, { fingerprint, promise, expires: now + REPLY_LEDGER_TTL_MS });
+  while (replyLedger.size > REPLY_LEDGER_MAX) replyLedger.delete(replyLedger.keys().next().value!);
+  return { outcome: await promise, replayed: false };
 }
 
 export async function keysPane(

@@ -264,12 +264,13 @@ export type PaneHistoryResponse =
  * duplicate the already-typed text. Absent/false ⇒ nothing landed, so a resend is safe.
  */
 export type ActionResponse =
-  | { ok: true }
+  | { ok: true; requestId?: string; ack?: "typed" | "submitted"; replayed?: boolean }
   | {
       ok: false;
       error: string;
       textDelivered?: boolean;
       code?: "prompt_changed";
+      requestId?: string;
     };
 
 /** POST /api/pane/:id/upload — image saved to a host file; `path` is the absolute path to ref. */

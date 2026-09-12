@@ -32,7 +32,7 @@ Nenu runs on your machine and is normally exposed only inside your
 - Local, cached model and reasoning selectors for Codex CLI and Claude Code.
 - Searchable skills and command palettes tailored to each agent.
 - Context-window and reported-usage visibility.
-- Native rendering for Markdown, images, and PDF documents.
+- Native rendering for Markdown, images, PDFs, and sandboxed offline HTML previews.
 - Guarded replies, approvals, special keys, direct typing, and image uploads.
 - Mobile-safe navigation, installable PWA support, and optional push notifications.
 - Multi-session discovery from one bridge, with per-device write authorization available behind a

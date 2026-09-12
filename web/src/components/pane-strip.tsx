@@ -47,8 +47,8 @@ export function PaneStrip({
 
   return (
     <>
-      <div className="flex items-center gap-2 overflow-x-auto border-t border-border/40 bg-muted/20 px-3 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <SectionLabel>Panes</SectionLabel>
+      <div data-workbench-navigation-band="panes" className="flex min-h-9 items-center gap-1 overflow-x-auto border-t border-border/40 bg-muted/20 px-2 py-0.5 [scrollbar-width:none] sm:gap-2 sm:px-3 sm:py-1.5 [&::-webkit-scrollbar]:hidden">
+        <span className="hidden sm:inline"><SectionLabel>Panes</SectionLabel></span>
         {panes.map((p) => (
           <PanePill
             key={p.paneId}
@@ -120,7 +120,7 @@ function PanePill({
       className={cn(
         // select-none + -webkit-touch-callout:none stop iOS Safari's selection loupe / touch callout,
         // whose native long-press gesture otherwise fires pointercancel and kills our hold timer.
-        "flex shrink-0 select-none [-webkit-touch-callout:none] items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-sm font-medium transition-colors active:scale-95",
+        "flex shrink-0 select-none [-webkit-touch-callout:none] items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium transition-colors active:scale-95 sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-sm",
         active
           ? "bg-primary text-primary-foreground"
           : "bg-muted text-muted-foreground hover:bg-muted/70",

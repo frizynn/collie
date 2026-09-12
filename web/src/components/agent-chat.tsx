@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useNavigate, useRevalidator } from "react-router";
-import { ArrowUpToLine, Loader2, MessageSquareText, ScrollText, Search, TerminalSquare } from "lucide-react";
+import { ArrowUpToLine, ChevronDown, ChevronUp, Loader2, MessageSquareText, ScrollText, Search, TerminalSquare } from "lucide-react";
 import { useSwipeUp } from "@/hooks/use-swipe";
 import { useSpaceActions } from "@/hooks/use-spaces";
 import { useDashPrefs, openForCount } from "@/hooks/use-dash-prefs";
 import { useDisplayPrefs } from "@/hooks/use-display-prefs";
 import { useStableTerminalDraft } from "@/hooks/use-terminal-draft";
 import { isConnecting } from "@/lib/connection";
+import { WorkbenchNavigationContext } from "@/lib/workbench-navigation";
 import { setStatus } from "@/lib/status";
 import { ChatMessageList, type ChatMessageListHandle } from "@/components/ui/chat/chat-message-list";
 import { BottomSheet } from "@/components/ui/sheet";
@@ -120,6 +121,7 @@ export function AgentChat({
 }: AgentChatProps) {
   const revalidator = useRevalidator();
   const navigate = useNavigate();
+  const mobileNavigation = useContext(WorkbenchNavigationContext);
   // Poll-truth "is the data on screen not live". The header (AppHeader) reads the same inputs to drive
   // the Nenu mark + pill; here we use it to dim the StatusBadge, so the badge stops presenting the
   // last snapshot's status as current while we're reconnecting/lost, and restores instantly on recovery.
@@ -144,6 +146,36 @@ export function AgentChat({
   const composerRef = useRef<ComposerHandle>(null);
   const [followKey, setFollowKey] = useState(0);
   const [historyRequest, setHistoryRequest] = useState(0);
+  // Mobile focus mode is driven by the phone-owned draft, not by textarea focus: iOS can keep focus
+  // after the keyboard closes, and a draft restored from storage has no focus event at all. The
+  // dismiss latch lets the operator bring the navigation back without it immediately disappearing
+  // again on the next keystroke; clearing/sending the draft resets that choice for the next draft.
+  const [hasDraft, setHasDraft] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [focusModeDismissed, setFocusModeDismissed] = useState(false);
+  const handleDraftStateChange = useCallback((next: boolean) => {
+    setHasDraft(next);
+    if (!next) {
+      setFocusMode(false);
+      setFocusModeDismissed(false);
+      return;
+    }
+    setFocusMode((current) => focusModeDismissed ? current : true);
+  }, [focusModeDismissed]);
+  const toggleFocusMode = useCallback(() => {
+    if (!hasDraft) return;
+    setFocusMode((current) => !current);
+    setFocusModeDismissed(true);
+  }, [hasDraft]);
+  // The global mobile bar belongs to WorkbenchShell, outside this pane component. A document state
+  // attribute keeps the focus-mode contract local to the active pane while allowing CSS to collapse
+  // that sibling bar; cleanup prevents a stale hidden header after navigation/unmount.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (focusMode) root.dataset.collieComposerFocus = "true";
+    else delete root.dataset.collieComposerFocus;
+    return () => { delete root.dataset.collieComposerFocus; };
+  }, [focusMode]);
   const conversation = useLiveConversation({
     paneId, session, enabled: Boolean(agent?.hasSession), busy: agent?.status === "working",
   });
@@ -626,7 +658,10 @@ export function AgentChat({
   }
 
   return (
-    <div className="workbench-chat flex min-h-0 w-full min-w-0 max-w-[100dvw] flex-1 flex-col overflow-x-hidden">
+    <div
+      className="workbench-chat flex min-h-0 w-full min-w-0 max-w-[100dvw] flex-1 flex-col overflow-x-hidden"
+      data-composer-focus={focusMode ? "true" : "false"}
+    >
       {/* Header — the SAME AppHeader shell the dashboard and space mount, so the Nenu mark is
           identical on every screen (no hand-rolled bar to drift). The pane's own bits ride in via
           slots: the `space › tab` breadcrumb as the center, the agent StatusBadge as the right-cluster
@@ -636,6 +671,7 @@ export function AgentChat({
         error={error}
         stalled={stalled}
         onHome={onBack}
+        mobileNavigation={mobileNavigation}
         override={
           findOpen ? (
             <FindBar
@@ -674,9 +710,9 @@ export function AgentChat({
                   type="button"
                   onClick={openFind}
                   aria-label="Find in output"
-                  className="-mr-1 flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60 lg:-mr-1 lg:size-8"
                 >
-                  <Search className="size-4" />
+                  <Search className="size-3.5 sm:size-4" />
                 </button>
               )}
               {agent.hasSession && (
@@ -684,9 +720,9 @@ export function AgentChat({
                   type="button"
                   onClick={() => showConversation ? setHistoryRequest((key) => key + 1) : navigate(historyPath(paneId, session))}
                   aria-label="Conversation history"
-                  className="-mr-1 flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/60 lg:-mr-1 lg:size-8"
                 >
-                  <ScrollText className="size-4" />
+                  <ScrollText className="size-3.5 sm:size-4" />
                 </button>
               )}
               {conversationCapable && (
@@ -696,7 +732,7 @@ export function AgentChat({
                   aria-label={prefs.rawTerminal ? "Show conversation" : "Show raw terminal"}
                   aria-pressed={prefs.rawTerminal}
                   title={prefs.rawTerminal ? "Show conversation" : "Show raw terminal"}
-                  className="-mr-1 flex size-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground active:bg-muted md:size-8"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground active:bg-muted lg:-mr-1 lg:size-8"
                 >
                   {prefs.rawTerminal ? <MessageSquareText aria-hidden="true" className="size-4" /> : <TerminalSquare aria-hidden="true" className="size-4" />}
                 </button>
@@ -704,41 +740,40 @@ export function AgentChat({
               {isShell ? (
                 <ShellBadge stale={connecting} />
               ) : (
-                <StatusBadge status={agent.status} stale={connecting} />
+                <StatusBadge status={agent.status} stale={connecting} compactOnMobile />
               )}
             </>
           ) : undefined
         }
       >
-        {/* Title block: the space › tab leads, with the agent's brand logo to its left (the agent
-            name would just repeat the icon, so it's dropped), and the working directory on the
-            subline. Tapping it leaves the pane for the space overview (all its tabs + panes). */}
+        {/* Mobile keeps only the title; desktop adds the harness logo and cwd. Tapping either
+            opens the workspace overview (all its tabs + panes). */}
         {agent ? (
           <button
             type="button"
             onClick={() => openSpace(agent.workspaceId)}
             aria-label={`Open ${agent.workspaceLabel} overview`}
-            className="-mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1 py-0.5 text-left transition-colors active:bg-muted/60"
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 rounded-lg text-left transition-colors active:bg-muted/60 lg:-mx-1 lg:gap-2.5 lg:px-1 lg:py-0.5"
           >
             {isShell ? (
-              <div className="flex size-6 shrink-0 items-center justify-center rounded-full border bg-muted">
+              <div className="hidden size-6 shrink-0 items-center justify-center rounded-full border bg-muted lg:flex">
                 <TerminalSquare className="size-3 text-muted-foreground" />
               </div>
             ) : (
               // Deliberately smaller than the size-8 Nenu mark beside it — the agent logo is the
               // pane's subject, not a second brand competing with Nenu's for the header.
-              <AgentIcon agent={agent.agent} className="size-6" />
+              <AgentIcon agent={agent.agent} className="hidden size-6 lg:flex" />
             )}
             <div className="min-w-0 flex-1">
               {/* A user-set pane label leads when present (the identifier they chose), then Claude's
                   own /rename session name, otherwise the default space › tab. The cwd subline keeps
                   context either way. */}
-              <div className="truncate font-semibold leading-tight">
+              <div className="truncate text-sm font-semibold leading-tight sm:text-base">
                 {agent.paneLabel ??
                   agent.sessionName ??
                   `${agent.workspaceLabel}${tabLabel ? ` › ${tabLabel}` : ""}`}
               </div>
-              <div className="truncate font-mono text-xs leading-tight text-muted-foreground">
+              <div className="hidden truncate font-mono text-xs leading-tight text-muted-foreground lg:block">
                 {shortCwd(agent.cwd)}
               </div>
             </div>
@@ -749,6 +784,23 @@ export function AgentChat({
           </div>
         )}
       </AppHeader>
+
+      {/* Draft-driven, fixed mobile control. It survives while the four navigation bands collapse so
+          the user can always restore context; once the draft is empty the normal layout returns and
+          this control disappears. */}
+      {hasDraft && (
+        <button
+          type="button"
+          className="workbench-focus-toggle"
+          onClick={toggleFocusMode}
+          aria-expanded={!focusMode}
+          aria-label={focusMode ? "Show navigation" : "Hide navigation"}
+          title={focusMode ? "Show navigation" : "Hide navigation"}
+        >
+          {focusMode ? <ChevronDown aria-hidden="true" className="size-4" /> : <ChevronUp aria-hidden="true" className="size-4" />}
+          <span>{focusMode ? "Show navigation" : "Hide navigation"}</span>
+        </button>
+      )}
 
       {/* Content region below the header — the mirror inside is the scroller. */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -974,6 +1026,7 @@ export function AgentChat({
             gone={gone}
             readOnly={readOnly}
             disconnected={connecting}
+            onDraftStateChange={handleDraftStateChange}
             nativeWorkbench={showConversation}
             prepareSend={showConversation ? panels.prepareSend : undefined}
             onInputFocus={() => { void panels.changePanel(null); }}

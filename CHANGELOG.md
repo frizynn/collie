@@ -8,6 +8,48 @@ All notable changes to Nenu are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.40.2] - 2026-09-12
+
+### Fixed
+
+- Mobile chats use one compact header with workspace navigation, search, history, terminal toggle, and a color-only status indicator. (9f80c09)
+
+## [0.40.1] - 2026-09-12
+
+### Fixed
+
+- Home now presents distinct project cards instead of duplicating the sidebar's flat thread list, and single-child workspaces or tabs navigate directly without false disclosure controls. (dd96b0d)
+
+## [0.40.0] - 2026-09-11
+
+### Added
+
+- Home and the workspace drawer now expose a collapsible Workspace → Tab → Pane tree with direct navigation and accessible disclosure controls. (5a01453, 2d5edb7)
+
+### Fixed
+
+- Mobile drafts enter a reversible focus mode that hides navigation chrome while keeping a compact, internally scrolling composer and all message actions visible above the keyboard. (d63656b)
+
+## [0.39.1] - 2026-09-11
+
+### Fixed
+
+- Mobile navigation chrome is denser across the global header, pane identity, tabs, and pane switcher, removing the duplicate in-pane Nenu mark and returning more height to the conversation. (6b60792)
+
+## [0.39.0] - 2026-09-11
+
+### Fixed
+
+- Mobile sends now expose queue/Herdr acknowledgement state and retry with phase-scoped idempotency, so double taps and recoverable verification failures never append the same draft twice. (3c107d5)
+- Codex's working-state `tab to queue message` composer is detected from its renderer-owned footer, including its narrow mobile wrap, while plain-text lookalikes stay fail-closed. (8c2bb6e)
+- The mobile composer, telemetry row, and multiline input use less vertical space while preserving 44px touch targets, safe areas, and bounded internal scrolling. (3c107d5)
+
+## [0.38.0] - 2026-09-11
+
+### Added
+
+- Render local HTML previews in an opaque, no-network sandbox with Render/Código modes. (6c4a7a2)
+
 ## [0.37.3] - 2026-09-09
 
 ### Fixed
@@ -897,5 +939,7 @@ herd over Tailscale.
   authorisation via a trusted upstream header, a strict CSP, and terminal output rendered as React
   text nodes (the XSS boundary).
 
-[Unreleased]: https://github.com/frizynn/nenu/compare/v0.37.0...HEAD
+[Unreleased]: https://github.com/frizynn/nenu/compare/v0.39.0...HEAD
+[0.39.0]: https://github.com/frizynn/nenu/compare/v0.38.0...v0.39.0
+[0.38.0]: https://github.com/frizynn/nenu/compare/v0.37.3...v0.38.0
 [0.37.0]: https://github.com/frizynn/nenu/releases/tag/v0.37.0

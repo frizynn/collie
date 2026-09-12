@@ -40,11 +40,11 @@ export function WorkbenchTelemetry({ telemetry, stale, modelAvailable, disabled,
   const reported = values.filter((entry): entry is [string, number] => entry[1] !== undefined);
   const hasMetrics = reported.length > 0 || Boolean(telemetry?.rateLimits?.length);
   return (
-    <div className="workbench-telemetry flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 px-3 py-2 text-xs text-muted-foreground">
+    <div className="workbench-telemetry flex flex-nowrap items-center gap-1 overflow-hidden border-t border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground">
       <button
         ref={modelTriggerRef}
         type="button"
-        className="flex min-h-11 max-w-full items-center gap-2 rounded-md px-2 text-foreground hover:bg-accent disabled:opacity-50"
+        className="flex min-h-11 min-w-0 flex-1 items-center gap-1 rounded-md px-1.5 text-foreground hover:bg-accent disabled:opacity-50"
         disabled={(disabled && !modelOpen) || !modelAvailable}
         onClick={() => {
           if (controlledPanel === undefined) setLocalPanel(null);
@@ -57,14 +57,14 @@ export function WorkbenchTelemetry({ telemetry, stale, modelAvailable, disabled,
       >
         <Cpu className="size-3.5 shrink-0" />
         <span className="truncate">{telemetry?.model ?? "Model not reported"}</span>
-        {telemetry?.effort && <span className="text-muted-foreground">{telemetry.effort}</span>}
+        {telemetry?.effort && <span className="hidden shrink-0 text-muted-foreground sm:inline">{telemetry.effort}</span>}
         <ChevronDown className="size-3 shrink-0" />
       </button>
       <WorkbenchContextMeter usedTokens={context?.usedTokens ?? null} maxTokens={context?.windowTokens ?? null}
         onCompact={onCompact} compactDisabled={disabled} open={panel === "context"}
         onOpenChange={(open) => changePanel(open ? "context" : null)} />
       <div className="relative min-w-0">
-        <button ref={usageRef} type="button" aria-expanded={panel === "usage"} aria-haspopup="dialog" onClick={() => changePanel(panel === "usage" ? null : "usage")} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 hover:bg-accent">
+        <button ref={usageRef} type="button" aria-expanded={panel === "usage"} aria-haspopup="dialog" onClick={() => changePanel(panel === "usage" ? null : "usage")} className="flex min-h-11 cursor-pointer items-center gap-1 rounded-md px-1.5 hover:bg-accent">
           <Gauge className="size-3.5" />
           <span>Usage{stale ? " · stale" : ""}</span>
         </button>
@@ -89,7 +89,7 @@ export function WorkbenchTelemetry({ telemetry, stale, modelAvailable, disabled,
           </>}
         </WorkbenchPopover>
       </div>
-      {telemetry?.tokens?.total !== undefined && <span className="ml-auto tabular-nums">{tokens(telemetry.tokens.total)} tokens</span>}
+      {telemetry?.tokens?.total !== undefined && <span className="hidden shrink-0 tabular-nums sm:inline">{tokens(telemetry.tokens.total)} tokens</span>}
     </div>
   );
 }

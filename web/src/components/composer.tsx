@@ -53,6 +53,8 @@ interface ComposerProps {
   readOnly: boolean;
   /** Transport unavailable: stop terminal writes while keeping the local draft editable. */
   disconnected?: boolean;
+  /** Announces whether the phone-owned composer contains a draft so mobile chrome can enter focus mode. */
+  onDraftStateChange?: (hasDraft: boolean) => void;
   nativeWorkbench?: boolean;
   prepareSend?: () => Promise<boolean>;
   onInputFocus?: () => void;
@@ -148,7 +150,7 @@ function ComposerDock({
 }
 
 export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Composer(
-  { paneId, session, agent, isShell, gone, readOnly, disconnected = false, nativeWorkbench = false, prepareSend, onInputFocus, dialogPresent, text, terminalDraft, rawTerminalDraft, prefs, setWrap, stepFontSize, setTapToFocus, onSent },
+  { paneId, session, agent, isShell, gone, readOnly, disconnected = false, onDraftStateChange, nativeWorkbench = false, prepareSend, onInputFocus, dialogPresent, text, terminalDraft, rawTerminalDraft, prefs, setWrap, stepFontSize, setTapToFocus, onSent },
   ref,
 ) {
   const revalidator = useRevalidator();
@@ -170,6 +172,14 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   // functional update AND to persist the result, without either reading stale state or doing the
   // save inside a (double-invoked) state updater.
   const inputValueRef = useRef(input);
+  const hasDraft = input.trim().length > 0;
+
+  // Draft presence, rather than focus, is the stable signal for mobile reading mode. The keyboard
+  // can keep a textarea focused after it collapses, and a restored draft may be present before the
+  // user focuses anything; both cases still deserve the same compact navigation chrome.
+  useEffect(() => {
+    onDraftStateChange?.(hasDraft);
+  }, [hasDraft, onDraftStateChange]);
   // Which pane the current `input` belongs to. DetailRoute keys AgentChat by paneId, so in the app a
   // pane→pane navigation remounts this component and the lazy initialiser above does the work — but
   // the component must not depend on that: if it is ever rendered with a changed paneId/session in
@@ -213,6 +223,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
     noticeNoEcho(null); // it described the pane we just left
   }, [session, paneId]);
   const [sending, setSending] = useState(false);
+  const pendingDeliveryRef = useRef<{ paneId: string; text: string; id: string } | null>(null);
+  const [deliveryPhase, setDeliveryPhase] = useState<"queued" | "typed" | "retry" | null>(null);
   const [uploading, setUploading] = useState(false);
   // Pending-send preview: set on a successful send, cleared when the mirror catches up (next text
   // update) or after a 6s safety timeout. Shows "You sent: …" so the user knows the message landed.
@@ -337,6 +349,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   // lapses on its own once the grace expires or the echo resolves; a genuinely stranded draft (never
   // matches a recent send) is untouched.
   const suppressEcho = (draft: string | null): string | null => {
+    const pending = pendingDeliveryRef.current;
+    if (draft !== null && pending !== null && pending.paneId === paneId && isSelfEcho(draft, pending.text, adapter?.draftCarriesSend)) return null;
     if (
       draft !== null &&
       lastSentRef.current !== null &&
@@ -490,6 +504,12 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
       return false;
     }
     setSending(true);
+    const previous = pendingDeliveryRef.current;
+    const delivery = previous?.paneId === paneId && previous.text === t
+      ? previous
+      : { paneId, text: t, id: crypto.randomUUID() };
+    pendingDeliveryRef.current = delivery;
+    if (!action) setDeliveryPhase("queued");
     try {
       if (action !== "model" && prepareSend && !(await prepareSend())) return false;
       if (lockedRef.current) return false;
@@ -501,6 +521,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         agent,
         session,
         force,
+        requestId: delivery.id,
+        onAck: (ack) => { if (!action) setDeliveryPhase(ack === "typed" ? "typed" : null); },
         // Clear a stranded draft on the terminal's "❯" line before pane.send_text appends at cursor —
         // ctrl+k kills cursor→end, Backspace sweep kills the head (preview-action.ts pattern). Skip
         // when there's no draft: a blind sweep races the TUI and Enter can fire before the PTY
@@ -570,6 +592,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         },
       });
       if (res.status === "sent") {
+        pendingDeliveryRef.current = null;
+        setDeliveryPhase(null);
         // Phone-owned input — cleared once the reply is on its way. Via updateInput, so the stored
         // draft goes with it (an empty value removes the key).
         if (isDraft) updateInput((current) => current === value ? "" : current);
@@ -614,6 +638,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         // the same two-tap shape as the destructive-send confirm. The second tap skips the pre-flight
         // ONLY; the type-then-verify guard still runs, so Enter is never fired blind either way.
         forceConfirm.confirm("force");
+        setDeliveryPhase("retry");
         // A password prompt gets the notice AND keeps the override: the notice explains the screen and
         // offers the control that works, the override stays for the case where the detection is wrong.
         noticeNoEcho(res.noEcho !== undefined ? { prompt: res.noEcho, typed: false } : null);
@@ -634,10 +659,12 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             ? { prompt: res.noEcho, typed: true }
             : null,
         );
+        setDeliveryPhase("retry");
         setStatus(res.error, "error");
         return false;
       }
     } catch (e) {
+      setDeliveryPhase("retry");
       setStatus(e instanceof Error ? e.message : String(e), "error");
       return false;
     } finally {
@@ -770,7 +797,13 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 
   return (
     <>
-      <div className="workbench-composer-surface border-t border-border/60 bg-muted px-3 pb-[calc(env(safe-area-inset-bottom)_+_0.5rem)] pt-2.5">
+      <div className="workbench-composer-surface border-t border-border/60 bg-muted px-2 pb-[max(env(safe-area-inset-bottom),0.35rem)] pt-1.5 sm:px-3 sm:pt-2.5">
+        {deliveryPhase && !lastSent && (
+          <div className="mb-1 flex min-h-7 items-center gap-1.5 px-1 text-xs text-muted-foreground" role="status" aria-live="polite">
+            {deliveryPhase !== "retry" && <Loader2 className="size-3 shrink-0 animate-spin" />}
+            <span>{deliveryPhase === "queued" ? "Queued — waiting for Herdr…" : deliveryPhase === "typed" ? "Herdr acknowledged typing — verifying…" : "Not sent — tap Send to retry safely."}</span>
+          </div>
+        )}
         {/* Pending-send preview: visible from send until the mirror echoes back (or 6s). Shows the
             user what landed so they don't double-tap while waiting for the terminal to update. */}
         {lastSent && (
@@ -844,7 +877,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           {!nativeWorkbench && <Button
             variant="ghost"
             size="sm"
-            className={cn("h-8 flex-1 gap-1.5", drawer === "keys" ? CONTROL_ON : CONTROL_OFF)}
+            className={cn("h-11 min-w-0 flex-1 gap-1.5 sm:h-8", drawer === "keys" ? CONTROL_ON : CONTROL_OFF)}
             disabled={locked}
             aria-expanded={drawer === "keys"}
             onClick={() => requestDrawer(drawer === "keys" ? null : "keys")}
@@ -866,7 +899,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           {!nativeWorkbench && <Button
             variant="ghost"
             size="sm"
-            className={cn("h-8 flex-1 gap-1.5", direct.active ? CONTROL_ON : CONTROL_OFF)}
+            className={cn("h-11 min-w-0 flex-1 gap-1.5 sm:h-8", direct.active ? CONTROL_ON : CONTROL_OFF)}
             disabled={locked || sending}
             aria-pressed={direct.active}
             aria-label="Type into terminal"
@@ -888,7 +921,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           <Button
             variant="ghost"
             size="sm"
-            className={cn("h-8 flex-1 gap-1.5", drawer === "quick" ? CONTROL_ON : CONTROL_OFF)}
+            className={cn("h-11 min-w-0 flex-1 gap-1.5 sm:h-8", drawer === "quick" ? CONTROL_ON : CONTROL_OFF)}
             disabled={locked}
             aria-expanded={drawer === "quick"}
             onClick={() => requestDrawer(drawer === "quick" ? null : "quick")}
@@ -900,7 +933,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 flex-1 gap-1.5 text-muted-foreground"
+              className="h-11 min-w-0 flex-1 gap-1.5 text-muted-foreground sm:h-8"
               disabled={locked}
               onClick={() => requestDrawer("cmd")}
             >
@@ -913,7 +946,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           <Button
             variant="ghost"
             size="icon"
-            className={cn("size-8 shrink-0", drawer === "display" ? CONTROL_ON : CONTROL_OFF)}
+            className={cn("size-11 shrink-0 sm:size-8", drawer === "display" ? CONTROL_ON : CONTROL_OFF)}
             aria-label="Display settings"
             aria-expanded={drawer === "display"}
             onClick={() => requestDrawer(drawer === "display" ? null : "display")}
@@ -1036,7 +1069,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               // matters: a textarea is inline-level by default, so the wrapper inherits a few px of
               // baseline gap beneath it and the absolutely-positioned button hangs past the field's
               // bottom edge.
-              nativeWorkbench ? "block min-h-10 px-2 py-2" : "block pr-11",
+              nativeWorkbench ? "workbench-chat-input block min-h-11 px-2 py-2" : "workbench-chat-input block pr-11",
               direct.active &&
                 "border-primary focus-visible:border-primary focus-visible:ring-primary/30",
             )}
@@ -1050,7 +1083,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
               // bottom-1, not centred: the field grows upward as the draft wraps, and a vertically
               // centred button would drift up with it, away from the thumb and away from the send
               // button it pairs with. Pinned to the bottom it stays put at any height.
-              className="absolute bottom-1 right-1 size-9 rounded-full text-muted-foreground"
+              className="absolute bottom-1 right-1 size-11 rounded-full text-muted-foreground sm:size-9"
               disabled={uploading || locked || direct.active}
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => fileRef.current?.click()}
@@ -1064,17 +1097,17 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             </Button>}
           </div>
           {nativeWorkbench && <div className="flex min-w-0 items-center gap-0.5" role="toolbar" aria-label="Message actions">
-            <Button type="button" variant="ghost" size="icon" className="size-11 text-muted-foreground md:size-8" title="Attach image" aria-label="Attach image"
+            <Button type="button" variant="ghost" size="icon" className="size-11 shrink-0 text-muted-foreground md:size-8" title="Attach image" aria-label="Attach image"
               disabled={uploading || locked} onPointerDown={(e) => e.preventDefault()} onClick={() => fileRef.current?.click()}>
               {uploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
             </Button>
-            <Button type="button" variant="ghost" size="icon" className={cn("size-11 md:size-8", drawer === "quick" ? CONTROL_ON : CONTROL_OFF)}
+            <Button type="button" variant="ghost" size="icon" className={cn("size-11 shrink-0 md:size-8", drawer === "quick" ? CONTROL_ON : CONTROL_OFF)}
               title="Quick replies" aria-label="Quick replies" disabled={locked} aria-expanded={drawer === "quick"}
               onClick={() => requestDrawer(drawer === "quick" ? null : "quick")}><Zap className="size-4" /></Button>
-            {commands.length > 0 && <Button type="button" variant="ghost" size="icon" className="size-11 text-muted-foreground md:size-8"
+            {commands.length > 0 && <Button type="button" variant="ghost" size="icon" className="size-11 shrink-0 text-muted-foreground md:size-8"
               title="Commands" aria-label="Commands" disabled={locked} aria-expanded={drawer === "cmd"}
               onClick={() => requestDrawer(drawer === "cmd" ? null : "cmd")}><Slash className="size-4" /></Button>}
-            <Button type="button" variant="ghost" size="icon" className={cn("size-11 md:size-8", drawer === "display" ? CONTROL_ON : CONTROL_OFF)}
+            <Button type="button" variant="ghost" size="icon" className={cn("size-11 shrink-0 md:size-8", drawer === "display" ? CONTROL_ON : CONTROL_OFF)}
               title="Display settings" aria-label="Display settings" aria-expanded={drawer === "display"}
               onClick={() => requestDrawer(drawer === "display" ? null : "display")}><Settings2 className="size-4" /></Button>
           </div>}
