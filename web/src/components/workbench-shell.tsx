@@ -74,16 +74,6 @@ export function WorkbenchShell({ data, children }: { data: HomeData; children: R
       </div>}
 
       <div className="workbench-main">
-        <div className="workbench-mobile-bar">
-          <button type="button" className="workbench-icon-button" aria-label="Open workspaces" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}>
-            <PanelLeft aria-hidden="true" size={18} />
-          </button>
-          <Link to={homePath(data.session)} className="workbench-brand">
-            <img src="/nenu-mark.png" alt="" width="22" height="22" className="nenu-mark" />
-            <span>Nenu <span className="font-normal text-muted-foreground">Code</span></span>
-          </Link>
-          <SessionSwitcher sessions={data.sessions ?? []} current={data.session} />
-        </div>
         <WorkbenchNavigationContext value={{ open: mobileOpen, onOpen: () => setMobileOpen(true) }}>
           {children}
         </WorkbenchNavigationContext>

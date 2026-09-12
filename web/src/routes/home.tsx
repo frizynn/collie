@@ -2,11 +2,13 @@ import { useState } from "react";
 import { useNavigate, useRouteLoaderData } from "react-router";
 import { Plus } from "lucide-react";
 
+import { AppHeader, SettingsGear } from "@/components/app-header";
 import { ReadOnlyBanner } from "@/components/read-only-banner";
 import { SpaceOverview } from "@/components/space-overview";
 import { NewSpaceSheet } from "@/components/new-space-sheet";
 import { openForCount, useDashPrefs } from "@/hooks/use-dash-prefs";
 import { useSpaceActions } from "@/hooks/use-spaces";
+import { useLoadingStalled } from "@/hooks/use-loading-stalled";
 import { ROOT_ROUTE_ID, type HomeData } from "@/lib/loaders";
 import { panePath, spacePath } from "@/lib/nav";
 import { isReadOnly } from "@/lib/types";
@@ -19,14 +21,15 @@ export function HomeRoute() {
   const { newSpace } = useSpaceActions();
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
   const { prefs, setSpacesOpen } = useDashPrefs();
+  const stalled = useLoadingStalled();
   const canCreate = !isReadOnly(data.device) && !data.error && data.bridge === "connected";
   const spacesOpen = openForCount(prefs.spacesOpen, data.workspaces.length);
 
   return <div className="workbench-home flex min-h-0 min-w-0 flex-1 flex-col">
-    <header className="flex h-13 shrink-0 items-center justify-between border-b border-border px-5 text-xs text-muted-foreground">
-      <span className="font-medium">Overview</span>
-      <span>{data.workspaces.length} {data.workspaces.length === 1 ? "project" : "projects"}</span>
-    </header>
+    <AppHeader bridge={data.bridge} error={data.error} stalled={stalled}
+      rightTrail={<><span className="text-xs tabular-nums text-muted-foreground">{data.workspaces.length} {data.workspaces.length === 1 ? "project" : "projects"}</span><SettingsGear session={data.session} /></>}>
+      <span className="truncate text-sm font-medium">Overview</span>
+    </AppHeader>
     <ReadOnlyBanner device={data.device} />
     <main className="min-h-0 flex-1 overflow-y-auto px-5 py-10 sm:px-8 sm:py-14">
       <div className="mx-auto w-full max-w-2xl">

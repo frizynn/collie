@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useNavigate, useRevalidator } from "react-router";
 import { ArrowUpToLine, ChevronDown, ChevronUp, Loader2, MessageSquareText, ScrollText, Search, TerminalSquare } from "lucide-react";
@@ -8,7 +8,6 @@ import { useDashPrefs, openForCount } from "@/hooks/use-dash-prefs";
 import { useDisplayPrefs } from "@/hooks/use-display-prefs";
 import { useStableTerminalDraft } from "@/hooks/use-terminal-draft";
 import { isConnecting } from "@/lib/connection";
-import { WorkbenchNavigationContext } from "@/lib/workbench-navigation";
 import { setStatus } from "@/lib/status";
 import { ChatMessageList, type ChatMessageListHandle } from "@/components/ui/chat/chat-message-list";
 import { BottomSheet } from "@/components/ui/sheet";
@@ -122,7 +121,6 @@ export function AgentChat({
 }: AgentChatProps) {
   const revalidator = useRevalidator();
   const navigate = useNavigate();
-  const mobileNavigation = useContext(WorkbenchNavigationContext);
   // Poll-truth "is the data on screen not live". The header (AppHeader) reads the same inputs to drive
   // the Nenu mark + pill; here we use it to dim the StatusBadge, so the badge stops presenting the
   // last snapshot's status as current while we're reconnecting/lost, and restores instantly on recovery.
@@ -698,7 +696,6 @@ export function AgentChat({
         error={error}
         stalled={stalled}
         onHome={onBack}
-        mobileNavigation={mobileNavigation}
         override={
           findOpen ? (
             <FindBar
