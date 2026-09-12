@@ -8,6 +8,12 @@ All notable changes to Nenu are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.40.3] - 2026-09-12
+
+### Fixed
+
+- Verify model and reasoning changes in the terminal; handle wrapped descriptions and Claude models without reasoning controls. (b150125)
+
 ## [0.40.2] - 2026-09-12
 
 ### Fixed
